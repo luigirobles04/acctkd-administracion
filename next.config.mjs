@@ -1,6 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-};
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/**',
+      },
+    ],
+  },
+  experimental: {
+    optimizePackageImports: ['@supabase/supabase-js', 'chart.js'],
+  },
+}
 
-export default nextConfig;
+export default nextConfig
