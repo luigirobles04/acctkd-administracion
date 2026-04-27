@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CALZINOVA — Propuesta y manual de usuario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --emerald: #004d40;
+      --gold: #c5b358;
+      --slate: #708090;
+      --smoke: #f5f5f5;
+      --page: #fafafa;
+      --shadow: 0 12px 40px rgba(0, 45, 40, 0.08);
+      --r: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "Outfit", system-ui, sans-serif;
+      background: var(--page);
+      color: #1a1a1a;
+      overflow: hidden;
+    }
+    .deck {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0, 77, 64, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(197, 179, 88, 0.08) 0%, transparent 45%),
+        linear-gradient(180deg, #fafbfa 0%, var(--smoke) 100%);
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3.5rem 1.5rem 5.5rem;
+      animation: inSlide 0.5s ease;
+    }
+    .slide.is-active { display: flex; }
+    @keyframes inSlide {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .slide__inner {
+      width: 100%;
+      max-width: 1000px;
+    }
+    .card {
+      background: #fff;
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0, 77, 64, 0.08);
+      padding: 1.75rem 2rem;
+    }
+    h1 {
+      font-size: clamp(1.6rem, 3.8vw, 2.4rem);
+      font-weight: 700;
+      color: var(--emerald);
+      margin: 0 0 0.5rem;
+      line-height: 1.2;
+    }
+    h2 {
+      font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+      font-weight: 600;
+      color: var(--emerald);
+      margin: 0 0 1rem;
+    }
+    p.lead {
+      font-size: 1.05rem;
+      color: var(--slate);
+      margin: 0 0 1.25rem;
+      line-height: 1.55;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+    ul.nice {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #333;
+    }
+    ul.nice li {
+      margin: 0.5rem 0;
+      line-height: 1.5;
+    }
+    ul.nice li::marker { color: var(--emerald); }
+    .two-col {
+      display: grid;
+      gap: 1.25rem;
+    }
+    @media (min-width: 720px) {
+      .two-col { grid-template-columns: 1fr 1fr; align-items: start; }
+    }
+    .fig {
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--smoke);
+      border: 1px solid rgba(0, 77, 64, 0.1);
+    }
+    .fig img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: min(55vh, 420px);
+      object-fit: contain;
+      object-position: top center;
+    }
+    .fig__cap {
+      font-size: 0.9rem;
+      color: var(--slate);
+      font-style: italic;
+      margin-top: 0.75rem;
+    }
+    .cover h1 { font-size: clamp(1.8rem, 4.5vw, 2.75rem); }
+    .cover .sub {
+      font-size: 1.1rem;
+      color: var(--slate);
+      max-width: 32ch;
+    }
+    .cover .line {
+      width: 72px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--emerald), var(--gold));
+      border-radius: 2px;
+      margin: 1.5rem 0 1rem;
+    }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    table.data th {
+      text-align: left;
+      background: var(--emerald);
+      color: #fff;
+      padding: 0.55rem 0.6rem;
+      font-weight: 600;
+    }
+    table.data td {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid #e8e8e8;
+      vertical-align: top;
+    }
+    table.data tr:nth-child(even) td { background: rgba(245, 245, 245, 0.5); }
+    .overlay-ui {
+      position: fixed;
+      z-index: 20;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0.6rem 1rem 1rem;
+      background: linear-gradient(transparent, rgba(250, 251, 250, 0.95));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .bar-wrap {
+      width: min(400px, 90vw);
+      height: 4px;
+      background: rgba(0, 77, 64, 0.12);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar { height: 100%; background: linear-gradient(90deg, var(--emerald), var(--gold)); transition: width 0.3s ease; }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .controls button {
+      font-family: inherit;
+      background: var(--emerald);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 77, 64, 0.25);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .controls button:hover { transform: translateY(-1px); background: #00695c; }
+    .controls button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .counter {
+      font-size: 0.8rem;
+      color: var(--slate);
+      min-width: 4.5rem;
+      text-align: center;
+    }
+    .help {
+      font-size: 0.68rem;
+      color: #999;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="deck" id="deck">
+    <!-- 1 -->
+    <section class="slide is-active cover" data-title="Portada">
+      <div class="slide__inner card" style="text-align:center; padding:2.5rem 2rem;">
+        <p class="tag">Ingeniería de software</p>
+        <h1>CALZINOVA</h1>
+        <p class="sub" style="margin:0.5rem auto 0; max-width:100%;">Marketplace y panel de gestión de indicadores comerciales</p>
+        <div class="line" style="margin:1.5rem auto;"></div>
+        <p class="lead" style="margin:0; font-size:0.95rem;">Propuesta técnica (Calzado Libertad) + manual de usuario</p>
+        <p style="margin:1rem 0 0; font-size:0.88rem; color:var(--slate);">Luigi Armando Robles Palacios · Jhayron Joseph Quiliche Valladolid</p>
+        <p style="margin:0.4rem 0 0; font-size:0.8rem; color:var(--gold);">Trujillo, La Libertad — 2026</p>
+      </div>
+    </section>
+    <!-- 2 -->
+    <section class="slide" data-title="Identidad de marca">
+      <div class="slide__inner">
+        <p class="tag">Branding</p>
+        <h1>Identidad CALZINOVA</h1>
+        <div class="card">
+          <div class="fig"><img src="img/PHOTO-2026-04-19-23-57-27-20a3958d-4284-4991-9b56-f5a3d58ab296.png" alt="Logo CALZINOVA" /></div>
+          <p class="fig__cap">Calzado e indicadores de crecimiento: artesanía e industrial digital en un solo relato.</p>
+        </div>
+      </div>
+    </section>
+    <!-- 3 -->
+    <section class="slide" data-title="Estructura">
+      <div class="slide__inner card">
+        <h1>Estructura de esta presentación</h1>
+        <p class="lead">Guion para exponer y formar: propuesta, datos, seguridad, uso de la interfaz.</p>
+        <ul class="nice">
+          <li><strong>Parte A</strong> — Qué pide y qué entrega el proyecto (sin tabla de presupuestos de desarrollo).</li>
+          <li><strong>Parte B</strong> — Cómo se organiza la información: inventario, producción, ventas, capital humano.</li>
+          <li><strong>Parte C</strong> — Usuarios, contraseñas cifradas y roles (multi-tenancy).</li>
+          <li><strong>Parte D</strong> — Acceso, landing, marketplace y panel (paso a paso con capturas).</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 4 -->
+    <section class="slide" data-title="Visión del proyecto">
+      <div class="slide__inner card">
+        <h1>Qué resuelve el sistema</h1>
+        <ul class="nice">
+          <li><strong>ERP + marketplace</strong>: la fábrica (MYPE) concentra inventario, producción, ventas e indicadores en un panel; el visitante ve catálogo y contacto directo (WhatsApp).</li>
+          <li><strong>Contexto</strong> — Trujillo, El Porvenir: transformación digital del calzado con foco en rentabilidad, capacidad y capital humano.</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 5 -->
+    <section class="slide" data-title="Requerimientos">
+      <div class="slide__inner card">
+        <h1>1. Requerimientos (empresa / arranque)</h1>
+        <ul class="nice">
+          <li>Identidad: logotipo (PNG/SVG) y catálogo de modelos actuales.</li>
+          <li>Inventario: fotos, tallas, colores, precios por modelo.</li>
+          <li>Costos: coste de producción por par (calibrar KPIs).</li>
+          <li>Venta: número de <strong>WhatsApp Business</strong> (integración y contacto).</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 6 -->
+    <section class="slide" data-title="Entregables">
+      <div class="slide__inner card">
+        <h1>2. Entregables del sistema</h1>
+        <ul class="nice">
+          <li>Dominio <strong>.com</strong> — registro y configuración (plazo según acuerdo, p. ej. 12 meses en propuesta original).</li>
+          <li><strong>Panel</strong> — inventario, costos, métricas e indicadores.</li>
+          <li><strong>Marketplace</strong> — catálogo e integración con WhatsApp.</li>
+          <li><strong>Soporte</strong> — mantenimiento y ajustes (ventana acordada, p. ej. 3 meses).</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 7 -->
+    <section class="slide" data-title="Infraestructura">
+      <div class="slide__inner card">
+        <h1>3. Infraestructura (sin cifras de presupuesto)</h1>
+        <p class="lead">Hosting, SSL y dominio forman el entorno seguro. Los montos se revisan con el proveedor al desplegar; aquí se omite el desglose presupuestal a petición del equipo.</p>
+      </div>
+    </section>
+    <!-- 8 -->
+    <section class="slide" data-title="Seguridad y mantenimiento">
+      <div class="slide__inner card">
+        <h1>5. Seguridad y mantenimiento</h1>
+        <ul class="nice">
+          <li><strong>Backups</strong> periódicos de la base de datos (frecuencia según hosting).</li>
+          <li><strong>SSL</strong> — cifrado en tránsito para ventas y datos de clientes.</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 9 -->
+    <section class="slide" data-title="KPIs">
+      <div class="slide__inner card">
+        <h1>6. Fórmulas de indicadores (interpretación en panel)</h1>
+        <p class="lead"><strong>Utilidad aprox. (%):</strong> <code style="background:var(--smoke); padding:0.1rem 0.35rem; border-radius:4px;">((Venta − Costo) / Venta) × 100</code></p>
+        <p class="lead" style="margin-top:0.75rem;"><strong>Punto de equilibrio:</strong> <code style="background:var(--smoke); padding:0.1rem 0.35rem; border-radius:4px;">Gastos / (Precio − costo variable)</code></p>
+      </div>
+    </section>
+    <!-- 10 -->
+    <section class="slide" data-title="Anexos">
+      <div class="slide__inner card">
+        <h1>Anexos: URLs de referencia (Calzado Libertad)</h1>
+        <ul class="nice">
+          <li><strong>Panel (ejemplo):</strong> <code>admin.calzadolibertad.pe/dashboard</code> — ventas, utilidad, stock bajo, gráfica ventas vs costos.</li>
+          <li><strong>Marketplace (ejemplo):</strong> <code>calzadolibertad.pe</code> — catálogo y WhatsApp por producto, responsive móvil.</li>
+        </ul>
+      </div>
+    </section>
+    <!-- 11 -->
+    <section class="slide" data-title="Paleta de color">
+      <div class="slide__inner">
+        <h1>Lineamiento visual: Strategic Growth</h1>
+        <div class="card">
+          <div class="fig"><img src="img/PHOTO-2026-04-19-23-44-50-70b8bb6c-5178-4fef-af16-5249eb57b899.png" alt="Paleta de colores" /></div>
+          <p class="fig__cap">#004D40 · #C5B358 · #708090 · #F5F5F5 — botones, fondos y acentos.</p>
+        </div>
+      </div>
+    </section>
+    <!-- 12-15 tablas MYPE -->
+    <section class="slide" data-title="MYPE Inventario">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">MYPE — Inventario (logística)</h1>
+        <table class="data">
+          <tr><th>Campo</th><th>Uso</th><th>Indicador UPRIT</th></tr>
+          <tr><td>Material</td><td>Insumo: cuero, suela, hilo, pegamento…</td><td>Control de insumos</td></tr>
+          <tr><td>Unidad de medida</td><td>Pies, docenas, litros…</td><td>Gestión de compras</td></tr>
+          <tr><td>Stock actual</td><td>Disponible hoy en almacén</td><td>R4.6 abastecimiento</td></tr>
+          <tr><td>Stock mínimo</td><td>Umbral de alerta</td><td>Alerta de quiebre</td></tr>
+          <tr><td>Costo unitario</td><td>Precio de compra</td><td>R1.7 valorización</td></tr>
+          <tr><td>Valor total</td><td>Stock × costo (capital inmovilizado)</td><td>R1.7 capital de trabajo</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="slide" data-title="MYPE Producción">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">MYPE — Producción (operaciones)</h1>
+        <table class="data">
+          <tr><th>Campo</th><th>Uso</th><th>Indicador UPRIT</th></tr>
+          <tr><td>Código de lote</td><td>ID del batch / pedido</td><td>Trazabilidad</td></tr>
+          <tr><td>Modelo</td><td>Diseño o referencia</td><td>Catálogo</td></tr>
+          <tr><td>Cant. programada / ejecutada</td><td>Pares pedidos / terminados</td><td>Meta, R4.2 eficiencia</td></tr>
+          <tr><td>Estado</td><td>Corte → Aparado → Armado → Terminado</td><td>R4.4 lead time</td></tr>
+          <tr><td>Fecha entrega</td><td>Compromiso con cliente</td><td>R4.1 cumplimiento</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="slide" data-title="MYPE Ventas">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">MYPE — Ventas (comercial)</h1>
+        <table class="data">
+          <tr><th>Campo</th><th>Uso</th><th>Indicador UPRIT</th></tr>
+          <tr><td>Cliente</td><td>Comprador</td><td>Cartera</td></tr>
+          <tr><td>Total venta</td><td>Monto cobrado</td><td>Ingresos brutos</td></tr>
+          <tr><td>Método de pago</td><td>Efectivo, Yape, Plin, transfer.</td><td>R1.1 bancarización</td></tr>
+          <tr><td>Estado de pago</td><td>Pagado / pendiente</td><td>Control de deuda</td></tr>
+          <tr><td>Ticket promedio</td><td>Gasto medio mensual</td><td>R3.3</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="slide" data-title="MYPE Capital humano">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">MYPE — Capital humano</h1>
+        <table class="data">
+          <tr><th>Campo</th><th>Uso</th><th>Indicador UPRIT</th></tr>
+          <tr><td>Operario</td><td>Nombre</td><td>Registro de personal</td></tr>
+          <tr><td>Especialidad</td><td>Cortador, aparador…</td><td>Especialización</td></tr>
+          <tr><td>Horas capacitación</td><td>Formación</td><td>H2.1 capacitación</td></tr>
+          <tr><td>Incidentes</td><td>Riesgos/accidentes</td><td>H5.7 seguridad</td></tr>
+        </table>
+      </div>
+    </section>
+    <!-- Seguridad -->
+    <section class="slide" data-title="Seguridad (intro)">
+      <div class="slide__inner card">
+        <h1>Base de datos: identidad y multi-tenancy</h1>
+        <p class="lead">Cada taller (MYPE) solo ve sus propios datos. No se mezclan fábricas. Auditoría básica: quién hizo qué, con qué correo y rol.</p>
+      </div>
+    </section>
+    <section class="slide" data-title="Campos de usuario">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">Campos de identidad</h1>
+        <table class="data">
+          <tr><th>Campo</th><th>Para el usuario</th><th>Negocio</th></tr>
+          <tr><td>Name</td><td>Nombre visible</td><td>Auditoría</td></tr>
+          <tr><td>Email</td><td>Acceso e ID único</td><td>Login y notificaciones</td></tr>
+          <tr><td>Role</td><td>Permisos</td><td>Qué ve y hace</td></tr>
+          <tr><td>Password</td><td>Cifrada</td><td>Nadie ve la clave; solo rotación/reset</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="slide" data-title="Roles">
+      <div class="slide__inner card" style="padding:1rem; overflow:auto; max-height:80vh;">
+        <h1 style="font-size:1.2rem; margin-bottom:0.6rem;">Roles (quién es quién)</h1>
+        <table class="data">
+          <tr><th>Rol</th><th>Alcance</th></tr>
+          <tr><td>Admin (soporte)</td><td>Plataforma, nuevas MYPEs, servidor</td></tr>
+          <tr><td>MYPE (dueño)</td><td>Todo su negocio; no ve otros talleres</td></tr>
+          <tr><td>Cliente</td><td>Favoritos / carrito; sin datos ajenos</td></tr>
+        </table>
+      </div>
+    </section>
+    <!-- UI -->
+    <section class="slide" data-title="Login">
+      <div class="slide__inner">
+        <h1>Paso 1: Acceso empresarial</h1>
+        <div class="card">
+          <div class="fig"><img src="img/afa70704-962b-4919-954d-a36c5eb1645b-730f6254-8727-4217-8d49-0f8968123546.png" alt="Pantalla de inicio de sesión" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Cómo usar el login">
+      <div class="slide__inner card">
+        <h1>Consejos de inicio de sesión</h1>
+        <ul class="nice">
+          <li>Use el ojo de la contraseña solo con la pantalla encima de usted; no deje el teclado a la vista de terceros.</li>
+          <li>“Recordarme” en equipos de confianza. “Olvidé mi contraseña” según el flujo de correo desplegado.</li>
+          <li>El candado indica conexión segura (SSL). “Regístrate” si aplica a su fábrica.</li>
+        </ul>
+      </div>
+    </section>
+    <section class="slide" data-title="Landing 1">
+      <div class="slide__inner">
+        <h1>Landing: valor (variante 1)</h1>
+        <div class="card">
+          <div class="fig"><img src="img/d19b7cf6-aa5d-48b8-b1c3-68e82681ebac-97a797b0-4441-4083-bbe1-019c0bdc1503.png" alt="Landing CALZINOVA" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Landing 2">
+      <div class="slide__inner">
+        <h1>Landing: indicadores (variante 2)</h1>
+        <div class="card">
+          <div class="fig"><img src="img/116be844-9f3a-40c6-bb0f-4ddb8d2e7983-bcd58599-97a1-49f2-abe9-e98bf43ff7e9.png" alt="Landing con KPI" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Navegación pública">
+      <div class="slide__inner card">
+        <h1>Qué enlaces usar (visitante o fábrica)</h1>
+        <ul class="nice">
+          <li><strong>Explorar marketplace</strong> — catálogo, filtros, WhatsApp por producto.</li>
+          <li><strong>Acceso empresarial</strong> — panel. <strong>Comenzar ahora</strong> — onboarding.</li>
+        </ul>
+      </div>
+    </section>
+    <section class="slide" data-title="Marketplace">
+      <div class="slide__inner">
+        <h1>Marketplace: catálogo y filtros</h1>
+        <div class="card">
+          <div class="fig"><img src="img/68fd6300-706c-4aab-9b34-0a00fc8697fc-f24a1dd1-b013-416f-a65b-30813145b115.png" alt="Marketplace" /></div>
+          <p class="fig__cap">Búsqueda, categoría, talla EU, rango de precio; S/ e ícono WhatsApp en cada ficha.</p>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Uso del marketplace">
+      <div class="slide__inner card">
+        <h1>Manual: comprador en el catálogo</h1>
+        <ul class="nice">
+          <li>Novedades, marcas, ofertas según el despliegue publicado.</li>
+          <li>Refine con filtros: categoría, talla, precio mín. / máx.</li>
+          <li>Converse por WhatsApp para talla, stock y envío (venta conversacional).</li>
+        </ul>
+      </div>
+    </section>
+    <section class="slide" data-title="Panel 1">
+      <div class="slide__inner">
+        <h1>Panel: Control de producción (resumen)</h1>
+        <div class="card">
+          <div class="fig"><img src="img/53ea3c38-d299-464a-96a4-342518f852de-8330e27a-0482-46cd-b7d1-afca6f80223f.png" alt="Control de producción" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Panel 2">
+      <div class="slide__inner">
+        <h1>Crear orden (formulario)</h1>
+        <div class="card">
+          <div class="fig"><img src="img/386bf9b7-13ba-464b-99db-86d151213e99-beb5df02-3239-4429-911a-12b8dd20dc3f.png" alt="Formulario de orden" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Panel 3">
+      <div class="slide__inner">
+        <h1>Orden: detalle y lista vacía (inicio)</h1>
+        <div class="card">
+          <div class="fig"><img src="img/718cb772-249d-41b4-b8b9-0c8bfce9a19d-5b0be950-3ef2-42ab-90ba-2533a0168bec.png" alt="Detalle de creación" /></div>
+        </div>
+      </div>
+    </section>
+    <section class="slide" data-title="Pasos de producción">
+      <div class="slide__inner card">
+        <h1>En “Control de producción” (orden lógico)</h1>
+        <ol class="nice" style="list-style: decimal; padding-left:1.2rem;">
+          <li>Clic en <strong>+ Nueva orden</strong> o abrir el formulario.</li>
+          <li>Código de lote (ej. LOTE-2025-001) y modelo (ej. “Zapatilla Deportiva X1”).</li>
+          <li>Pares, estado inicial (suele ser Corte) y fecha de inicio.</li>
+          <li>Filtros: Todas, Corte, Aparado, Armado, Terminado — para ver solo su etapa.</li>
+        </ol>
+      </div>
+    </section>
+    <section class="slide" data-title="Cierre">
+      <div class="slide__inner card">
+        <h1>Qué reforzar con el equipo</h1>
+        <ul class="nice">
+          <li>Requisitos, entregables, seguridad e indicadores: documentados; sin desglose de presupuesto de desarrollo en esta versión (pedido académico/comercial).</li>
+          <li>Indicadores solo son confiables si el uso diario (producción, pago) está actualizado.</li>
+        </ul>
+      </div>
+    </section>
+    <section class="slide cover" data-title="Gracias">
+      <div class="slide__inner card" style="text-align:center; padding:2.5rem;">
+        <h1>Gracias</h1>
+        <p class="lead" style="margin:0.5rem 0 0;">CALZINOVA — Propuesta técnica y manual con todas las capturas de interfaz.</p>
+        <p style="margin-top:1rem; font-size:0.8rem; color:var(--slate);">← → o botones · F para pantalla completa</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="overlay-ui" aria-label="Navegación de diapositivas">
+    <div class="bar-wrap" aria-hidden="true"><div class="bar" id="progress"></div></div>
+    <div class="controls">
+      <button type="button" id="prev" aria-label="Anterior">← Anterior</button>
+      <span class="counter" id="counter">1 / 31</span>
+      <button type="button" id="next" aria-label="Siguiente">Siguiente →</button>
+    </div>
+    <p class="help">Flechas del teclado · Inicio / Fin · Pulsar F para pantalla completa en el navegador</p>
+  </div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const n = slides.length;
+      let i = 0;
+      const progress = document.getElementById("progress");
+      const counter = document.getElementById("counter");
+      const prev = document.getElementById("prev");
+      const next = document.getElementById("next");
+
+      function go(to) {
+        i = Math.max(0, Math.min(n - 1, to));
+        slides.forEach((s, j) => s.classList.toggle("is-active", j === i));
+        progress.style.width = ((i + 1) / n) * 100 + "%";
+        counter.textContent = i + 1 + " / " + n;
+        document.title = (slides[i].dataset.title || "Diapositiva " + (i + 1)) + " — CALZINOVA";
+        prev.disabled = i === 0;
+        next.disabled = i === n - 1;
+      }
+
+      prev.addEventListener("click", () => go(i - 1));
+      next.addEventListener("click", () => go(i + 1));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); go(i + 1); }
+        if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(i - 1); }
+        if (e.key === "Home") go(0);
+        if (e.key === "End") go(n - 1);
+        if (e.key.toLowerCase() === "f") {
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+          else document.exitFullscreen();
+        }
+      });
+      let x0 = null;
+      document.addEventListener("touchstart", (e) => { x0 = e.changedTouches[0].screenX; }, { passive: true });
+      document.addEventListener("touchend", (e) => {
+        if (x0 == null) return;
+        const x1 = e.changedTouches[0].screenX;
+        const dx = x1 - x0;
+        if (Math.abs(dx) > 50) { if (dx < 0) go(i + 1); else go(i - 1); }
+        x0 = null;
+      }, { passive: true });
+
+      go(0);
+    })();
+  </script>
+</body>
+</html>
