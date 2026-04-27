@@ -1,0 +1,46 @@
+id_alumno,dni_alumno,nombres,apellidos,fecha_nacimiento,sexo,peso,telefono,fecha_ingreso_qv,id_apoderado,activo,foto,auth_uid,id_usuario
+03b0ed19-309a-47a2-a027-1c8171cb69dd,62447279,Neyser Alejandro,Chaupe Gonzales,2010-08-18,M,,933906519,2026-04-02,75faaf8b-a109-4acd-a817-4f578de0963a,true,,,f57ccdbb-0ec8-4699-ac21-6faafdb79dc8
+074ff83a-e84b-4f83-b54e-3231de459d05,62656671,Salvador Sait,Lupuche Pingo,2010-05-19,M,,902078652,2026-03-22,f2c1dad3-761b-4568-b87f-c3fc03597754,true,,,57bde0da-9431-4e68-8e91-9a7196625f1d
+13ff27b9-ac41-4f7e-b5c4-c0eb7a0af84f,73557274,Mariana Maribel,Rodriguez Valerio,2009-07-08,F,,938425315,2026-03-22,6a9d3631-ac39-434e-b9b7-f2e45c93cb89,true,,,9c61a776-b8c7-437e-9616-785469fba1fb
+1473bbef-7646-4de2-9911-98beae6e003e,89653215,Rayan Valentino,Ticlayauri,2017-02-21,M,,,2026-03-24,4384e0b9-2054-4c0b-869e-3fd8180743fb,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1776487675678.png,,55b42359-a73b-4723-bd56-458ddc9cde0d
+1933d6fb-0cc6-4904-8e2c-a0a7ee9bbae4,81292767,Nayara Antonela Fabiana,Cajacuri Limay,2015-08-23,F,,,2026-03-24,6631ee9e-0946-44dd-8127-789d27376b01,true,,,7dad2a42-a217-42b2-a302-38d4fe7ee0e9
+205dc672-01be-4ba9-b20f-98a97fa50b1c,63777751,Judith Analia,Zavaleta Benites,2010-09-12,F,,928793155,2026-04-04,7f411a36-8d1b-43d2-ba68-37dbe08d5744,true,,,c244ba46-6b8f-49f0-a894-0a2a94582749
+27382753-bacd-41c5-9672-d7a2e888ec57,80993075,Jamil Segundo,Trujillo Avila,2013-04-27,M,,,2026-03-24,123bec46-6648-430c-bda8-9fc2c1fd776f,true,,,218210cb-b716-42b6-b5b6-066565ad6b16
+34044d15-84df-47e0-9997-66011253cca7,,Delitzy Rubí,Rodríguez Gutierrez,2014-08-23,F,,,2026-03-24,53f3516e-36fc-45e9-bd4a-36888a74c22e,true,,,6ee0817a-acfe-4d7e-8d62-f4c6ebd22216
+45b79040-dfaa-4f20-bcdb-3da0548a6bcc,61353542,Jordy Jeampier,Garcia Flores,2008-05-18,M,,,2026-03-22,71d45413-34cd-4502-84c0-743bf6699b74,true,,,d30a0340-d41b-4446-88e6-b1b439d76ddf
+47fe198a-7da1-4dca-9efd-c121e3996f05,62821573,Luana Sherlyn,Moreno Burgos,2011-06-26,F,,,2026-03-23,037637a1-7af6-445b-a45b-4e688c1da107,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1774304344660.png,,f20cbb2c-a329-4d25-80e3-c6939d94f332
+4a7f9218-d8bf-403a-8e2d-57d3d75bf316,86530652,Amy Ximena,Agurto Placencia,2017-04-24,F,,,2026-03-24,af6ee7f4-7491-4363-afe4-1ea2616729ee,true,,,b7449411-af48-4286-a8c9-67a4839bb43d
+4f146d21-7300-46ea-a3af-44a5481659d7,61724047,Leonardo Martín,Ramos Vásquez,2009-12-27,M,,965417693,2026-04-26,a7e083f0-8bce-479c-b56f-50b7065184df,true,,,5d8beec7-5f3f-4600-8d89-090ce8244689
+53c3c692-5703-4683-8914-65d4bac8ea5f,91331831,Dixson Fernando,Tapullima Amasifuen,2019-05-21,M,,,2026-03-24,13aa326f-5983-426c-a2fd-39353ea1ce6f,true,,,f997ba77-a507-4c2c-b529-2e2cb922439a
+5526c243-1eca-47c8-bb4b-fab58fb9a166,03525413,Miguel Alberto,Torres Benitez,2008-07-12,M,,,2026-03-23,ea91c003-e7b8-427a-bfa1-ce15437e9114,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1774307927333.png,,1c71b93a-2988-4154-a048-9a6795312045
+575f05a8-d193-4f41-8459-ba3ca66899db,78935348,Oscar Alfonso,Solórzano Castillo,2014-07-14,M,,,2026-03-24,a1037449-66fd-4f81-b96f-ab3f5c6da9b1,true,,,86af1f38-1ecb-477c-b3ad-07db0cfd7ed0
+5ea215bc-7fc2-4123-968f-fd2eb9304ea5,62936881,Said Joaquín,Ramos Vásquez,2011-12-07,M,,976772360,2026-04-26,a7e083f0-8bce-479c-b56f-50b7065184df,true,,,802b1024-5e27-4754-ae4d-e45bb9182a2e
+675126c2-69b8-4fa1-b634-bee14d043c15,73913043,Luis Antonio,Ascate Martinez,2008-04-01,M,,,2026-03-23,37e06c1b-1445-4f77-b788-99aa809da815,true,,,7c460df7-d3b4-464e-bf46-9d6d4d239ad6
+69f95dd0-733f-4b7a-8b78-9d38c3cec80f,60142099,Diana Viviana,Inchaustegui Garcia,2008-12-24,F,,,2026-03-25,3cd6ff70-cdbf-49a8-baf9-8619f6a81801,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1774416726218.png,,aebdfd14-c52c-4010-b6b8-4ab5efea87f2
+6c3d2581-5932-4ab0-b206-f2788d8f1f2b,60799706,Q'orianka,Silva Bonilla,2006-08-05,F,,980926330,2026-03-24,,true,,,0cfc47d7-4dfc-40e8-b41c-c21b64d15127
+704afabe-68aa-4c81-a401-5a8ddcc349dd,78474268,Angelo Nicolás,Yauce Santisteban,2014-02-28,M,,,2026-03-23,c55f5e42-3ccb-4325-a88e-efb0af132ddb,true,,,b3dd421b-6571-4409-bfd1-61eda20454d8
+82132969-f576-4ee0-8d77-a224e71a8e86,72989884,Lastenia Judith,Chico Moreno,2009-01-27,F,,,2026-03-23,0b385a48-bfd3-4260-9e60-72f5f441b417,true,,,a616764a-fcd9-4450-9cee-5ce5824fbd15
+842ccba2-ab83-4222-9f3b-ac8eaa68c5a7,63020603,Cristopher Steven,Rodriguez Castillo,2013-09-19,M,,,2026-03-23,2e6d2cff-51a2-4662-9dfc-65040104376e,true,,,918da01b-c87e-4d0e-b26b-13a33651298b
+88f2b58d-d53b-43cf-958b-f16714285d45,81292710,Stephano Andre,Tejeda Campos,2014-07-27,M,,,2026-03-24,18db896e-99eb-4ba5-994a-dc9d99c3936e,true,,,5d236ff8-ca7b-457b-a9b9-11ab196dc3e4
+8b9b706b-38b3-4a92-a2d8-19c3385cfdae,81104601,Jean Chrysler,Requena Navez,2013-01-02,M,,903022681,2026-04-04,62a0c265-61a6-4826-84fb-f8f0bb670a8c,true,,,b6b12eab-0723-4215-b2e0-beeec3fbd183
+9e9fd592-5f86-4bc9-9533-59c23b3215a2,90767746,Khael Enrique,Puclia Gomez,2018-05-10,M,,,2026-04-18,d101cc70-940b-4693-bb25-324bc45cab0e,true,,,c1bf856a-13e9-49f4-8b9b-97901de554a1
+a00c0813-270b-43a6-80a4-e086259faf2b,73409594,Ruben Alexander,Cueva Galarreta,2009-06-05,M,,987034626,2026-04-03,5d43cb5e-95d8-44ab-b2fc-63e55e0475b2,true,,,9acf941b-46ab-41c6-a897-4c6c0076cda7
+a53e6eee-3172-4975-848a-5f7ddd2efc84,92140990,Samuel Benjamín,Zúñiga Abad,2020-07-27,M,,,2026-03-24,70839179-8d06-4216-bf9b-4a99af8808b6,true,,,a6ebad3b-744b-4681-a1ba-0ec381caabe5
+a9801bf3-272d-4705-881e-239e3b88f530,74670674,Andriu,Alban Riojas,2010-09-14,M,,978407824,2026-04-03,e29b70e7-88a8-4029-8966-3e356f596ae8,true,,,681a8724-2bd8-4d2d-9109-831da60708cf
+ad589f97-9d9c-4158-80ac-5002295a9ab4,62658314,Snayder Andres,Gonzales Layza,2010-08-09,M,,946782723,2026-04-06,66343abf-7b8a-4a33-a48a-8914050870bb,true,,,ad01d6ea-6856-412b-a141-dc03ffd481e9
+b0bd82ad-00e9-4166-8a30-7b1245df7c9d,90376846,Deybi Dashiro Valentino,Rivera Guzman,2014-11-20,M,,,2026-03-24,4dba7647-b565-4ed4-8a6b-3000a266005c,true,,,3f44ae5b-9aff-4b78-8b93-4778d2f334f5
+b9728bc6-81af-475a-bfe4-77d9c00c8ba0,78531651,Anthony Joaquín,Puclia Paz,2014-04-11,M,,,2026-03-23,214f9121-db8f-4178-a0ef-15181fe004df,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1774304598467.png,,cf2caa7a-d727-483e-a9c9-d4c4ca6a8f2b
+bba7f87f-f1c0-405c-8788-16f7f8b22eca,79303433,Kiara Kristell,Cruz Pascual,2015-09-20,F,,,2026-03-24,3ba459f2-a943-4b1d-8459-190cd52e5a44,true,,,0634778f-a72e-4d43-9285-1ea0f8b60447
+bc0ec655-ad2f-4a3f-92f1-7ddad9074fe7,63353850,Edward Gianfranco,Tejeda Campos,2011-09-23,M,,,2026-03-24,65035844-c47b-4f96-b913-91a8e5f1d523,true,,,f914c6b7-551f-4e4c-b499-ebbc378a341d
+c0484da0-2ae7-4495-9aec-dd9f4a065e4c,91219319,Julián Nicolás,Silva Zambrano,2019-02-28,M,,,2026-03-24,e9db5748-7b16-43cf-acbf-b4c1cc8e244a,true,,,6b2f5840-88f2-4454-ad89-6c2e3a738fa6
+c53cb3bc-f31d-4cc7-ab4e-d9af131af9df,62843530,Alejandra Mishel,Ortega Achahuanco,2011-04-23,F,,,2026-04-18,fa014bdc-a7a0-4cad-856e-2a43406469dd,true,,,0cfefd45-a4ec-4838-9833-0cc3a794d837
+c55df8f3-8c61-40de-b39d-04699f288ac1,62790824,Bianca Adely,Sosa de la Cruz,2008-06-27,F,,944783737,2026-01-22,29eb8ff5-e5a5-4b6d-8614-679a8042988b,true,,,ce5baa5e-ba8c-443b-9c33-4c7a139ed41e
+c882a831-240b-4483-9e32-3f14479769a3,76706411,Alan Enrique,Cosavalente Villanueva,2011-03-20,M,,,2026-01-22,8a700cce-17a9-45ef-aa17-49fc5c20de37,true,,,97fd8761-d139-43aa-87aa-5a298e8e2f29
+db24eb85-653e-4c80-8b8f-f66de2904f0e,75965030,Christina Lizbeth,Roque Aranda,2003-04-06,F,,944925118,2026-03-16,,true,,,75a39b0c-a998-4af7-bec5-f6a43f23da93
+dddfdfa1-2f61-43fb-b024-2a15c74d35db,79011058,Traizy Guadalupe,Mallqui Polo,2009-04-01,F,,,2026-03-23,02701e18-2007-4b9c-8b0b-39f0db262dab,true,,,680b65e4-d89f-466d-b45e-715a8c7c2a79
+deb5cd49-4c65-456e-b362-291834867ba8,79770756,Carlos Francisco,Aguilar Zegarra,2016-07-22,M,,,2026-03-25,330d481e-e35f-43f3-85cf-f422f63f97e7,true,,,16f39a42-7afc-4341-af60-fd48f0eb0af7
+e13c3583-1eff-4348-982e-a09bdeed999c,77105969,Mia Christell,Chico Moreno,2011-05-06,F,,,2026-03-23,c0fbc0c1-f329-4868-9559-c85a3126cddb,true,https://jebodoiejjdfzgfhxqhf.supabase.co/storage/v1/object/public/alumnos/perfil_1774310079973.png,,7a9fe26f-6f4c-41b6-9f60-d620610714d0
+ea9df0f5-6697-42bd-a548-18b632eb7951,62328225,Nicoll Isabel,Pascual Maza,2010-10-21,F,,,2026-03-24,cfb68d22-f71c-4b3b-baef-f97a9a04b15f,true,,,bc388e01-ec92-48cb-a82d-daad21f99724
+ed9fdde4-5751-4e70-a98a-a987770e17cf,91593586,Alessia Maria,Alvarez Correa Jímenes,2019-11-15,F,,,2026-03-24,e9903d36-1e67-4f85-a64a-a56d50e8ee68,true,,,075ac5df-b9e7-4cb4-b4b5-511205848c53
+ef0a9dc1-7706-464b-aacf-a20cdee0f449,67432256,Jade Jharumy,Rondo Sotelo,2013-01-25,F,,,2026-03-24,421f6014-92a0-40ee-a805-4cc01e942c29,true,,,9c35566c-7ccf-4cbb-ac0c-4c57cd5769f0
+fc7c3347-00c1-407f-b971-81549cd7db3d,81795535,Sherlyn Sharis,Urbina Alva,2017-02-02,F,,,2026-03-24,0b4a54b1-60f9-4099-b779-0bde9daed038,true,,,85be2f38-9ef0-4a91-ab9e-fce336e269b2
