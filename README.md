@@ -12,7 +12,7 @@ Gestiona alumnos, maestros, asistencias, pagos, exámenes de grado, comunicados 
 - **Framework:** Next.js 16 (App Router, React 19)
 - **Estilos:** Tailwind CSS v4 + sistema de diseño iOS propio (`globals.css`)
 - **BaaS:** Supabase (PostgreSQL + RLS + Storage)
-- **PWA:** `next-pwa` + `manifest.json`
+- **PWA:** `public/manifest.json` (workbox vía dependencia en roadmap, por compatibilidad con Next 16)
 - **Auth:** personalizado con `bcryptjs` (migración a Supabase Auth en roadmap)
 - **Deploy:** Vercel (frontend) + Supabase (backend)
 - **Zona horaria de trabajo:** Perú (UTC-5)
