@@ -1,7 +1,7 @@
--- ACCTKD · Carga demo desde export sistema QV (ejemplo)
+-- ACCTKD · Carga demo desde export sistema QV (ejemplo) — listado largo
+-- Prefiere: sistema_qv_alumnos_compact.sql (incluye apoderado, ficha médica y pagos de demo; datos ficticios).
 -- Ejecutar en Supabase SQL Editor DESPUÉS de 20260420_000002_seed_data.sql
--- Asigna sede/plan/turno/grado por subconsulta; códigos CCTKD-DEMO-0001 en adelante.
--- id_apoderado: NULL (export QV trae UUIDs; en ACCTKD son int). Completar apoderados en la UI o migración aparte.
+-- O si los alumnos ya están: sistema_qv_demo_solo_enriquecer.sql
 -- Revisa UNIQUE(dni) y codigo_alumno si ya tienes alumnos reales: borra demo o ajusta prefijo.
 BEGIN;
 

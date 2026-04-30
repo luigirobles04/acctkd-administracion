@@ -549,6 +549,87 @@ body {
 .ios-chip:hover { background: rgba(118,118,128,0.18); }
 .ios-chip.active { background: var(--red); color: #fff; font-weight: 600; }
 
+/* ── Ficha alumno: shell + menú vertical (md+) ─────────────────────── */
+.alumno-ficha-shell {
+  display: grid;
+  gap: 20px;
+}
+@media (min-width: 900px) {
+  .alumno-ficha-shell {
+    grid-template-columns: minmax(232px, 280px) minmax(0, 1fr);
+    align-items: start;
+  }
+  .alumno-ficha-nav--desktop {
+    position: sticky;
+    top: 1rem;
+  }
+}
+.alumno-ficha-nav-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  padding: 6px;
+}
+.alumno-ficha-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--label2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1.25;
+}
+.alumno-ficha-nav-item:hover {
+  background: rgba(118, 118, 128, 0.1);
+  color: var(--label);
+}
+.alumno-ficha-nav-item.active {
+  background: #FFEBEE;
+  color: var(--red-700, #B71C1C);
+  font-weight: 600;
+}
+.alumno-ficha-nav-item .alumno-ficha-nav-ico {
+  font-size: 22px;
+  color: var(--label3);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.alumno-ficha-nav-item.active .alumno-ficha-nav-ico {
+  color: var(--red);
+}
+.alumno-ficha-nav--mobile {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+@media (min-width: 900px) {
+  .alumno-ficha-nav--mobile { display: none; }
+  .alumno-ficha-nav--desktop { display: block; }
+}
+@media (max-width: 899px) {
+  .alumno-ficha-nav--desktop { display: none; }
+}
+
 /* ── iOS Segmented Control ────────────────────────────────────────── */
 .ios-segmented {
   display: inline-flex;

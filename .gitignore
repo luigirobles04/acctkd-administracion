@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# agentes / herramientas locales (no subir)
+.mcp_*
+.only_query__*.sql
+.mcp_invoke*.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

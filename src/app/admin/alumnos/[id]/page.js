@@ -94,6 +94,19 @@ export default function AlumnoDetallePage() {
   }
 
   const edad = edadDesde(alumno.fecha_nacimiento)
+  const pctAsist = asistencia != null && typeof asistencia.porcentaje === 'number'
+    ? asistencia.porcentaje
+    : 0
+
+  const fichaSecciones = [
+    { id: 'info',       l: 'Información',  i: 'info' },
+    { id: 'apoderado',  l: 'Apoderado',    i: 'family_restroom' },
+    { id: 'medico',     l: 'Médico',       i: 'medical_information' },
+    { id: 'asistencia', l: `Asistencia (${pctAsist}%)`, i: 'fact_check' },
+    { id: 'pagos',      l: `Pagos (${pagos.length})`, i: 'payments' },
+    { id: 'grados',     l: `Grados (${historial.length})`, i: 'workspace_premium' },
+    { id: 'estado',     l: 'Acciones',     i: 'tune' },
+  ]
 
   return (
     <AdminLayout
@@ -163,26 +176,42 @@ export default function AlumnoDetallePage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
-          {[
-            { id: 'info',       l: 'Información',  i: 'info' },
-            { id: 'apoderado',  l: 'Apoderado',    i: 'family_restroom' },
-            { id: 'medico',     l: 'Médico',       i: 'medical_information' },
-            { id: 'asistencia', l: `Asistencia${asistencia ? ` (${asistencia.porcentaje}%)` : ''}`, i: 'fact_check' },
-            { id: 'pagos',      l: `Pagos (${pagos.length})`, i: 'payments' },
-            { id: 'grados',     l: `Grados (${historial.length})`, i: 'workspace_premium' },
-            { id: 'estado',     l: 'Acciones',     i: 'tune' },
-          ].map(t => (
-            <button key={t.id}
+        {/* Navegación: móvil = chips; desktop = lista lateral fijada (sticky) */}
+        <nav className="alumno-ficha-nav--mobile" style={{ marginBottom: 12 }} aria-label="Secciones de la ficha">
+          {fichaSecciones.map(t => (
+            <button
+              key={t.id}
+              type="button"
               className={`ios-chip ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}>
+              onClick={() => setTab(t.id)}
+            >
               <span className="material-symbols-rounded" style={{ fontSize: 15 }}>{t.i}</span>
               {t.l}
             </button>
           ))}
-        </div>
+        </nav>
 
+        <div className="alumno-ficha-shell" style={{ marginTop: 4 }}>
+          <div className="alumno-ficha-nav--desktop">
+            <p className="ios-form-section-title" style={{ margin: '0 0 8px 4px', fontSize: 12 }}>
+              Secciones
+            </p>
+            <nav className="alumno-ficha-nav-panel" aria-label="Secciones de la ficha">
+              {fichaSecciones.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`alumno-ficha-nav-item ${tab === t.id ? 'active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  <span className="material-symbols-rounded alumno-ficha-nav-ico" aria-hidden="true">{t.i}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>{t.l}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="alumno-ficha-content" style={{ minWidth: 0 }}>
         {tab === 'info' && (
           <Section titulo="Datos personales">
             <Row label="Nombres"    valor={alumno.nombres} />
@@ -388,6 +417,8 @@ export default function AlumnoDetallePage() {
             </Section>
           </>
         )}
+          </div>
+        </div>
       </div>
 
       {showEdit && (

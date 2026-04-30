@@ -28,7 +28,7 @@ export default function PagosPage() {
         supabase.from('pago')
           .select('*, alumno(nombres, apellidos, dni), sede(nombre)')
           .order('fecha_pago', { ascending: false })
-          .limit(100),
+          .limit(400),
         supabase.from('alumno').select('id_alumno, nombres, apellidos, dni').eq('activo', true).order('apellidos'),
       ])
       setPagos(pagosData || [])
@@ -67,16 +67,16 @@ export default function PagosPage() {
 
   return (
     <AdminLayout title="Pagos y Mensualidades">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-10 space-y-8">
         {/* Stats rápidas */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
           {[
             { label: 'Total Este Mes', value: `S/ ${totalMes.toFixed(2)}`, icon: 'payments', color: '#059669' },
             { label: 'Pagos Pendientes', value: pendientes, icon: 'pending', color: '#D97706' },
             { label: 'Total Registros', value: pagos.length, icon: 'receipt_long', color: '#1F3864' },
             { label: 'Alumnos Activos', value: alumnos.length, icon: 'school', color: 'var(--red)' },
           ].map(s => (
-            <div key={s.label} className="tkd-card p-4 flex items-center gap-3">
+            <div key={s.label} className="tkd-card p-5 flex items-center gap-4 rounded-2xl">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${s.color}15` }}>
                 <span className="material-symbols-rounded text-xl" style={{ color: s.color }}>{s.icon}</span>
               </div>
@@ -89,11 +89,11 @@ export default function PagosPage() {
         </div>
 
         {/* Filtros y acción */}
-        <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
-          <div className="flex gap-2">
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex flex-wrap gap-2">
             {['todos','pagado','pendiente','vencido'].map(f => (
               <button key={f} onClick={() => setFiltro(f)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all"
+                className="px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-all"
                 style={{
                   background: filtro === f ? 'var(--red)' : '#F3F4F6',
                   color: filtro === f ? '#fff' : '#6B7280'
@@ -103,7 +103,7 @@ export default function PagosPage() {
             ))}
           </div>
           <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white shrink-0"
             style={{ background: 'var(--red)' }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -113,7 +113,7 @@ export default function PagosPage() {
         </div>
 
         {/* Tabla */}
-        <div className="tkd-card overflow-hidden">
+        <div className="tkd-card overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
           {loading ? (
             <div className="p-10 text-center text-gray-400">
               <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -126,34 +126,34 @@ export default function PagosPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
-                  <tr className="text-xs font-semibold text-gray-500 border-b" style={{ background: '#FAFAFA' }}>
-                    <th className="text-left px-5 py-3">Alumno</th>
-                    <th className="text-left px-4 py-3">Concepto</th>
-                    <th className="text-left px-4 py-3">Monto</th>
-                    <th className="text-left px-4 py-3">Método</th>
-                    <th className="text-left px-4 py-3">Fecha</th>
-                    <th className="text-left px-4 py-3">Estado</th>
+                  <tr className="text-xs font-semibold text-gray-500 border-b border-gray-100" style={{ background: '#FAFAFA' }}>
+                    <th className="text-left px-6 py-4">Alumno</th>
+                    <th className="text-left px-5 py-4">Concepto</th>
+                    <th className="text-left px-5 py-4">Monto</th>
+                    <th className="text-left px-5 py-4">Método</th>
+                    <th className="text-left px-5 py-4">Fecha</th>
+                    <th className="text-left px-5 py-4">Estado</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100">
                   {filtrados.map(p => (
-                    <tr key={p.id_pago} className="hover:bg-gray-50">
-                      <td className="px-5 py-3">
+                    <tr key={p.id_pago} className="hover:bg-gray-50/80 align-middle">
+                      <td className="px-6 py-4">
                         <p className="font-semibold text-sm text-gray-900">
                           {p.alumno ? `${p.alumno.apellidos}, ${p.alumno.nombres}` : '—'}
                         </p>
                         <p className="text-xs text-gray-400">{p.alumno?.dni || ''}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{p.concepto}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4 text-gray-600">{p.concepto}</td>
+                      <td className="px-5 py-4">
                         <span className="font-bold text-gray-900">S/ {parseFloat(p.monto_final || p.monto).toFixed(2)}</span>
                         {p.descuento > 0 && <p className="text-xs text-green-600">-S/ {p.descuento}</p>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 capitalize">{p.metodo_pago}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{p.fecha_pago}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4 text-gray-600 capitalize">{p.metodo_pago}</td>
+                      <td className="px-5 py-4 text-gray-600 whitespace-nowrap">{p.fecha_pago}</td>
+                      <td className="px-5 py-4">
                         <span className={`badge ${estadoBadge(p.estado)}`}>{p.estado}</span>
                       </td>
                     </tr>
