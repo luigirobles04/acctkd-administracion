@@ -160,9 +160,10 @@ export async function resumenAsistenciaAlumno({ idAlumno, mesesAtras = 3 }) {
     else if (estado === ESTADOS.RECUPERACION) recuperaciones++
     else ausentes++
   }
-  // % sobre clases donde debió asistir (presente + ausente + justificada)
-  const base = presentes + ausentes + justificadas
-  const porcentaje = base > 0 ? Math.round((presentes / base) * 100) : 0
+  // Clases “con asistencia efectiva”: presente + recuperación (cuenta como día cubierto).
+  const conAsistencia = presentes + recuperaciones
+  const base = presentes + ausentes + justificadas + recuperaciones
+  const porcentaje = base > 0 ? Math.round((conAsistencia / base) * 100) : 0
   return {
     desde: desdeISO,
     total,
@@ -170,6 +171,7 @@ export async function resumenAsistenciaAlumno({ idAlumno, mesesAtras = 3 }) {
     ausentes,
     justificadas,
     recuperaciones,
+    conAsistencia,
     porcentaje,
     historial: filtradas,
   }

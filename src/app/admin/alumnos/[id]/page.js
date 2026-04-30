@@ -53,7 +53,7 @@ export default function AlumnoDetallePage() {
       .select('*, concepto:id_concepto(nombre), metodo:id_metodo(nombre)')
       .eq('id_alumno', id)
       .order('fecha_pago', { ascending: false })
-      .limit(12)
+      .limit(48)
     setPagos(data || [])
   }
 
@@ -286,7 +286,9 @@ export default function AlumnoDetallePage() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, color: 'var(--label2)', marginBottom: 4 }}>
-                        {asistencia.presentes} de {asistencia.presentes + asistencia.ausentes + asistencia.justificadas} clases asistidas.
+                        {asistencia.conAsistencia ?? asistencia.presentes + (asistencia.recuperaciones || 0)} de{' '}
+                        {asistencia.presentes + asistencia.ausentes + asistencia.justificadas + (asistencia.recuperaciones || 0)} clases con asistencia efectiva
+                        (presente o recuperación).
                       </p>
                       <p style={{ fontSize: 12, color: asistencia.porcentaje >= 70 ? '#059669' : '#F59E0B', fontWeight: 600 }}>
                         {asistencia.porcentaje >= 70
@@ -352,19 +354,37 @@ export default function AlumnoDetallePage() {
         )}
 
         {tab === 'pagos' && (
-          <Section titulo="Últimos pagos">
+          <Section titulo="Pagos y mensualidades">
             {pagos.length === 0 ? <EmptyMsg texto="Sin pagos registrados aún." /> : pagos.map(p => (
-              <div key={p.id_pago} className="ios-form-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4, minHeight: 60 }}>
-                <div className="ios-hstack" style={{ justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>
-                    {p.concepto?.nombre || p.concepto || 'Pago'}
+              <div key={p.id_pago} className="ios-form-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6, minHeight: 72, paddingTop: 10, paddingBottom: 10 }}>
+                <div className="ios-hstack" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14, display: 'block' }}>
+                      {p.concepto?.nombre || p.concepto || 'Pago'}
+                    </span>
+                    {p.mes_correspondiente && (
+                      <span style={{ fontSize: 11, color: 'var(--label3)', marginTop: 2, display: 'block' }}>
+                        Periodo: {formatFecha(typeof p.mes_correspondiente === 'string' ? p.mes_correspondiente.slice(0, 10) : p.mes_correspondiente)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, display: 'block' }}>{formatMoney(p.monto_final || p.monto)}</span>
+                    <EstadoPagoBadge estado={p.estado} />
+                  </div>
+                </div>
+                <div className="ios-hstack" style={{ justifyContent: 'space-between', fontSize: 12, color: 'var(--label3)', flexWrap: 'wrap', gap: 6 }}>
+                  <span>
+                    {formatFecha(p.fecha_pago)} · {p.metodo?.nombre || p.metodo_pago || '—'}
+                    {p.fecha_vencimiento && (p.estado === 'pendiente' || p.estado === 'vencido') && (
+                      <> · Vence {formatFecha(p.fecha_vencimiento)}</>
+                    )}
                   </span>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{formatMoney(p.monto_final || p.monto)}</span>
+                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{p.numero_recibo || '—'}</span>
                 </div>
-                <div className="ios-hstack" style={{ justifyContent: 'space-between', fontSize: 12, color: 'var(--label3)' }}>
-                  <span>{formatFecha(p.fecha_pago)} · {p.metodo?.nombre || p.metodo_pago || '—'}</span>
-                  <span>{p.numero_recibo || '—'}</span>
-                </div>
+                {p.observaciones && (
+                  <p style={{ fontSize: 11, color: 'var(--label3)', margin: 0, lineHeight: 1.4 }}>{p.observaciones}</p>
+                )}
               </div>
             ))}
           </Section>
@@ -469,4 +489,16 @@ function EstadoBadge({ estado }) {
   }
   const b = map[estado] || { cls: 'badge-gray', txt: estado || '—' }
   return <span className={`ios-badge ${b.cls}`}>{b.txt}</span>
+}
+
+function EstadoPagoBadge({ estado }) {
+  const e = (estado || '').toLowerCase()
+  const map = {
+    pagado:     { cls: 'badge-green',  txt: 'Pagado' },
+    pendiente:  { cls: 'badge-yellow', txt: 'Pendiente' },
+    vencido:    { cls: 'badge-red',    txt: 'Vencido' },
+    anulado:    { cls: 'badge-gray',   txt: 'Anulado' },
+  }
+  const b = map[e] || { cls: 'badge-gray', txt: estado || '—' }
+  return <span className={`ios-badge ${b.cls}`} style={{ marginTop: 4, display: 'inline-block' }}>{b.txt}</span>
 }
