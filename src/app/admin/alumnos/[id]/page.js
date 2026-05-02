@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { resumenAsistenciaAlumno, ESTADOS } from '@/lib/services/asistencia.service'
 import {
   iniciales, edadDesde, formatFecha, formatMoney, formatTelefono, waLink,
+  labelConceptoPago, labelMetodoPago, gradoHistorialLabel, gradoHistorialColor,
 } from '@/lib/utils/format'
 
 export default function AlumnoDetallePage() {
@@ -24,9 +25,11 @@ export default function AlumnoDetallePage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('info')
   const [showEdit, setShowEdit] = useState(false)
+  const [extrasError, setExtrasError] = useState(null)
 
   async function cargar() {
     setLoading(true)
+    setExtrasError(null)
     try {
       const [a, pl, tu, gr] = await Promise.all([
         obtenerAlumno(id), listarPlanes(), listarTurnos(), listarGrados(),
@@ -39,21 +42,72 @@ export default function AlumnoDetallePage() {
   }
 
   async function cargarHistorial() {
-    const { data } = await supabase
+    if (!supabase) {
+      setHistorial([])
+      setExtrasError((prev) => prev || 'Supabase no está configurado.')
+      return
+    }
+    const idNum = Number(id)
+    const sel = '*, grado_marcial:id_grado(nombre, color_cinturon, nivel)'
+    let { data, error } = await supabase
       .from('historial_grados')
-      .select('*, grado:id_grado(nombre, color_cinturon, nivel)')
-      .eq('id_alumno', id)
+      .select(sel)
+      .eq('id_alumno', idNum)
       .order('fecha_examen', { ascending: false })
+    if (error) {
+      const r2 = await supabase
+        .from('historial_grados')
+        .select('*')
+        .eq('id_alumno', idNum)
+        .order('fecha_examen', { ascending: false })
+      data = r2.data
+      if (r2.error) {
+        setHistorial([])
+        setExtrasError((prev) => {
+          const msg = r2.error.message || 'No se pudo cargar el historial de grados.'
+          if (!prev) return msg
+          return prev.includes(msg) ? prev : `${prev} · ${msg}`
+        })
+        return
+      }
+      console.warn('historial_grados (embed):', error.message)
+    }
     setHistorial(data || [])
   }
 
   async function cargarPagos() {
-    const { data } = await supabase
+    if (!supabase) {
+      setPagos([])
+      setExtrasError((prev) => prev || 'Supabase no está configurado.')
+      return
+    }
+    const idNum = Number(id)
+    const sel = '*, concepto_pago(nombre), metodo_cat:metodo_pago!id_metodo(nombre)'
+    let { data, error } = await supabase
       .from('pago')
-      .select('*, concepto:id_concepto(nombre), metodo:id_metodo(nombre)')
-      .eq('id_alumno', id)
+      .select(sel)
+      .eq('id_alumno', idNum)
       .order('fecha_pago', { ascending: false })
       .limit(48)
+    if (error) {
+      const r2 = await supabase
+        .from('pago')
+        .select('*')
+        .eq('id_alumno', idNum)
+        .order('fecha_pago', { ascending: false })
+        .limit(48)
+      data = r2.data
+      if (r2.error) {
+        setPagos([])
+        setExtrasError((prev) => {
+          const msg = r2.error.message || 'No se pudieron cargar los pagos.'
+          if (!prev) return msg
+          return prev.includes(msg) ? prev : `${prev} · ${msg}`
+        })
+        return
+      }
+      console.warn('pago (embed):', error.message)
+    }
     setPagos(data || [])
   }
 
@@ -125,6 +179,22 @@ export default function AlumnoDetallePage() {
         </div>
       }>
       <div style={{ maxWidth: 980, margin: '0 auto' }}>
+        {extrasError && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 14,
+              padding: '12px 14px',
+              borderRadius: 12,
+              background: 'rgba(229,57,53,0.1)',
+              border: '1px solid rgba(229,57,53,0.35)',
+              fontSize: 13,
+              color: '#B71C1C',
+            }}
+          >
+            <strong>Error al cargar datos.</strong> {extrasError}
+          </div>
+        )}
         {/* Header con avatar */}
         <div className="ios-card-flat" style={{ padding: 20, marginBottom: 16 }}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -360,7 +430,7 @@ export default function AlumnoDetallePage() {
                 <div className="ios-hstack" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ minWidth: 0 }}>
                     <span style={{ fontWeight: 600, fontSize: 14, display: 'block' }}>
-                      {p.concepto?.nombre || p.concepto || 'Pago'}
+                      {labelConceptoPago(p)}
                     </span>
                     {p.mes_correspondiente && (
                       <span style={{ fontSize: 11, color: 'var(--label3)', marginTop: 2, display: 'block' }}>
@@ -375,7 +445,7 @@ export default function AlumnoDetallePage() {
                 </div>
                 <div className="ios-hstack" style={{ justifyContent: 'space-between', fontSize: 12, color: 'var(--label3)', flexWrap: 'wrap', gap: 6 }}>
                   <span>
-                    {formatFecha(p.fecha_pago)} · {p.metodo?.nombre || p.metodo_pago || '—'}
+                    {formatFecha(p.fecha_pago)} · {labelMetodoPago(p)}
                     {p.fecha_vencimiento && (p.estado === 'pendiente' || p.estado === 'vencido') && (
                       <> · Vence {formatFecha(p.fecha_vencimiento)}</>
                     )}
@@ -392,14 +462,14 @@ export default function AlumnoDetallePage() {
 
         {tab === 'grados' && (
           <Section titulo="Historial de grados">
-            {historial.length === 0 ? <EmptyMsg texto="Sin exámenes de grado registrados." /> : historial.map(h => (
-              <div key={h.id} className="ios-form-row" style={{ minHeight: 56 }}>
+            {historial.length === 0 ? <EmptyMsg texto="Sin exámenes de grado registrados." /> : historial.map((h, idx) => (
+              <div key={h.id ?? h.id_historial ?? `${h.id_alumno}-${h.fecha_examen}-${h.id_grado}-${idx}`} className="ios-form-row" style={{ minHeight: 56 }}>
                 <div style={{
                   width: 10, height: 28, borderRadius: 3,
-                  background: h.grado?.color_cinturon || '#999', flexShrink: 0,
+                  background: gradoHistorialColor(h), flexShrink: 0,
                 }} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600 }}>{h.grado?.nombre || 'Grado'}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600 }}>{gradoHistorialLabel(h)}</p>
                   <p style={{ fontSize: 12, color: 'var(--label3)' }}>
                     {formatFecha(h.fecha_examen)} {h.codigo_examen ? ` · ${h.codigo_examen}` : ''}
                   </p>

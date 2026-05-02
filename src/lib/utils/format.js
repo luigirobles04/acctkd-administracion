@@ -79,3 +79,29 @@ export const DIAS_SEMANA = [
   { id: 6, nombre: 'Sábado',    corto: 'Sáb' },
   { id: 7, nombre: 'Domingo',   corto: 'Dom' },
 ]
+
+/** Etiquetas de pago: evita colisión entre columnas texto y embeds de catálogo en PostgREST */
+export function labelConceptoPago(p) {
+  if (!p) return 'Pago'
+  return (
+    p.concepto_pago?.nombre ||
+    (typeof p.concepto === 'string' ? p.concepto : p.concepto?.nombre) ||
+    'Pago'
+  )
+}
+
+export function labelMetodoPago(p) {
+  if (!p) return '—'
+  return p.metodo_cat?.nombre || (typeof p.metodo === 'object' && p.metodo?.nombre) || p.metodo_pago || '—'
+}
+
+/** Grado en historial: embed puede venir como grado, grado_marcial o id_grado resuelto */
+export function gradoHistorialLabel(h) {
+  const g = h?.grado_marcial || h?.grado
+  return g?.nombre || 'Grado'
+}
+
+export function gradoHistorialColor(h) {
+  const g = h?.grado_marcial || h?.grado
+  return g?.color_cinturon || '#999'
+}

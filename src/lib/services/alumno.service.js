@@ -1,4 +1,7 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
+
+/** Cliente válido para esta capa */
+const sb = () => getSupabase()
 
 const SELECT_COMPLETO = `
   *,
@@ -10,7 +13,7 @@ const SELECT_COMPLETO = `
 `
 
 export async function listarAlumnos({ busqueda = '', estado = null, idPlan = null, idTurno = null, idGrado = null } = {}) {
-  let q = supabase.from('alumno').select(SELECT_COMPLETO).order('apellidos', { ascending: true })
+  let q = sb().from('alumno').select(SELECT_COMPLETO).order('apellidos', { ascending: true })
   if (estado) q = q.eq('estado', estado)
   else q = q.neq('estado', 'retirado')
   if (idPlan) q = q.eq('id_plan', idPlan)
@@ -29,7 +32,7 @@ export async function listarAlumnos({ busqueda = '', estado = null, idPlan = nul
 }
 
 export async function obtenerAlumno(id) {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('alumno')
     .select(SELECT_COMPLETO)
     .eq('id_alumno', id)
@@ -39,7 +42,7 @@ export async function obtenerAlumno(id) {
 }
 
 async function siguienteCodigoAlumno() {
-  const { data } = await supabase
+  const { data } = await sb()
     .from('alumno')
     .select('codigo_alumno')
     .not('codigo_alumno', 'is', null)
@@ -54,7 +57,7 @@ async function siguienteCodigoAlumno() {
 export async function crearAlumno({ alumno, apoderado }) {
   let id_apoderado = null
   if (apoderado && (apoderado.nombres || apoderado.telefono)) {
-    const { data: apo, error: errApo } = await supabase
+    const { data: apo, error: errApo } = await sb()
       .from('apoderado')
       .insert(apoderado)
       .select()
@@ -63,19 +66,31 @@ export async function crearAlumno({ alumno, apoderado }) {
     id_apoderado = apo.id_apoderado
   }
   const codigo = alumno.codigo_alumno || await siguienteCodigoAlumno()
+  let id_sede = alumno.id_sede
+  if (id_sede == null) {
+    const { data: primera } = await sb()
+      .from('sede')
+      .select('id_sede')
+      .eq('activo', true)
+      .order('id_sede')
+      .limit(1)
+      .maybeSingle()
+    id_sede = primera?.id_sede ?? 1
+  }
   const insert = {
     ...alumno,
     codigo_alumno: codigo,
     id_apoderado,
-    estado: alumno.estado || 'activo',
+    id_sede,
+    estado: alumno.estado ?? 'prueba',
   }
-  const { data, error } = await supabase.from('alumno').insert(insert).select().single()
+  const { data, error } = await sb().from('alumno').insert(insert).select().single()
   if (error) throw error
   return data
 }
 
 export async function actualizarAlumno(id, patch) {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('alumno')
     .update(patch)
     .eq('id_alumno', id)
@@ -86,7 +101,7 @@ export async function actualizarAlumno(id, patch) {
 }
 
 export async function actualizarApoderado(id, patch) {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('apoderado')
     .update(patch)
     .eq('id_apoderado', id)
@@ -101,7 +116,7 @@ export async function cambiarEstadoAlumno(id, nuevoEstado) {
 }
 
 export async function listarPlanes() {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('plan_mensualidad')
     .select('*')
     .eq('activo', true)
@@ -111,7 +126,7 @@ export async function listarPlanes() {
 }
 
 export async function listarTurnos() {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('turno')
     .select('*')
     .eq('activo', true)
@@ -121,7 +136,7 @@ export async function listarTurnos() {
 }
 
 export async function listarGrados() {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('grado_marcial')
     .select('*')
     .order('nivel', { ascending: true })
@@ -130,7 +145,7 @@ export async function listarGrados() {
 }
 
 export async function listarSedes() {
-  const { data, error } = await supabase
+  const { data, error } = await sb()
     .from('sede')
     .select('*')
     .eq('activo', true)

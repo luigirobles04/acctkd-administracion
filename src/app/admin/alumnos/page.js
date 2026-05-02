@@ -37,9 +37,11 @@ export default function AlumnosPage() {
   const [search, setSearch]   = useState('')
   const [filtroEstado, setFiltroEstado] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [loadError, setLoadError] = useState(null)
 
   async function cargar() {
     setLoading(true)
+    setLoadError(null)
     try {
       const [al, pl, tu, gr] = await Promise.all([
         listarAlumnos({ estado: filtroEstado }),
@@ -48,6 +50,7 @@ export default function AlumnosPage() {
       setAlumnos(al); setPlanes(pl); setTurnos(tu); setGrados(gr)
     } catch (err) {
       console.error('Error cargando alumnos:', err)
+      setLoadError(err?.message || 'No se pudo cargar el listado. Revisa la conexión a Supabase.')
     } finally { setLoading(false) }
   }
 
@@ -76,6 +79,22 @@ export default function AlumnosPage() {
         </button>
       }>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+        {loadError && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 16,
+              padding: '12px 14px',
+              borderRadius: 12,
+              background: 'rgba(229,57,53,0.1)',
+              border: '1px solid rgba(229,57,53,0.35)',
+              fontSize: 13,
+              color: '#B71C1C',
+            }}
+          >
+            {loadError}
+          </div>
+        )}
         {/* Resumen en tarjetas (solo desktop / tablet) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <StatMini label="Activos"     valor={contadores.activo || 0}      color="#1A7A34" icon="check_circle" />

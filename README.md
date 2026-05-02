@@ -45,18 +45,66 @@ supabase/
 
 ## Puesta en marcha local
 
+### Solo frontend (contra Supabase en la nube)
+
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Configurar variables de entorno
 cp .env.example .env.local
-# Edita .env.local con tus valores de Supabase
-
-# 3. Levantar el servidor de desarrollo
+# Edita .env.local: URL y anon key del proyecto Supabase (dashboard → Settings → API)
 npm run dev
-# Abre http://localhost:3000
+# http://localhost:3000
 ```
+
+### Todo en tu máquina (Next + Supabase con Docker)
+
+Así pruebas **la misma app y la misma base** antes de un solo despliegue conjunto.
+
+1. **Docker Desktop** instalado y en ejecución.
+2. **Supabase CLI**: [instrucciones](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase` o descarga binaria).
+3. **Esquema base en migraciones**  
+   El repo incluye `20260115000000_baseline_schema_from_remote.sql` (snapshot de tu proyecto real) más las migraciones `20260420_*` y RLS. Eso permite un `db reset` en local desde cero.
+
+   Si cambias tablas en la nube y quieres **actualizar el baseline**, guarda el JSON de introspección en `scripts/schema_snapshot_list_tables.json` y ejecuta:
+
+   ```bash
+   python3 scripts/generar_baseline_desde_snapshot.py
+   ```
+
+   (Alternativa oficial: `supabase login`, `supabase link`, `supabase db pull`.)
+
+   Si tu **proyecto Supabase cloud ya existía** antes de este baseline, no hace falta volver a ejecutar el SQL del baseline ahí: solo úsalo en entornos nuevos o en Docker local.
+
+4. **Levantar stack local y aplicar migraciones**
+
+   ```bash
+   npm install
+   npm run supabase:start    # o: supabase start
+   npm run supabase:reset    # o: supabase db reset — aplica migraciones + seed.sql
+   ```
+
+5. **Variables para el frontend local**
+
+   ```bash
+   npm run supabase:status   # copia API URL y anon key
+   ```
+
+   En `.env.local` apunta a la API local, por ejemplo:
+
+   - `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key que muestra el CLI>`
+
+6. **Datos demo (alumnos, pagos, historial de grados)**  
+   Tras el reset, en **Supabase Studio local** (http://127.0.0.1:54323 → SQL) puedes ejecutar `supabase/seed/sistema_qv_alumnos_compact.sql` si quieres la carga ficticia completa.
+
+7. **Arrancar Next**
+
+   ```bash
+   npm run dev
+   ```
+
+**Studio local:** http://127.0.0.1:54323 · **API:** http://127.0.0.1:54321
+
+> Si `db pull` no es opción, puedes volcar solo esquema desde el proyecto cloud (pg_dump / “Database backups”) y colocarlo como primera migración; el objetivo es que existan las tablas `sede`, `alumno`, `pago`, etc. antes de las migraciones `20260420_*`.
 
 ---
 

@@ -41,15 +41,22 @@ export default function AsistenciaPage() {
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState(null)
   const [toast, setToast] = useState('')
+  const [initError, setInitError] = useState('')
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
+      setInitError('')
       try {
         const ts = await listarTurnos()
         setTurnos(ts)
         if (ts.length && !idTurno) setIdTurno(ts[0].id_turno)
       } catch (e) {
         console.error(e)
+        const msg =
+          typeof e.message === 'string' && /Supabase/i.test(e.message)
+            ? e.message
+            : 'No se pudieron cargar los turnos. Revisa tu conexión y variables Supabase.'
+        setInitError(msg)
       }
     })()
   }, [])
@@ -75,6 +82,7 @@ export default function AsistenciaPage() {
 
   function mostrarToast(msg) {
     setToast(msg)
+    setInitError('')
     setTimeout(() => setToast(''), 1600)
   }
 
@@ -122,8 +130,25 @@ export default function AsistenciaPage() {
   const turnoActual = turnos.find(t => t.id_turno === idTurno)
 
   return (
-    <AdminLayout title="Asistencia" subtitle={formatFechaLarga(fecha)}>
-      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+    <AdminLayout title="Asistencia" subtitle={`${formatFechaLarga(fecha)} · activos y en prueba`}>
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+
+        {(initError || toast) && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 14,
+              padding: '11px 14px',
+              borderRadius: 12,
+              fontSize: 13,
+              background: initError ? 'rgba(229,57,53,0.1)' : 'rgba(5,150,105,0.12)',
+              border: initError ? '1px solid rgba(229,57,53,0.35)' : '1px solid rgba(5,150,105,0.35)',
+              color: initError ? '#B71C1C' : '#065F46',
+            }}
+          >
+            {initError || toast}
+          </div>
+        )}
 
         {/* Selector turno + fecha */}
         <div className="ios-form-section" style={{ marginBottom: 16 }}>
@@ -211,7 +236,7 @@ export default function AsistenciaPage() {
           )}
         </div>
 
-        {toast && <div className="ios-toast">{toast}</div>}
+        {toast && !initError && <div className="ios-toast">{toast}</div>}
       </div>
       <style jsx>{`
         @keyframes spin { to { transform: rotate(360deg); } }

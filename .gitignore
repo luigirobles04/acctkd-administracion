@@ -42,6 +42,9 @@ yarn-error.log*
 .only_query__*.sql
 .mcp_invoke*.json
 
-# typescript
+# supabase local (CLI)
+supabase/.temp/
+supabase/.branches/
+
 *.tsbuildinfo
 next-env.d.ts

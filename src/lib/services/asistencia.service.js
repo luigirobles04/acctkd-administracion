@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { getSupabase } from '../supabase'
 
 // Estados canónicos de asistencia para la UI.
 export const ESTADOS = {
@@ -33,6 +33,7 @@ function estadoToRow(estado) {
 
 // Turnos activos con su sede.
 export async function listarTurnos() {
+  const supabase = getSupabase()
   const { data, error } = await supabase
     .from('turno')
     .select('id_turno, nombre, hora_inicio, hora_fin, dias_semana, dias_array, activo, sede:id_sede(id_sede, nombre)')
@@ -44,6 +45,7 @@ export async function listarTurnos() {
 
 // Devuelve (o crea) la clase para un turno + fecha.
 export async function obtenerOCrearClase({ idTurno, fecha, idMaestro = null }) {
+  const supabase = getSupabase()
   const { data: existente, error: errSel } = await supabase
     .from('clase')
     .select('id_clase, id_turno, id_maestro, fecha')
@@ -64,13 +66,14 @@ export async function obtenerOCrearClase({ idTurno, fecha, idMaestro = null }) {
 
 // Alumnos asignados al turno con su estado de asistencia para la clase dada.
 export async function listarAsistenciaDeTurno({ idTurno, fecha }) {
+  const supabase = getSupabase()
   const clase = await obtenerOCrearClase({ idTurno, fecha })
 
   const { data: alumnos, error: errAl } = await supabase
     .from('alumno')
     .select('id_alumno, codigo_alumno, nombres, apellidos, sexo, grado:id_grado_actual(nombre, color_cinturon)')
     .eq('id_turno', idTurno)
-    .eq('estado', 'activo')
+    .in('estado', ['activo', 'prueba'])
     .order('apellidos', { ascending: true })
   if (errAl) throw errAl
 
@@ -101,6 +104,7 @@ export async function listarAsistenciaDeTurno({ idTurno, fecha }) {
 
 // Marca una sola asistencia (upsert) para el alumno en la clase.
 export async function marcarAsistencia({ idClase, idAlumno, estado }) {
+  const supabase = getSupabase()
   const payload = {
     id_clase: idClase,
     id_alumno: idAlumno,
@@ -117,6 +121,7 @@ export async function marcarAsistencia({ idClase, idAlumno, estado }) {
 
 // Marca todos los alumnos del turno como presentes (atajo "Todos presentes").
 export async function marcarTodosPresentes({ idClase, idsAlumnos }) {
+  const supabase = getSupabase()
   if (!idsAlumnos?.length) return []
   const payloads = idsAlumnos.map(id_alumno => ({
     id_clase: idClase,
@@ -133,15 +138,41 @@ export async function marcarTodosPresentes({ idClase, idsAlumnos }) {
 
 // Resumen de asistencia de un alumno en los últimos N meses.
 export async function resumenAsistenciaAlumno({ idAlumno, mesesAtras = 3 }) {
+  const supabase = getSupabase()
   const desde = new Date()
   desde.setMonth(desde.getMonth() - mesesAtras)
   const desdeISO = desde.toISOString().slice(0, 10)
 
-  const { data, error } = await supabase
+  let sel = 'presente, justificado, observacion, clase:id_clase(fecha, turno:id_turno(nombre))'
+  let { data, error } = await supabase
     .from('asistencia_alumno')
-    .select('presente, justificado, observacion, clase:id_clase(fecha, turno:id_turno(nombre))')
+    .select(sel)
     .eq('id_alumno', idAlumno)
-  if (error) throw error
+
+  if (error) {
+    const simple = await supabase
+      .from('asistencia_alumno')
+      .select('id_clase, presente, justificado, observacion')
+      .eq('id_alumno', idAlumno)
+    if (simple.error) throw simple.error
+
+    const idsClase = [...new Set((simple.data || []).map((r) => r.id_clase).filter(Boolean))]
+    let clasesPorId = new Map()
+    if (idsClase.length > 0) {
+      const { data: clas, error: eCl } = await supabase
+        .from('clase')
+        .select('id_clase, fecha, turno:id_turno(nombre)')
+        .in('id_clase', idsClase)
+      if (!eCl && clas) {
+        clasesPorId = new Map(clas.map((c) => [c.id_clase, c]))
+      }
+    }
+    data = (simple.data || []).map((r) => ({
+      ...r,
+      clase: r.id_clase ? clasesPorId.get(r.id_clase) : null,
+    }))
+    error = null
+  }
 
   const filtradas = (data || []).filter(r => {
     const f = r.clase?.fecha
