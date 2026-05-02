@@ -420,17 +420,110 @@ export default function PagosPage() {
             <strong>No se pudieron cargar algunos datos.</strong> {listError}
           </div>
         )}
-        <div className="ios-form-section" style={{ marginBottom: 16 }}>
-          <p className="ios-form-section-title" style={{ marginBottom: 10 }}>
-            Resumen cobrado (por mes de fecha de pago · «mes anterior» respecto al calendario de hoy)
-          </p>
-          <div className="ios-form-row">
-            <span className="ios-form-row-label">Mes a consultar</span>
+        <div
+          style={{
+            marginBottom: 20,
+            borderRadius: 16,
+            padding: '18px 18px 16px',
+            background: 'linear-gradient(148deg, rgba(5, 150, 105, 0.09) 0%, rgba(13, 148, 136, 0.06) 42%, rgba(255,255,255, 0.95) 68%)',
+            border: '1px solid rgba(5, 150, 105, 0.2)',
+            boxShadow: '0 10px 28px rgba(31, 56, 100, 0.07)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 16 }}>
+            <div
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 14,
+                background: 'linear-gradient(145deg, #059669 0%, #0D9488 100%)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: '0 4px 14px rgba(5, 150, 105, 0.35)',
+              }}
+              aria-hidden
+            >
+              <span className="material-symbols-rounded" style={{ fontSize: 26 }}>payments</span>
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 800,
+                  letterSpacing: -0.35,
+                  color: 'var(--label)',
+                  lineHeight: 1.2,
+                }}
+              >
+                Resumen cobrado
+              </p>
+              <p
+                style={{
+                  margin: '6px 0 0',
+                  fontSize: 13,
+                  color: 'var(--label3)',
+                  lineHeight: 1.5,
+                  fontWeight: 500,
+                }}
+              >
+                Totales por <strong style={{ color: 'var(--label)', fontWeight: 700 }}>fecha de pago</strong> del mes que elijas abajo.
+                La tarjeta <strong style={{ color: 'var(--label)', fontWeight: 700 }}>Mes anterior</strong> del grid usa siempre el mes previo al <strong>hoy</strong>.
+              </p>
+            </div>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 12,
+              padding: '12px 14px',
+              borderRadius: 14,
+              background: 'rgba(255, 255, 255, 0.76)',
+              border: '1px solid rgba(60, 60, 67, 0.09)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+            }}
+          >
+            <span className="material-symbols-rounded" style={{ fontSize: 22, color: '#059669', flexShrink: 0 }}>edit_calendar</span>
+            <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: 'var(--label3)',
+                  letterSpacing: 0.7,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Mes a consultar
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 700, color: 'var(--label)', letterSpacing: -0.2 }}>
+                {tituloMesYM(mesEstadisticasYm)}
+              </p>
+            </div>
             <input
               type="month"
               value={mesEstadisticasYm}
               onChange={(e) => e.target.value && setMesEstadisticasYm(e.target.value.slice(0, 7))}
-              style={{ textAlign: 'right' }}
+              aria-label="Cambiar mes del resumen de cobros"
+              style={{
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(5, 150, 105, 0.4)',
+                background: '#fff',
+                fontFamily: 'inherit',
+                fontSize: 15,
+                fontWeight: 700,
+                color: '#065f46',
+                cursor: 'pointer',
+                flexShrink: 0,
+                boxShadow: '0 2px 10px rgba(5, 150, 105, 0.12)',
+              }}
             />
           </div>
         </div>
