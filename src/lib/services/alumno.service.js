@@ -41,6 +41,19 @@ export async function obtenerAlumno(id) {
   return data
 }
 
+/** Primer cinturón del catálogo (orden coherente con listarGrados): menor nivel primero */
+async function idGradoInicialCatalogo() {
+  const { data, error } = await sb()
+    .from('grado_marcial')
+    .select('id_grado')
+    .order('nivel', { ascending: true })
+    .order('id_grado', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data?.id_grado ?? null
+}
+
 async function siguienteCodigoAlumno() {
   const { data } = await sb()
     .from('alumno')
@@ -86,6 +99,33 @@ export async function crearAlumno({ alumno, apoderado }) {
   }
   const { data, error } = await sb().from('alumno').insert(insert).select().single()
   if (error) throw error
+
+  const idGradoHistorial =
+    alumno.id_grado_actual != null ? alumno.id_grado_actual : await idGradoInicialCatalogo()
+
+  if (idGradoHistorial != null) {
+    const fe = (data.fecha_ingreso || new Date().toISOString().slice(0, 10)).slice(0, 10)
+    const { error: errHg } = await sb().from('historial_grados').insert({
+      id_alumno: data.id_alumno,
+      id_grado: idGradoHistorial,
+      fecha_examen: fe,
+      aprobado: true,
+      observaciones: 'Ingreso a la academia (registro inicial de grado).',
+      codigo_examen: `ACCTKD-INI-${data.id_alumno}`,
+    })
+    if (errHg) console.warn('historial_grados al crear alumno:', errHg.message)
+
+    if (alumno.id_grado_actual == null && data.id_grado_actual == null) {
+      const { data: patched, error: errPa } = await sb()
+        .from('alumno')
+        .update({ id_grado_actual: idGradoHistorial })
+        .eq('id_alumno', data.id_alumno)
+        .select()
+        .single()
+      if (!errPa && patched) return patched
+    }
+  }
+
   return data
 }
 

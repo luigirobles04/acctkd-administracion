@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { crearAlumno, actualizarAlumno, actualizarApoderado } from '@/lib/services/alumno.service'
 
 const TABS = [
@@ -58,6 +58,16 @@ export default function AlumnoFormSheet({
   }))
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    if (editando || !grados?.length) return
+    setForm(p => {
+      if (p.id_grado_actual !== '' && p.id_grado_actual != null) return p
+      const id = grados[0]?.id_grado
+      if (id == null) return p
+      return { ...p, id_grado_actual: String(id) }
+    })
+  }, [editando, grados])
 
   async function handleSubmit(e) {
     e?.preventDefault()
