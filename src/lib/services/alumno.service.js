@@ -80,6 +80,7 @@ export async function crearAlumno({ alumno, apoderado }) {
     id_apoderado = apo.id_apoderado
   }
   const codigo = alumno.codigo_alumno || await siguienteCodigoAlumno()
+  const estadoAlta = alumno.estado ?? 'prueba'
   let id_sede = alumno.id_sede
   if (id_sede == null) {
     const { data: primera } = await sb()
@@ -96,10 +97,13 @@ export async function crearAlumno({ alumno, apoderado }) {
     codigo_alumno: codigo,
     id_apoderado,
     id_sede,
-    estado: alumno.estado ?? 'prueba',
+    estado: estadoAlta,
+    ...(estadoAlta === 'prueba' ? { id_grado_actual: null } : {}),
   }
   const { data, error } = await sb().from('alumno').insert(insert).select().single()
   if (error) throw error
+
+  if (data.estado === 'prueba') return data
 
   const idGradoHistorial =
     alumno.id_grado_actual != null ? alumno.id_grado_actual : await idGradoInicialCatalogo()
@@ -159,6 +163,9 @@ export async function cambiarEstadoAlumno(id, nuevoEstado) {
   }
   if (nuevoEstado !== 'prueba')
     patch.id_clase_prueba = null
+
+  if (nuevoEstado === 'prueba')
+    patch.id_grado_actual = null
 
   return actualizarAlumno(id, patch)
 }

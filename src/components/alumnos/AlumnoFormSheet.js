@@ -62,12 +62,13 @@ export default function AlumnoFormSheet({
   useEffect(() => {
     if (editando || !grados?.length) return
     setForm(p => {
+      if ((p.estado || '') === 'prueba') return p
       if (p.id_grado_actual !== '' && p.id_grado_actual != null) return p
       const id = grados[0]?.id_grado
       if (id == null) return p
       return { ...p, id_grado_actual: String(id) }
     })
-  }, [editando, grados])
+  }, [editando, grados, form.estado])
 
   async function handleSubmit(e) {
     e?.preventDefault()
@@ -91,7 +92,7 @@ export default function AlumnoFormSheet({
         fecha_ingreso: form.fecha_ingreso || null,
         id_plan: form.id_plan || null,
         id_turno: form.id_turno || null,
-        id_grado_actual: form.id_grado_actual || null,
+        id_grado_actual: form.estado === 'prueba' ? null : (form.id_grado_actual || null),
         tipo_sangre: form.tipo_sangre || null,
         alergias: form.alergias?.trim() || null,
         condicion_medica: form.condicion_medica?.trim() || null,
@@ -222,7 +223,11 @@ export default function AlumnoFormSheet({
                     </select>
                   </Row>
                   <Row label="Grado actual">
-                    <select value={form.id_grado_actual} onChange={e => set('id_grado_actual', e.target.value)}>
+                    <select
+                      value={form.id_grado_actual}
+                      disabled={form.estado === 'prueba'}
+                      title={form.estado === 'prueba' ? 'Sin grado formal hasta pasar de la clase de prueba' : undefined}
+                      onChange={e => set('id_grado_actual', e.target.value)}>
                       <option value="">— Sin grado —</option>
                       {grados.map(g => (
                         <option key={g.id_grado} value={g.id_grado}>{g.nombre}</option>
@@ -233,7 +238,14 @@ export default function AlumnoFormSheet({
 
                 <Section titulo="Estado en la academia">
                   <Row label="Estado">
-                    <select value={form.estado} onChange={e => set('estado', e.target.value)}>
+                    <select value={form.estado} onChange={(e) => {
+                      const next = e.target.value
+                      setForm(p => ({
+                        ...p,
+                        estado: next,
+                        ...(next === 'prueba' ? { id_grado_actual: '' } : {}),
+                      }))
+                    }}>
                       <option value="prueba">En prueba</option>
                       <option value="activo">Activo</option>
                       <option value="suspendido">Suspendido</option>

@@ -1,4 +1,4 @@
--- Backfill: todo alumno debe tener al menos un registro en historial_grados (pestaña Grados).
+-- Backfill de grado inicial **excepto alumnos en estado «prueba»** (aún sin matricularse).
 -- Toma como referencia COALESCE(alumno.id_grado_actual, primer grado del catálogo por nivel).
 -- Idempotente: no inserta si ya existe cualquier fila de historial para ese alumno.
 
@@ -11,6 +11,7 @@ FROM (
   LIMIT 1
 ) AS g
 WHERE a.id_grado_actual IS NULL
+  AND COALESCE(a.estado, '') IS DISTINCT FROM 'prueba'
   AND EXISTS (SELECT 1 FROM grado_marcial LIMIT 1);
 
 INSERT INTO historial_grados (id_alumno, id_grado, fecha_examen, aprobado, observaciones, codigo_examen)
@@ -33,4 +34,5 @@ WHERE EXISTS (SELECT 1 FROM grado_marcial LIMIT 1)
     SELECT 1
     FROM historial_grados AS hg
     WHERE hg.id_alumno = a.id_alumno
-  );
+  )
+  AND COALESCE(a.estado, '') IS DISTINCT FROM 'prueba';

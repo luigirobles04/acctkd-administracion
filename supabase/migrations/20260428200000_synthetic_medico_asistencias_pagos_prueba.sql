@@ -3,7 +3,7 @@
 -- ─ tipo_sangre A+ en todos los alumnos
 -- ─ Sesiones clase por dias_array del turno + asistencias variadas
 -- ─ Alumnos en prueba: UNA marca «Clase de prueba ACCTKD» + alumno.id_clase_prueba (editable en app)
--- ─ Pagos: mensualidades ene–abr + matrícula en subconjunto
+-- Pagos sintéticos: solo alumnos ya formalizados (activo/suspendido), no «en prueba».
 -- Elimina/recrea sólo registros marcados SYNTH-* y observaciones demo (ver DELETE abajo).
 -- =============================================================================
 
@@ -149,7 +149,7 @@ ctx AS (
   FROM alumno a
   CROSS JOIN meses m
   LEFT JOIN plan_mensualidad pm ON pm.id_plan = a.id_plan
-  WHERE a.estado IN ('activo', 'prueba', 'suspendido')
+  WHERE a.estado IN ('activo', 'suspendido')
     AND m.primer_dia >= DATE_TRUNC('month', COALESCE(a.fecha_ingreso, DATE '2026-01-05'))::DATE
     AND m.primer_dia <= DATE '2026-04-01'
     AND EXISTS (SELECT 1 FROM concepto_pago cp WHERE cp.codigo = 'MENSUALIDAD' LIMIT 1)
@@ -227,7 +227,7 @@ SELECT
   'M-' || LPAD(a.id_alumno::TEXT, 6, '0'),
   'Matrícula demo ACCTKD.'::TEXT
 FROM alumno a
-WHERE a.estado IN ('activo', 'prueba', 'suspendido')
+WHERE a.estado IN ('activo', 'suspendido')
   AND EXISTS (SELECT 1 FROM concepto_pago cp WHERE cp.codigo = 'MATRICULA')
   AND (ABS(hashtext('mh|' || a.id_alumno::TEXT)) % 7) BETWEEN 2 AND 5
 ON CONFLICT (numero_recibo) DO NOTHING;
