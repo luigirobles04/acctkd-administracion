@@ -38,22 +38,16 @@ function MensualidadBadges({ estado, alert }) {
     padding: '2px 7px',
     borderRadius: 6,
   }
-  if (alert.vencida) return <span className="ios-badge badge-red" style={base}>Mensualidad vencida</span>
-  if (alert.vencePronto)
+  if (alert.vencida) return <span className="ios-badge badge-red" style={base}>Vencido</span>
+  if (alert.pendienteProximo)
     return (
-      <span
-        className="ios-badge"
-        style={{
-          ...base,
-          background: 'rgba(245,158,11,0.18)',
-          color: '#92400e',
-          border: '1px solid rgba(245,158,11,0.45)',
-        }}
-      >
-        Próximo a vencer
+      <span className="ios-badge badge-yellow" style={{ ...base, fontWeight: 800 }}>
+        Pendiente · próximo
       </span>
     )
-  return <span className="ios-badge badge-yellow" style={base}>Mensualidad sin pagar</span>
+  if (alert.pendienteOtro)
+    return <span className="ios-badge badge-yellow" style={{ ...base, opacity: 0.92 }}>Mensualidad sin pagar</span>
+  return null
 }
 
 export default function AlumnosPage() {

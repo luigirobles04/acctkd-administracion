@@ -13,7 +13,7 @@ import {
   labelConceptoPago,
   etiquetaMetodoVisible,
 } from '@/lib/utils/format'
-import { listarMensualidadesProximasAVencer, DIAS_VENCE_MENSUALIDAD_PRONTO } from '@/lib/services/pagoAlerts.service'
+import { listarMensualidadesProximasAVencer, DIAS_VENCE_MENSUALIDAD_PRONTO, clasificarCuotaMensualidadVisual, esMensualidadPago } from '@/lib/services/pagoAlerts.service'
 
 const PRIORIDAD_ESTADO = { vencido: 0, pendiente: 1, pagado: 2, anulado: 3 }
 
@@ -30,6 +30,52 @@ function labelMesCorrespondiente(fechaIso) {
   if (isNaN(d)) return ''
   const t = d.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })
   return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+function ymDesdeFechaRef() {
+  return new Date().toISOString().slice(0, 7)
+}
+
+function ymRestarMeses(ym, delta) {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  d.setMonth(d.getMonth() - delta)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function tituloMesYM(ym) {
+  const [y, m] = ym.split('-').map(Number)
+  if (!y || !m) return ym
+  return new Date(y, m - 1, 1).toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).replace(/^\w/, (c) => c.toUpperCase())
+}
+
+function sumaCobradoMes(pagosArray, ym) {
+  return pagosArray
+    .filter((p) => p.estado === 'pagado' && typeof p.fecha_pago === 'string' && p.fecha_pago.startsWith(ym))
+    .reduce((s, p) => s + parseFloat(p.monto_final || p.monto), 0)
+}
+
+function badgeCuotaMensualidadOPorEstado(p) {
+  if (esMensualidadPago(p) && (p.estado === 'pendiente' || p.estado === 'vencido')) {
+    const c = clasificarCuotaMensualidadVisual(p)
+    if (c === 'vencida') return { cls: 'badge-red', txt: 'Vencido' }
+    if (c === 'proximo') return { cls: 'badge-yellow', txt: 'Pendiente' }
+    if (c === 'pendiente_otro') return { cls: 'badge-yellow', txt: 'Sin pagar' }
+  }
+  return {
+    cls: {
+      pagado: 'badge-green',
+      pendiente: 'badge-yellow',
+      vencido: 'badge-red',
+      anulado: 'badge-gray',
+    }[p.estado] || 'badge-gray',
+    txt: {
+      pagado: 'Pagado',
+      pendiente: 'Pendiente',
+      vencido: 'Vencido',
+      anulado: 'Anulado',
+    }[p.estado] || p.estado || '—',
+  }
 }
 
 function mensajeCobroPendiente({ alumno, monto, concepto, mesLabel, academiaNombre }) {
@@ -97,6 +143,7 @@ export default function PagosPage() {
   const [cobroSaving, setCobroSaving] = useState(false)
   const [listError, setListError] = useState(null)
   const [proximosVencer, setProximosVencer] = useState([])
+  const [mesEstadisticasYm, setMesEstadisticasYm] = useState(() => ymDesdeFechaRef())
   const [form, setForm] = useState({
     id_alumno: '',
     concepto: 'Mensualidad',
@@ -281,9 +328,10 @@ export default function PagosPage() {
     }
   }
 
-  const totalMes = pagos
-    .filter((p) => p.estado === 'pagado' && p.fecha_pago?.startsWith(new Date().toISOString().slice(0, 7)))
-.reduce((s, p) => s + parseFloat(p.monto_final || p.monto), 0)
+  const ymMesActualHoy = ymDesdeFechaRef()
+  const ymMesAnteriorVsHoy = ymRestarMeses(ymMesActualHoy, 1)
+  const cobradoMesSeleccion = sumaCobradoMes(pagos, mesEstadisticasYm)
+  const cobradoMesPasadoVsHoy = sumaCobradoMes(pagos, ymMesAnteriorVsHoy)
 
   const pendientes = pagos.filter((p) => p.estado === 'pendiente' || p.estado === 'vencido').length
 
@@ -319,26 +367,6 @@ export default function PagosPage() {
     () => alumnos.find((a) => String(a.id_alumno) === String(form.id_alumno)),
     [alumnos, form.id_alumno],
   )
-
-  function estadoBadge(estado) {
-    const map = {
-      pagado: 'badge-green',
-      pendiente: 'badge-yellow',
-      vencido: 'badge-red',
-      anulado: 'badge-gray',
-    }
-    return map[estado] || 'badge-gray'
-  }
-
-  function labelEstado(estado) {
-    const map = {
-      pagado: 'Pagado',
-      pendiente: 'Pendiente',
-      vencido: 'Vencido',
-      anulado: 'Anulado',
-    }
-    return map[estado] || estado || '—'
-  }
 
   function puedeCobrarPorWa(p) {
     const t = p.alumno?.telefono
@@ -392,8 +420,28 @@ export default function PagosPage() {
             <strong>No se pudieron cargar algunos datos.</strong> {listError}
           </div>
         )}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <StatMini label="Cobrado este mes" valor={formatMoney(totalMes)} color="#059669" icon="payments" />
+        <div className="ios-form-section" style={{ marginBottom: 16 }}>
+          <p className="ios-form-section-title" style={{ marginBottom: 10 }}>
+            Resumen cobrado (por mes de fecha de pago · «mes anterior» respecto al calendario de hoy)
+          </p>
+          <div className="ios-form-row">
+            <span className="ios-form-row-label">Mes a consultar</span>
+            <input
+              type="month"
+              value={mesEstadisticasYm}
+              onChange={(e) => e.target.value && setMesEstadisticasYm(e.target.value.slice(0, 7))}
+              style={{ textAlign: 'right' }}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+          <StatMini label={`Mes elegido (${tituloMesYM(mesEstadisticasYm)})`} valor={formatMoney(cobradoMesSeleccion)} color="#059669" icon="payments" />
+          <StatMini
+            label={`Mes anterior (${tituloMesYM(ymMesAnteriorVsHoy)})`}
+            valor={formatMoney(cobradoMesPasadoVsHoy)}
+            color="#0D9488"
+            icon="calendar_month"
+          />
           <StatMini label="Pendientes / vencidos" valor={pendientes} color="#D97706" icon="schedule" />
           <StatMini label="Movimientos" valor={pagos.length} color="#1F3864" icon="receipt_long" />
           <StatMini label="Alumnos (cobros)" valor={alumnos.length} color="#E53935" icon="school" />
@@ -490,16 +538,31 @@ export default function PagosPage() {
                 const ini = iniciales(a?.nombres, a?.apellidos)
                 const monto = parseFloat(p.monto_final || p.monto)
                 const mesLbl = labelMesCorrespondiente(p.mes_correspondiente)
+                const badgeSt = badgeCuotaMensualidadOPorEstado(p)
+                const claseCuotaVisual = esMensualidadPago(p) ? clasificarCuotaMensualidadVisual(p) : null
                 const esPendiente = p.estado === 'pendiente' || p.estado === 'vencido'
                 const cobrarWa = puedeCobrarPorWa(p)
                 const urlWa = cobrarWa ? linkWaPago(p) : null
                 const filaBg =
-                  p.estado === 'vencido'
+                  claseCuotaVisual === 'vencida' || p.estado === 'vencido'
                     ? 'linear-gradient(90deg, rgba(220,38,38,0.07) 0%, transparent 10px)'
                     : esPendiente
                       ? 'linear-gradient(90deg, rgba(245,158,11,0.1) 0%, transparent 10px)'
                       : undefined
                 const busy = cobroSaving && cobroSheet?.id_pago === p.id_pago
+                const textoCintaCobro =
+                  claseCuotaVisual === 'vencida'
+                    ? 'Cuota vencida'
+                    : claseCuotaVisual === 'proximo'
+                      ? 'Cuota próxima a vencer'
+                      : claseCuotaVisual === 'pendiente_otro'
+                        ? 'Cuota pendiente'
+                        : p.estado === 'vencido'
+                          ? 'Cobro vencido'
+                          : 'Cobro pendiente'
+
+                const iconoDeudaCritica =
+                  claseCuotaVisual === 'vencida' || p.estado === 'vencido'
 
                 return (
                   <div
@@ -569,7 +632,7 @@ export default function PagosPage() {
                             : ''}
                         </p>
                         <div className="ios-hstack sm:hidden" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                          <span className={`ios-badge ${estadoBadge(p.estado)}`}>{labelEstado(p.estado)}</span>
+                          <span className={`ios-badge ${badgeSt.cls}`}>{badgeSt.txt}</span>
                         </div>
                       </div>
                       <div
@@ -599,8 +662,8 @@ export default function PagosPage() {
                                 ? `${etiquetaMetodoVisible(p)} · ${formatFecha(p.fecha_pago)}`
                                 : formatFecha(p.fecha_pago)}
                           </p>
-                          <span className={`hidden sm:inline-flex ios-badge ${estadoBadge(p.estado)}`} style={{ marginTop: 6 }}>
-                            {labelEstado(p.estado)}
+                          <span className={`hidden sm:inline-flex ios-badge ${badgeSt.cls}`} style={{ marginTop: 6 }}>
+                            {badgeSt.txt}
                           </span>
                         </div>
                       </div>
@@ -622,10 +685,18 @@ export default function PagosPage() {
                         >
                           <div style={{ flex: '1 1 180px', minWidth: 0 }}>
                             <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--label)', marginBottom: 4 }}>
-                              <span className="material-symbols-rounded" style={{ fontSize: 16, verticalAlign: 'text-bottom', marginRight: 4, color: p.estado === 'vencido' ? 'var(--red)' : '#D97706' }}>
-                                {p.estado === 'vencido' ? 'warning' : 'schedule'}
+                              <span
+                                className="material-symbols-rounded"
+                                style={{
+                                  fontSize: 16,
+                                  verticalAlign: 'text-bottom',
+                                  marginRight: 4,
+                                  color: iconoDeudaCritica ? 'var(--red)' : '#D97706',
+                                }}
+                              >
+                                {iconoDeudaCritica ? 'warning' : 'schedule'}
                               </span>
-                              {p.estado === 'vencido' ? 'Cobro vencido' : 'Cobro pendiente'} · {formatMoney(monto)}
+                              {textoCintaCobro} · {formatMoney(monto)}
                             </p>
                             <p style={{ fontSize: 11, color: 'var(--label3)', lineHeight: 1.45 }}>
                               Mensaje listo para WhatsApp con el monto y el período

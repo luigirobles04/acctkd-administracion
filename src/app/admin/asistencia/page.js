@@ -5,6 +5,8 @@ import {
   listarTurnos,
   listarAsistenciaDeTurno,
   listarAsistenciaRangoTurno,
+  listarAsistenciaDiaTodosLosTurnos,
+  listarAsistenciaRangoTodosLosTurnos,
   marcarAsistencia,
   marcarTodosPresentes,
   ESTADOS,
@@ -13,7 +15,7 @@ import {
   finSemanaDomingoISO,
   rangoMesContainingISO,
 } from '@/lib/services/asistencia.service'
-import { iniciales, formatFechaLarga, hoyISO, DIAS_SEMANA } from '@/lib/utils/format'
+import { iniciales, formatFechaLarga, formatFecha, hoyISO, DIAS_SEMANA } from '@/lib/utils/format'
 
 const OPCIONES_ESTADO = [
   { id: ESTADOS.PRESENTE, label: 'P', help: 'Presente' },
@@ -26,7 +28,17 @@ const MODOS_VISTA = [
   { id: 'dia', label: 'Día' },
   { id: 'semana', label: 'Semana' },
   { id: 'mes', label: 'Mes' },
+  { id: 'rango', label: 'Rango' },
 ]
+
+function addDaysISO(iso, delta) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const t = new Date(y, m - 1, d + delta)
+  const yy = t.getFullYear()
+  const mm = String(t.getMonth() + 1).padStart(2, '0')
+  const dd = String(t.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
 
 function diasDeTurno(turno) {
   if (Array.isArray(turno?.dias_array) && turno.dias_array.length) {
@@ -56,18 +68,29 @@ function colorCeldaRango(estado) {
   return '#F3F4F6'
 }
 
+const VAL_TURNOS_TODOS = 'todos'
+
 export default function AsistenciaPage() {
   const [turnos, setTurnos] = useState([])
-  const [idTurno, setIdTurno] = useState(null)
-  const [fecha, setFecha] = useState(hoyISO())
+  const [fecha, setFecha] = useState(() => hoyISO())
+  const [fechaDesdeRango, setFechaDesdeRango] = useState(() => addDaysISO(hoyISO(), -7))
+  const [fechaHastaRango, setFechaHastaRango] = useState(() => hoyISO())
   const [modoVista, setModoVista] = useState('dia')
+  const [valorTurno, setValorTurno] = useState(VAL_TURNOS_TODOS)
 
-  const [clase, setClase] = useState(null)
-  const [filas, setFilas] = useState([])
+  /** @type {[{ turno:any, clase:any, filas:any[] }] | null} */
+  const [bloquesDia, setBloquesDia] = useState(null)
+  /** un solo turno (día) */
+  const [claseSingle, setClaseSingle] = useState(null)
+  const [filasSingle, setFilasSingle] = useState([])
 
-  const [matrizPayload, setMatrizPayload] = useState(null)
+  /** @type {Awaited<ReturnType<typeof listarAsistenciaRangoTurno>> | null} */
+  const [matrizSingle, setMatrizSingle] = useState(null)
+  /** todas las matrices rango por turno */
+  const [matricesTodos, setMatricesTodos] = useState(null)
+
   const [loading, setLoading] = useState(true)
-  const [savingId, setSavingId] = useState(null)
+  const [savingKey, setSavingKey] = useState(null)
   const [toast, setToast] = useState('')
   const [initError, setInitError] = useState('')
 
@@ -77,7 +100,6 @@ export default function AsistenciaPage() {
       try {
         const ts = await listarTurnos()
         setTurnos(ts)
-        if (ts.length && !idTurno) setIdTurno(ts[0].id_turno)
       } catch (e) {
         console.error(e)
         const msg =
@@ -87,49 +109,75 @@ export default function AsistenciaPage() {
         setInitError(msg)
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- arranque
   }, [])
 
+  const idsTurnos = useMemo(() => {
+    const n = valorTurno === VAL_TURNOS_TODOS ? null : Number(valorTurno)
+    return { esTodos: valorTurno === VAL_TURNOS_TODOS, idTurno: n }
+  }, [valorTurno])
+
+  const periodoCalculado = useMemo(() => {
+    if (modoVista === 'dia') return { desde: fecha, hasta: fecha }
+    if (modoVista === 'semana') {
+      const l = inicioSemanaLunesISO(fecha)
+      return { desde: l, hasta: finSemanaDomingoISO(l) }
+    }
+    if (modoVista === 'mes') {
+      const { desde, hasta } = rangoMesContainingISO(fecha)
+      return { desde, hasta }
+    }
+    const d0 = fechaDesdeRango <= fechaHastaRango ? fechaDesdeRango : fechaHastaRango
+    const d1 = fechaDesdeRango <= fechaHastaRango ? fechaHastaRango : fechaDesdeRango
+    return { desde: d0, hasta: d1 }
+  }, [modoVista, fecha, fechaDesdeRango, fechaHastaRango])
+
   useEffect(() => {
-    if (!idTurno) return
     cargar()
-  }, [idTurno, fecha, modoVista, turnos])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnos.length, fecha, fechaDesdeRango, fechaHastaRango, modoVista, valorTurno])
 
   async function cargar() {
+    if (!turnos.length) {
+      setLoading(false)
+      return
+    }
+
+    const { desde, hasta } = periodoCalculado
     setLoading(true)
-    const turno = turnos.find((t) => t.id_turno === idTurno)
+    setToast('')
+    setBloquesDia(null)
+    setMatrizSingle(null)
+    setMatricesTodos(null)
+    setClaseSingle(null)
+    setFilasSingle([])
     try {
       if (modoVista === 'dia') {
-        setMatrizPayload(null)
-        if (!turnoTieneSesionEsteDia(fecha, turno?.dias_array)) {
-          setClase(null)
-          setFilas([])
-          setLoading(false)
-          return
+        if (idsTurnos.esTodos) {
+          const bloques = await listarAsistenciaDiaTodosLosTurnos(fecha)
+          setBloquesDia(bloques)
+        } else {
+          const sel = turnos.find((x) => x.id_turno === idsTurnos.idTurno)
+          if (!sel || !turnoTieneSesionEsteDia(fecha, sel.dias_array)) {
+            setClaseSingle(null)
+            setFilasSingle([])
+          } else {
+            const { clase, filas } = await listarAsistenciaDeTurno({ idTurno: idsTurnos.idTurno, fecha })
+            setClaseSingle(clase)
+            setFilasSingle(filas)
+          }
         }
-        const { clase: c, filas: fs } = await listarAsistenciaDeTurno({ idTurno, fecha })
-        setClase(c)
-        setFilas(fs)
-      } else if (modoVista === 'semana') {
-        setClase(null)
-        setFilas([])
-        const lunes = inicioSemanaLunesISO(fecha)
-        const domingo = finSemanaDomingoISO(lunes)
-        const m = await listarAsistenciaRangoTurno({ idTurno, fechaDesde: lunes, fechaHasta: domingo })
-        setMatrizPayload(m)
       } else {
-        setClase(null)
-        setFilas([])
-        const { desde, hasta } = rangoMesContainingISO(fecha)
-        const m = await listarAsistenciaRangoTurno({ idTurno, fechaDesde: desde, fechaHasta: hasta })
-        setMatrizPayload(m)
+        if (idsTurnos.esTodos) {
+          const mats = await listarAsistenciaRangoTodosLosTurnos({ fechaDesde: desde, fechaHasta: hasta })
+          setMatricesTodos(mats)
+        } else if (idsTurnos.idTurno) {
+          const m = await listarAsistenciaRangoTurno({ idTurno: idsTurnos.idTurno, fechaDesde: desde, fechaHasta: hasta })
+          setMatrizSingle(m)
+        }
       }
     } catch (e) {
       console.error(e)
       setToast('Error al cargar: ' + e.message)
-      setFilas([])
-      setClase(null)
-      setMatrizPayload(null)
     } finally {
       setLoading(false)
     }
@@ -141,35 +189,67 @@ export default function AsistenciaPage() {
     setTimeout(() => setToast(''), 1600)
   }
 
-  async function cambiarEstado(idAlumno, estado) {
-    if (!clase || modoVista !== 'dia') return
-    setSavingId(idAlumno)
-    setFilas((prev) => prev.map((f) => (f.alumno.id_alumno === idAlumno ? { ...f, estado } : f)))
+  async function cambiarEstado(idAlumno, estado, idClase) {
+    if (!idClase) return
+    const key = `${idClase}-${idAlumno}`
+    setSavingKey(key)
+
+    const actualizarLista = (prev) =>
+      prev.map((f) => (f.alumno.id_alumno === idAlumno ? { ...f, estado } : f))
+
+    if (!idsTurnos.esTodos && modoVista === 'dia') setFilasSingle(actualizarLista)
+    if (bloquesDia?.length && idsTurnos.esTodos) {
+      setBloquesDia(
+        bloquesDia.map((bl) =>
+          bl.clase?.id_clase === idClase ? { ...bl, filas: actualizarLista(bl.filas || []) } : bl,
+        ),
+      )
+    }
     try {
-      await marcarAsistencia({ idClase: clase.id_clase, idAlumno, estado })
+      await marcarAsistencia({ idClase, idAlumno, estado })
       mostrarToast('Guardado')
     } catch (e) {
       console.error(e)
       mostrarToast('Error al guardar')
       cargar()
     } finally {
-      setSavingId(null)
+      setSavingKey(null)
     }
   }
 
-  async function marcarTodos() {
-    if (!clase || !filas.length || modoVista !== 'dia') return
+  async function marcarTodosBloque(idClase, filas) {
+    if (!filas?.length || !idClase) return
     const ids = filas.map((f) => f.alumno.id_alumno)
     try {
-      await marcarTodosPresentes({ idClase: clase.id_clase, idsAlumnos: ids })
-      setFilas((prev) => prev.map((f) => ({ ...f, estado: ESTADOS.PRESENTE })))
+      await marcarTodosPresentes({ idClase, idsAlumnos: ids })
+
+      const marcar = (lista) =>
+        lista.map((f) => ({
+          ...f,
+          estado: ESTADOS.PRESENTE,
+        }))
+
+      if (!idsTurnos.esTodos && modoVista === 'dia') setFilasSingle((prev) => marcar(prev))
+      if (bloquesDia?.length && idsTurnos.esTodos) {
+        setBloquesDia(
+          bloquesDia.map((bl) =>
+            bl.clase?.id_clase === idClase ? { ...bl, filas: marcar(bl.filas || []) } : bl,
+          ),
+        )
+      }
       mostrarToast(`${ids.length} marcados presentes`)
     } catch (e) {
       mostrarToast('Error: ' + e.message)
     }
   }
 
-  const resumen = useMemo(() => {
+  const resumenFilasLocal = useMemo(() => {
+    let filas =
+      modoVista === 'dia'
+        ? !idsTurnos.esTodos && claseSingle && filasSingle.length
+          ? filasSingle
+          : []
+        : []
     const r = { total: filas.length, p: 0, a: 0, j: 0, rec: 0 }
     for (const f of filas) {
       if (f.estado === ESTADOS.PRESENTE) r.p++
@@ -178,34 +258,26 @@ export default function AsistenciaPage() {
       else r.a++
     }
     const base = r.p + r.a + r.j
-    r.pct = base > 0 ? Math.round((r.p / base) * 100) : 0
-    return r
-  }, [filas])
+    return { ...r, pct: base > 0 ? Math.round((r.p / base) * 100) : 0 }
+  }, [modoVista, idsTurnos.esTodos, claseSingle, filasSingle])
 
-  const turnoActual = turnos.find((t) => t.id_turno === idTurno)
-  const diaValidoParaTurno = turnoTieneSesionEsteDia(fecha, turnoActual?.dias_array)
+  const textoPeriodoLinea = useMemo(() => {
+    const { desde, hasta } = periodoCalculado
+    if (desde === hasta) return formatFechaLarga(desde)
+    return `${formatFecha(desde)} → ${formatFecha(hasta)}`
+  }, [periodoCalculado])
 
-  const tituloPeriodoMatriz = useMemo(() => {
-    if (!matrizPayload) return ''
-    const { fechaDesde, fechaHasta } = matrizPayload
-    const d0 = fechaDesde === fechaHasta ? formatFechaLarga(fechaDesde) : `${fechaDesde} → ${fechaHasta}`
-    return d0.charAt(0).toUpperCase() + d0.slice(1)
-  }, [matrizPayload])
-
-  const resumenMatriz = useMemo(() => {
-    if (!matrizPayload?.matrix || !matrizPayload?.alumnos?.length || !matrizPayload?.fechasSesion?.length) {
-      return null
-    }
+  function resumenDeMatriz(m) {
+    if (!m?.matrix || !m?.alumnos?.length || !m?.fechasSesion?.length) return null
     let cel = 0
     let fal = 0
     let pr = 0
     let ju = 0
     let re = 0
-    const { matrix, fechasSesion, alumnos } = matrizPayload
-    for (const { fecha: fiso } of fechasSesion) {
-      const col = matrix.get(fiso)
+    for (const { fecha: fiso } of m.fechasSesion) {
+      const col = m.matrix.get(fiso)
       if (!col) continue
-      for (const alum of alumnos) {
+      for (const alum of m.alumnos) {
         const e = col.get(alum.id_alumno) ?? ESTADOS.AUSENTE
         cel++
         if (e === ESTADOS.AUSENTE) fal++
@@ -215,19 +287,41 @@ export default function AsistenciaPage() {
       }
     }
     const base = fal + pr + ju
-    const pct = base > 0 ? Math.round(((pr + re) / base) * 100) : 0
-    return { celulas: cel, ausentes: fal, presentes: pr, justif: ju, recuper: re, pct }
-  }, [matrizPayload])
+    return { celulas: cel, ausentes: fal, presentes: pr, justif: ju, recuper: re, pct: base > 0 ? Math.round(((pr + re) / base) * 100) : 0 }
+  }
+
+  const resumenRangoTodos = useMemo(() => {
+    if (!matricesTodos?.length) return null
+    let ac = {
+      celulas: 0,
+      ausentes: 0,
+      presentes: 0,
+      justif: 0,
+      recuper: 0,
+    }
+    for (const bloc of matricesTodos) {
+      const rs = resumenDeMatriz(bloc)
+      if (!rs) continue
+      ac.celulas += rs.celulas
+      ac.ausentes += rs.ausentes
+      ac.presentes += rs.presentes
+      ac.justif += rs.justif
+      ac.recuper += rs.recuper
+    }
+    const base = ac.ausentes + ac.presentes + ac.justif
+    const pct = base > 0 ? Math.round(((ac.presentes + ac.recuper) / base) * 100) : 0
+    return { ...ac, pct }
+  }, [matricesTodos])
+
+  const resumenRangoSingle = useMemo(() => resumenDeMatriz(matrizSingle), [matrizSingle])
+
+  const diaValidoUnTurno =
+    modoVista === 'dia' && !idsTurnos.esTodos
+      ? turnoTieneSesionEsteDia(fecha, turnos.find((t) => t.id_turno === idsTurnos.idTurno)?.dias_array)
+      : true
 
   return (
-    <AdminLayout
-      title="Asistencia"
-      subtitle={
-        modoVista === 'dia'
-          ? `${formatFechaLarga(fecha)} · activos y en prueba`
-          : tituloPeriodoMatriz || 'Activos y en prueba'
-      }
-    >
+    <AdminLayout title="Asistencia" subtitle={`${textoPeriodoLinea.charAt(0).toUpperCase() + textoPeriodoLinea.slice(1)} · filtros inferiores`}>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
         {(initError || toast) && (
           <div
@@ -246,12 +340,69 @@ export default function AsistenciaPage() {
           </div>
         )}
 
+        <div className="ios-form-section" style={{ marginBottom: 14 }}>
+          <div className="ios-form-row" style={{ alignItems: 'center' }}>
+            <span className="ios-form-row-label">Filtrar período</span>
+            <div style={{ flex: 1, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button type="button" className={`ios-chip ${modoVista === 'dia' ? 'active' : ''}`} onClick={() => setModoVista('dia')}>
+                Por día
+              </button>
+              <button type="button" className={`ios-chip ${modoVista === 'semana' ? 'active' : ''}`} onClick={() => setModoVista('semana')}>
+                Por semana
+              </button>
+              <button type="button" className={`ios-chip ${modoVista === 'mes' ? 'active' : ''}`} onClick={() => setModoVista('mes')}>
+                Por mes
+              </button>
+              <button type="button" className={`ios-chip ${modoVista === 'rango' ? 'active' : ''}`} onClick={() => setModoVista('rango')}>
+                Rango libre
+              </button>
+            </div>
+          </div>
+          <div className="ios-form-row" style={{ borderTop: '0.5px solid var(--separator)', marginTop: 6, paddingTop: 8 }}>
+            <span style={{ flex: '1 1 100%', fontSize: 13, fontWeight: 700, color: 'var(--label)' }}>
+              De <strong style={{ letterSpacing: 0 }}>{periodoCalculado.desde}</strong> a{' '}
+              <strong style={{ letterSpacing: 0 }}>{periodoCalculado.hasta}</strong>
+              {modoVista === 'dia' ? ' (un día)' : ''}
+              {modoVista === 'semana' ? ' (lunes–domingo de la fecha de referencia)' : ''}
+              {modoVista === 'mes' ? ' (mes natural de la referencia)' : ''}
+              {modoVista === 'rango' ? ' (entre las dos fechas que elijas)' : ''}
+            </span>
+          </div>
+          {modoVista === 'rango' && (
+            <>
+              <div className="ios-form-row">
+                <span className="ios-form-row-label">Desde</span>
+                <input type="date" value={fechaDesdeRango} onChange={(e) => setFechaDesdeRango(e.target.value)} style={{ textAlign: 'right' }} />
+              </div>
+              <div className="ios-form-row">
+                <span className="ios-form-row-label">Hasta</span>
+                <input type="date" value={fechaHastaRango} onChange={(e) => setFechaHastaRango(e.target.value)} style={{ textAlign: 'right' }} />
+              </div>
+            </>
+          )}
+          {(modoVista === 'dia' || modoVista === 'semana' || modoVista === 'mes') && (
+            <div className="ios-form-row">
+              <span className="ios-form-row-label">{modoVista === 'dia' ? 'Día seleccionado' : 'Mes / semana desde'}</span>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={{ textAlign: 'right' }} />
+            </div>
+          )}
+          <div className="ios-form-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ flex: '1 1 160px', fontSize: 12, color: 'var(--label3)', lineHeight: 1.5 }}>
+              Atajo: fecha de referencia usa <strong>hoy</strong> al entrar en la página. Con «Todos los horarios» verás cada turno del mismo día /
+              período en bloques seguidos.
+            </span>
+            <button type="button" className="ios-chip" style={{ flexShrink: 0 }} onClick={() => setFecha(hoyISO())}>
+              Hoy como referencia
+            </button>
+          </div>
+        </div>
+
         <div className="ios-form-section" style={{ marginBottom: 16 }}>
           <div className="ios-form-row">
-            <span className="ios-form-row-label">Turno</span>
+            <span className="ios-form-row-label">Horario · turno</span>
             <select
-              value={idTurno || ''}
-              onChange={(e) => setIdTurno(Number(e.target.value))}
+              value={valorTurno}
+              onChange={(e) => setValorTurno(e.target.value === VAL_TURNOS_TODOS ? VAL_TURNOS_TODOS : e.target.value)}
               style={{
                 flex: 1,
                 textAlign: 'right',
@@ -264,86 +415,71 @@ export default function AsistenciaPage() {
                 minWidth: 0,
               }}
             >
-              {turnos.length === 0 && <option>— sin turnos —</option>}
+              <option value={VAL_TURNOS_TODOS}>Todos los horarios (dia / semana / mes / rango)</option>
               {turnos.map((t) => (
-                <option key={t.id_turno} value={t.id_turno}>
+                <option key={t.id_turno} value={String(t.id_turno)}>
                   {t.nombre} · {horario(t)} · {diasDeTurno(t)}
                 </option>
               ))}
             </select>
           </div>
-
-          <div className="ios-form-row">
-            <span className="ios-form-row-label">Vista</span>
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              {MODOS_VISTA.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`ios-chip ${modoVista === m.id ? 'active' : ''}`}
-                  onClick={() => setModoVista(m.id)}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="ios-form-row">
-            <span className="ios-form-row-label">{modoVista === 'dia' ? 'Fecha del día' : 'Referencia calendario'}</span>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={{ textAlign: 'right' }} />
-          </div>
-
-          {(modoVista === 'semana' || modoVista === 'mes') && (
-            <p style={{ fontSize: 12, color: 'var(--label3)', margin: '10px 0 4px', lineHeight: 1.45, paddingLeft: 2 }}>
-              {modoVista === 'semana'
-                ? 'Semana de lunes a domingo que contiene la fecha elegida.'
-                : 'Todo el mes calendario de la fecha elegida.'}{' '}
-              Incluye faltas (A) donde no hay asistencia o está ausente. Sin columna cuando no tocaba ese día para el turno.
-            </p>
-          )}
         </div>
 
-        {modoVista === 'dia' && (
+        {modoVista === 'dia' && !idsTurnos.esTodos && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
-              <Stat label="Total" valor={diaValidoParaTurno ? resumen.total : '—'} color="var(--label)" />
-              <Stat label="Presentes" valor={diaValidoParaTurno ? resumen.p : '—'} color="#059669" />
-              <Stat label="Ausentes" valor={diaValidoParaTurno ? resumen.a : '—'} color="#6B7280" />
-              <Stat label="Justif." valor={diaValidoParaTurno ? resumen.j : '—'} color="#F59E0B" />
-              <Stat label="Recup." valor={diaValidoParaTurno ? resumen.rec : '—'} color="#3B82F6" />
+              <Stat label="Total" valor={diaValidoUnTurno ? resumenFilasLocal.total : '—'} color="var(--label)" />
+              <Stat label="Presentes" valor={diaValidoUnTurno ? resumenFilasLocal.p : '—'} color="#059669" />
+              <Stat label="Ausentes" valor={diaValidoUnTurno ? resumenFilasLocal.a : '—'} color="#6B7280" />
+              <Stat label="Justif." valor={diaValidoUnTurno ? resumenFilasLocal.j : '—'} color="#F59E0B" />
+              <Stat label="Recup." valor={diaValidoUnTurno ? resumenFilasLocal.rec : '—'} color="#3B82F6" />
             </div>
-
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 12, color: 'var(--label3)', fontWeight: 600 }}>
                 Asistencia real:{' '}
-                <strong style={{ color: 'var(--label)' }}>{diaValidoParaTurno ? `${resumen.pct}%` : '—'}</strong>
+                <strong style={{ color: 'var(--label)' }}>{diaValidoUnTurno ? `${resumenFilasLocal.pct}%` : '—'}</strong>
               </span>
               <div style={{ flex: 1 }} />
               <button
                 className="ios-chip"
-                onClick={marcarTodos}
-                disabled={!filas.length || loading || !diaValidoParaTurno}
+                onClick={() => claseSingle && marcarTodosBloque(claseSingle.id_clase, filasSingle)}
+                disabled={!filasSingle.length || loading || !diaValidoUnTurno}
                 style={{ background: '#059669', color: '#fff', fontWeight: 600 }}
               >
-                Todos presentes
+                Todos presentes (este turno)
               </button>
             </div>
           </>
         )}
 
-        {(modoVista === 'semana' || modoVista === 'mes') && resumenMatriz && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 8 }}>
-              <Stat label="Celdas" valor={resumenMatriz.celulas} color="var(--label)" />
-              <Stat label="Ausentes · A" valor={resumenMatriz.ausentes} color="#6B7280" />
-              <Stat label="Presentes · P" valor={resumenMatriz.presentes} color="#059669" />
-              <Stat label="Justif. · J" valor={resumenMatriz.justif} color="#F59E0B" />
-              <Stat label="Recup. · R" valor={resumenMatriz.recuper} color="#3B82F6" />
-              <Stat label="Cubre sesión %" valor={`${resumenMatriz.pct}%`} color="#1F3864" />
+        {(modoVista === 'semana' || modoVista === 'mes' || modoVista === 'rango') &&
+          ((idsTurnos.esTodos ? resumenRangoTodos : resumenRangoSingle)?.celulas || 0) > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 8 }}>
+                {(() => {
+                  const r = idsTurnos.esTodos ? resumenRangoTodos : resumenRangoSingle
+                  if (!r) return null
+                  return (
+                    <>
+                      <Stat label="Celdas" valor={r.celulas} color="var(--label)" />
+                      <Stat label="Ausentes · A" valor={r.ausentes} color="#6B7280" />
+                      <Stat label="Presentes · P" valor={r.presentes} color="#059669" />
+                      <Stat label="Justif. · J" valor={r.justif} color="#F59E0B" />
+                      <Stat label="Recup. · R" valor={r.recuper} color="#3B82F6" />
+                      <Stat label="Cubre sesión %" valor={`${r.pct}%`} color="#1F3864" />
+                    </>
+                  )
+                })()}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+        {/* evita doble estadística en día+todos */}
+        {modoVista === 'dia' && idsTurnos.esTodos && bloquesDia?.length ? (
+          <p style={{ fontSize: 12, color: 'var(--label3)', marginBottom: 12 }}>
+            Varios horarios este día · puedes pasar lista en cada bloque por separado.
+          </p>
+        ) : null}
 
         <div className="ios-form-section" style={{ padding: 0 }}>
           {loading ? (
@@ -361,131 +497,61 @@ export default function AsistenciaPage() {
               />
               Cargando…
             </div>
-          ) : !turnoActual ? (
+          ) : !turnos.length ? (
             <div className="ios-empty">
               <span className="material-symbols-rounded ios-empty-icon">event_busy</span>
               <p>No hay turnos registrados</p>
             </div>
-          ) : modoVista === 'dia' && !diaValidoParaTurno ? (
+          ) : modoVista === 'dia' && idsTurnos.esTodos ? (
+            !bloquesDia?.length ? (
+              <div className="ios-empty">
+                <span className="material-symbols-rounded ios-empty-icon">calendar_month</span>
+                <p style={{ fontWeight: 600 }}>Ningún turno tiene sesión este día</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>
+                  Cambia la fecha · hoy corresponde a: <strong>{formatFechaLarga(hoyISO())}</strong>
+                </p>
+              </div>
+            ) : (
+              bloquesDia.map((bl) => (
+                <BloqueDiaTurno
+                  key={`${bl.turno?.id_turno}-${bl.clase?.id_clase}-${fecha}`}
+                  bloque={bl}
+                  savingKey={savingKey}
+                  onEstado={(idAlum, est) => cambiarEstado(idAlum, est, bl.clase?.id_clase)}
+                  onTodosPresentes={() => marcarTodosBloque(bl.clase?.id_clase, bl.filas)}
+                />
+              ))
+            )
+          ) : modoVista === 'dia' && !idsTurnos.esTodos && !diaValidoUnTurno ? (
             <div className="ios-empty">
               <span className="material-symbols-rounded ios-empty-icon">calendar_month</span>
               <p style={{ fontWeight: 600 }}>Este día no corresponde a una sesión de este turno</p>
-              <p style={{ fontSize: 13, marginTop: 6, color: 'var(--label2)', lineHeight: 1.45 }}>
-                Elige otra fecha o cambia el turno. Sesiones esperadas este periodo: {diasDeTurno(turnoActual) || '—'}.
-              </p>
             </div>
-          ) : modoVista === 'dia' && filas.length === 0 ? (
+          ) : modoVista === 'dia' && !filasSingle.length ? (
             <div className="ios-empty">
               <span className="material-symbols-rounded ios-empty-icon">groups</span>
               <p>No hay alumnos asignados a este turno</p>
-              <p style={{ fontSize: 12, marginTop: 4 }}>
-                Edita alumnos desde la pestaña <strong>Académico</strong> y asígnales este turno.
-              </p>
             </div>
-          ) : modoVista === 'dia' ? (
-            filas.map((f, i) => (
+          ) : modoVista === 'dia' && idsTurnos.esTodos === false ? (
+            filasSingle.map((f, i) => (
               <FilaAsistencia
                 key={f.alumno.id_alumno}
                 index={i + 1}
                 fila={f}
-                saving={savingId === f.alumno.id_alumno}
-                onEstado={(est) => cambiarEstado(f.alumno.id_alumno, est)}
+                saving={savingKey === `${claseSingle?.id_clase}-${f.alumno.id_alumno}`}
+                onEstado={(est) => cambiarEstado(f.alumno.id_alumno, est, claseSingle?.id_clase)}
               />
             ))
-          ) : matrizPayload && matrizPayload.fechasSesion.length === 0 ? (
+          ) : idsTurnos.esTodos && matricesTodos?.length ? (
+            matricesTodos.map((matBloc) => <TablaMatrizTurno key={`t-${matBloc.turno?.id_turno}-${matBloc.fechaDesde}`} bloc={matBloc} />)
+          ) : !idsTurnos.esTodos && matrizSingle ? (
+            <TablaMatrizTurno key={`one-${matrizSingle.turno?.id_turno}`} bloc={matrizSingle} />
+          ) : modoVista !== 'dia' ? (
             <div className="ios-empty">
               <span className="material-symbols-rounded ios-empty-icon">event_busy</span>
-              <p>No hay sesiones de este turno en el período seleccionado</p>
-              <p style={{ fontSize: 12, color: 'var(--label3)', marginTop: 4 }}>
-                Solo se listan los días de la agenda del turno.
-              </p>
+              <p>No hay datos en ese período / turno</p>
             </div>
-          ) : matrizPayload && matrizPayload.alumnos.length === 0 ? (
-            <div className="ios-empty">
-              <span className="material-symbols-rounded ios-empty-icon">groups</span>
-              <p>No hay alumnos asignados a este turno</p>
-            </div>
-          ) : matrizPayload ? (
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 480 }}>
-                <thead>
-                  <tr>
-                    <th
-                      style={{
-                        padding: '8px 10px',
-                        textAlign: 'left',
-                        position: 'sticky',
-                        left: 0,
-                        background: '#fff',
-                        zIndex: 2,
-                        boxShadow: '1px 0 0 var(--separator)',
-                      }}
-                    >
-                      Alumno
-                    </th>
-                    {matrizPayload.fechasSesion.map(({ fecha: fiso, clase: cl }) => (
-                      <th key={fiso} title={cl ? '' : 'Sin clase registrada aún'} style={{ padding: '6px 4px', minWidth: 44 }}>
-                        <div style={{ fontWeight: 800, letterSpacing: -0.2 }}>{String(fiso).slice(8, 10)}</div>
-                        <div style={{ fontSize: 9, color: 'var(--label3)', marginTop: 2 }}>
-                          {!cl ? '−' : '✓'}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {matrizPayload.alumnos.map((alumno, ix) => (
-                    <tr key={alumno.id_alumno}>
-                      <td
-                        style={{
-                          padding: '6px 10px',
-                          position: 'sticky',
-                          left: 0,
-                          background: '#fff',
-                          zIndex: 1,
-                          boxShadow: '1px 0 0 var(--separator)',
-                          maxWidth: 180,
-                          borderBottom: '0.5px solid var(--separator)',
-                        }}
-                      >
-                        <div className="ios-hstack" style={{ gap: 8 }}>
-                          <span style={{ color: 'var(--label3)', fontSize: 11, width: 16 }}>{ix + 1}</span>
-                          <span className="truncate-1" style={{ fontWeight: 600, fontSize: 13 }}>
-                            {alumno.apellidos}, {alumno.nombres}
-                          </span>
-                        </div>
-                      </td>
-                      {matrizPayload.fechasSesion.map(({ fecha: fiso }) => {
-                        const estado = matrizPayload.matrix.get(fiso)?.get(alumno.id_alumno) ?? ESTADOS.AUSENTE
-                        return (
-                          <td
-                            key={fiso + '-' + alumno.id_alumno}
-                            style={{
-                              textAlign: 'center',
-                              fontWeight: 800,
-                              borderBottom: '0.5px solid var(--separator)',
-                              padding: 4,
-                              background: colorCeldaRango(estado),
-                              color: estado === ESTADOS.AUSENTE ? '#4B5563' : '#111827',
-                            }}
-                            title={estado.replace(/_/g, ' ')}
-                          >
-                            {simboloEstado(estado)}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', padding: '12px 8px', fontSize: 11, color: 'var(--label3)' }}>
-                <span>
-                  <strong>P</strong> presente · <strong>J</strong> justificada · <strong>R</strong> recuperación · <strong>A</strong>{' '}
-                  ausencia o sin marcar · columna día/mes corto (<strong>✓</strong> clase existe)
-                </span>
-              </div>
-            </div>
-          ) : null}
+          )}
         </div>
 
         {toast && !initError && <div className="ios-toast">{toast}</div>}
@@ -502,9 +568,10 @@ export default function AsistenciaPage() {
 }
 
 function Stat({ label, valor, color }) {
+  const vDisp = valor == null ? '—' : valor
   return (
     <div className="ios-form-section" style={{ padding: '10px 8px', textAlign: 'center', margin: 0 }}>
-      <p style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: -0.5 }}>{valor}</p>
+      <p style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: -0.5 }}>{vDisp}</p>
       <p
         style={{
           fontSize: 10,
@@ -516,6 +583,165 @@ function Stat({ label, valor, color }) {
       >
         {label}
       </p>
+    </div>
+  )
+}
+
+function BloqueDiaTurno({ bloque, savingKey, onEstado, onTodosPresentes }) {
+  const t = bloque.turno
+  const filas = bloque.filas || []
+
+  const res = useMemo(() => {
+    const r = { total: filas.length, p: 0, a: 0, j: 0, rec: 0 }
+    for (const f of filas) {
+      if (f.estado === ESTADOS.PRESENTE) r.p++
+      else if (f.estado === ESTADOS.JUSTIFICADA) r.j++
+      else if (f.estado === ESTADOS.RECUPERACION) r.rec++
+      else r.a++
+    }
+    const base = r.p + r.a + r.j
+    return { ...r, pct: base > 0 ? Math.round((r.p / base) * 100) : 0 }
+  }, [filas])
+
+  return (
+    <>
+      <div
+        style={{
+          padding: '12px 14px',
+          background: 'rgba(60,60,67,0.06)',
+          borderBottom: '0.5px solid var(--separator)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 8,
+          alignItems: 'center',
+        }}
+      >
+        <strong style={{ fontSize: 15 }}>{t?.nombre || 'Turno'}</strong>
+        <span style={{ fontSize: 12, color: 'var(--label3)' }}>
+          {horario(t)} · {diasDeTurno(t)}
+        </span>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 12, color: 'var(--label3)' }}>
+          Lista: presentes ~{res.pct}% ({res.total} alumnos)
+        </span>
+        <button type="button" className="ios-chip" style={{ background: '#059669', color: '#fff', fontWeight: 600 }} onClick={onTodosPresentes}>
+          Todos presentes
+        </button>
+      </div>
+      {filas.length === 0 ? (
+        <div className="ios-empty">
+          <p style={{ padding: '12px 16px', fontSize: 13 }}>Sin alumnos en este turno.</p>
+        </div>
+      ) : (
+        filas.map((f, i) => (
+          <FilaAsistencia
+            key={f.alumno.id_alumno}
+            index={i + 1}
+            fila={f}
+            saving={savingKey === `${bloque.clase?.id_clase}-${f.alumno.id_alumno}`}
+            onEstado={(est) => onEstado(f.alumno.id_alumno, est)}
+          />
+        ))
+      )}
+    </>
+  )
+}
+
+function TablaMatrizTurno({ bloc }) {
+  const keyBase = `${bloc.turno?.id_turno}-${bloc.fechaDesde}-${bloc.fechaHasta}`
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div
+        style={{
+          padding: '10px 14px',
+          borderBottom: '0.5px solid var(--separator)',
+          fontWeight: 700,
+          fontSize: 14,
+          background: 'rgba(60,60,67,0.05)',
+        }}
+      >
+        {bloc.turno?.nombre || 'Turno'}{' '}
+        <span style={{ fontWeight: 500, fontSize: 12, color: 'var(--label3)', marginLeft: 8 }}>
+          {horario(bloc.turno)} · {diasDeTurno(bloc.turno)}
+        </span>
+      </div>
+      {!bloc.fechasSesion?.length ? (
+        <p style={{ padding: 16, fontSize: 13, color: 'var(--label3)' }}>Este turno no tiene sesiones en el período (según agenda).</p>
+      ) : !bloc.alumnos?.length ? (
+        <p style={{ padding: 16, fontSize: 13 }}>Sin alumnos asignados a este turno.</p>
+      ) : (
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 480 }}>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    padding: '8px 10px',
+                    textAlign: 'left',
+                    position: 'sticky',
+                    left: 0,
+                    background: '#fff',
+                    zIndex: 2,
+                    boxShadow: '1px 0 0 var(--separator)',
+                  }}
+                >
+                  Alumno
+                </th>
+                {bloc.fechasSesion.map(({ fecha: fiso, clase: cl }) => (
+                  <th key={fiso} title={cl ? '' : 'Sin clase registrada aún'} style={{ padding: '6px 4px', minWidth: 44 }}>
+                    <div style={{ fontWeight: 800, letterSpacing: -0.2 }}>{String(fiso).slice(8, 10)}</div>
+                    <div style={{ fontSize: 9, color: 'var(--label3)', marginTop: 2 }}>{!cl ? '−' : '✓'}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bloc.alumnos.map((alumno, ix) => (
+                <tr key={`${keyBase}-a-${alumno.id_alumno}`}>
+                  <td
+                    style={{
+                      padding: '6px 10px',
+                      position: 'sticky',
+                      left: 0,
+                      background: '#fff',
+                      zIndex: 1,
+                      boxShadow: '1px 0 0 var(--separator)',
+                      maxWidth: 180,
+                      borderBottom: '0.5px solid var(--separator)',
+                    }}
+                  >
+                    <div className="ios-hstack" style={{ gap: 8 }}>
+                      <span style={{ color: 'var(--label3)', fontSize: 11, width: 16 }}>{ix + 1}</span>
+                      <span className="truncate-1" style={{ fontWeight: 600, fontSize: 13 }}>
+                        {alumno.apellidos}, {alumno.nombres}
+                      </span>
+                    </div>
+                  </td>
+                  {bloc.fechasSesion.map(({ fecha: fiso }) => {
+                    const estado = bloc.matrix.get(fiso)?.get(alumno.id_alumno) ?? ESTADOS.AUSENTE
+                    return (
+                      <td
+                        key={fiso + '-' + alumno.id_alumno}
+                        style={{
+                          textAlign: 'center',
+                          fontWeight: 800,
+                          borderBottom: '0.5px solid var(--separator)',
+                          padding: 4,
+                          background: colorCeldaRango(estado),
+                          color: estado === ESTADOS.AUSENTE ? '#4B5563' : '#111827',
+                        }}
+                        title={String(estado).replace(/_/g, ' ')}
+                      >
+                        {simboloEstado(estado)}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

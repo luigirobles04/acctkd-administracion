@@ -364,3 +364,35 @@ export async function listarAsistenciaRangoTurno({ idTurno, fechaDesde, fechaHas
     clasesPorFecha,
   }
 }
+
+const ID_TURNOS_TODOS = '__TODOS__'
+
+export { ID_TURNOS_TODOS }
+
+/** Día concreto: todos los turnos que tienen sesión ese día, con clase y lista editable. */
+export async function listarAsistenciaDiaTodosLosTurnos(fechaISO) {
+  const listaTurnos = await listarTurnos()
+  const bloques = []
+  for (const t of listaTurnos) {
+    if (!turnoTieneSesionEsteDia(fechaISO, t.dias_array)) continue
+    const datos = await listarAsistenciaDeTurno({ idTurno: t.id_turno, fecha: fechaISO })
+    bloques.push({ turno: t, clase: datos.clase, filas: datos.filas })
+  }
+  return bloques.sort((a, b) => String(a.turno?.hora_inicio || '').localeCompare(String(b.turno?.hora_inicio || '')))
+}
+
+/** Rango: un bloque matriz por turno (solo lectura igual que uno solo); ignora turnos sin sesiones en el rango. */
+export async function listarAsistenciaRangoTodosLosTurnos({ fechaDesde, fechaHasta }) {
+  const ts = await listarTurnos()
+  const todos = await Promise.all(
+    ts.map((turnoRow) =>
+      listarAsistenciaRangoTurno({ idTurno: turnoRow.id_turno, fechaDesde, fechaHasta }).then((block) => ({
+        ...block,
+        turno: block.turno || turnoRow,
+      })),
+    ),
+  )
+  return todos.sort((a, b) =>
+    String(a.turno?.hora_inicio || '').localeCompare(String(b.turno?.hora_inicio || '')),
+  )
+}
