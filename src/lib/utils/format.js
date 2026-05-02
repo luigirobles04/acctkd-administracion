@@ -95,6 +95,24 @@ export function labelMetodoPago(p) {
   return p.metodo_cat?.nombre || (typeof p.metodo === 'object' && p.metodo?.nombre) || p.metodo_pago || '—'
 }
 
+/** Texto corto solo para UI (Yape, Transferencia, Efectivo; resto nombre legible si existe). */
+export function etiquetaMetodoVisible(p, soloTresPreferidos = true) {
+  const raw =
+    typeof p.metodo_pago === 'string'
+      ? p.metodo_pago.toLowerCase()
+      : (labelMetodoPago(p) || '').toLowerCase()
+  if (/yape/.test(raw)) return 'Yape'
+  if (/transfer/.test(raw)) return 'Transferencia'
+  if (/efectivo/.test(raw)) return 'Efectivo'
+  if (!soloTresPreferidos) {
+    if (/plin/.test(raw)) return 'Plin'
+    if (/tarjet/.test(raw)) return 'Tarjeta'
+  }
+  if (!raw.trim()) return '—'
+  if (soloTresPreferidos) return '—'
+  return labelMetodoPago(p)
+}
+
 /** Grado en historial: embed puede venir como grado, grado_marcial o id_grado resuelto */
 export function gradoHistorialLabel(h) {
   const g = h?.grado_marcial || h?.grado

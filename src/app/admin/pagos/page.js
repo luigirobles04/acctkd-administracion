@@ -11,8 +11,9 @@ import {
   waLink,
   hoyISO,
   labelConceptoPago,
-  labelMetodoPago,
+  etiquetaMetodoVisible,
 } from '@/lib/utils/format'
+import { listarMensualidadesProximasAVencer, DIAS_VENCE_MENSUALIDAD_PRONTO } from '@/lib/services/pagoAlerts.service'
 
 const PRIORIDAD_ESTADO = { vencido: 0, pendiente: 1, pagado: 2, anulado: 3 }
 
@@ -41,13 +42,6 @@ function mensajeCobroPendiente({ alumno, monto, concepto, mesLabel, academiaNomb
   else if (concepto) partes.push(`📌 Concepto: ${concepto}.`)
   partes.push('¿Podría confirmarnos el pago o coordinar cuando lo realiza? ¡Muchas gracias!')
   return partes.join('\n')
-}
-
-function generarNumeroRecibo(idAlumno) {
-  const d = new Date()
-  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
-  const r = Math.floor(Math.random() * 9000) + 1000
-  return `R-${idAlumno}-${ymd}-${r}`
 }
 
 function normalizeMonthInput(isoDay) {
@@ -102,6 +96,7 @@ export default function PagosPage() {
   const [cobroMetodo, setCobroMetodo] = useState('efectivo')
   const [cobroSaving, setCobroSaving] = useState(false)
   const [listError, setListError] = useState(null)
+  const [proximosVencer, setProximosVencer] = useState([])
   const [form, setForm] = useState({
     id_alumno: '',
     concepto: 'Mensualidad',
@@ -191,6 +186,14 @@ export default function PagosPage() {
       } else {
         setAlumnos(alumnosData || [])
       }
+
+      try {
+        const prox = await listarMensualidadesProximasAVencer()
+        setProximosVencer(Array.isArray(prox) ? prox : [])
+      } catch (eV) {
+        console.warn(eV)
+        setProximosVencer([])
+      }
     } catch (e) {
       console.error(e)
       setListError(e?.message || String(e))
@@ -225,7 +228,7 @@ export default function PagosPage() {
         id_plan: alum?.plan?.id_plan ?? null,
         id_concepto,
         id_metodo,
-        numero_recibo: generarNumeroRecibo(idAl),
+        numero_recibo: null,
       }
       const { error } = await sb.from('pago').insert(payload)
       if (error) throw error
@@ -301,8 +304,7 @@ export default function PagosPage() {
         a?.apellidos,
         a?.dni,
         labelConceptoPago(p),
-        p.numero_recibo,
-        labelMetodoPago(p),
+        etiquetaMetodoVisible(p),
         p.estado,
         p.sede?.nombre,
       ]
@@ -397,11 +399,47 @@ export default function PagosPage() {
           <StatMini label="Alumnos (cobros)" valor={alumnos.length} color="#E53935" icon="school" />
         </div>
 
+        {proximosVencer.length > 0 && (
+          <div
+            className="ios-form-section"
+            style={{ marginBottom: 16, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.28)' }}
+          >
+            <p className="ios-form-section-title" style={{ paddingTop: 4 }}>
+              Próximos vencimientos de mensualidad ({proximosVencer.length} · {DIAS_VENCE_MENSUALIDAD_PRONTO} días)
+            </p>
+            <div style={{ padding: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {proximosVencer.slice(0, 12).map((pv) => {
+                const al = pv.alumno
+                const nom = al ? `${al.apellidos ?? ''}, ${al.nombres ?? ''}`.trim() || 'Alumno' : '—'
+                const monto = parseFloat(pv.monto_final || pv.monto)
+                const mesLbl = labelMesCorrespondiente(pv.mes_correspondiente)
+                return (
+                  <div key={pv.id_pago} className="ios-form-row" style={{ minHeight: 44 }}>
+                    <span style={{ fontWeight: 600, flex: '1 1 160px', minWidth: 0 }} className="truncate-1">
+                      {nom}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--label3)', textAlign: 'right' }}>
+                      {mesLbl ? `${mesLbl} · ` : ''}
+                      Vence <strong>{formatFecha(pv.fecha_vencimiento)}</strong> ·{' '}
+                      <strong>{formatMoney(monto)}</strong>
+                    </span>
+                  </div>
+                )
+              })}
+              {proximosVencer.length > 12 ? (
+                <p style={{ fontSize: 12, color: 'var(--label3)', paddingLeft: 2 }}>
+                  Hay {proximosVencer.length - 12} movimientos más en «Pendientes».
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         <div className="ios-searchbar" style={{ marginBottom: 12 }}>
           <span className="ios-searchbar-icon material-symbols-rounded" style={{ fontSize: 18 }}>search</span>
           <input
             type="search"
-            placeholder="Buscar por alumno, concepto, recibo o método…"
+            placeholder="Buscar por alumno, concepto o medio de pago…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -479,7 +517,7 @@ export default function PagosPage() {
                         alignItems: 'flex-start',
                       }}
                       role="group"
-                      aria-label={`Pago ${p.numero_recibo || p.id_pago}`}
+                      aria-label={`Pago ${p.id_pago} · ${labelConceptoPago(p)}`}
                     >
                       <div className="ios-avatar">{ini}</div>
                       <div style={{ minWidth: 0 }}>
@@ -487,20 +525,35 @@ export default function PagosPage() {
                           <p className="truncate-1" style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.2 }}>
                             {a ? `${a.apellidos}, ${a.nombres}` : '—'}
                           </p>
-                          {p.numero_recibo ? (
+                          {!esPendiente && etiquetaMetodoVisible(p) !== '—' ? (
                             <span
                               style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                color: 'var(--red)',
-                                background: 'rgba(229,57,53,0.08)',
+                                color: '#065F46',
+                                background: 'rgba(16,185,129,0.12)',
                                 padding: '2px 6px',
                                 borderRadius: 4,
-                                letterSpacing: 0.2,
+                                letterSpacing: 0.15,
+                                flexShrink: 0,
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {etiquetaMetodoVisible(p)}
+                            </span>
+                          ) : esPendiente ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: 'var(--label3)',
+                                background: 'rgba(60,60,67,0.08)',
+                                padding: '2px 6px',
+                                borderRadius: 4,
                                 flexShrink: 0,
                               }}
                             >
-                              {p.numero_recibo}
+                              Medio al cobrar
                             </span>
                           ) : null}
                         </div>
@@ -511,7 +564,9 @@ export default function PagosPage() {
                         </p>
                         <p className="truncate-1 sm:hidden" style={{ fontSize: 11, color: 'var(--label3)', marginTop: 2 }}>
                           {formatTelefono(a?.telefono) || '—'}
-                          {!esPendiente && labelMetodoPago(p) !== '—' ? ` · ${labelMetodoPago(p)}` : ''}
+                          {!esPendiente && etiquetaMetodoVisible(p) !== '—'
+                            ? ` · ${etiquetaMetodoVisible(p)}`
+                            : ''}
                         </p>
                         <div className="ios-hstack sm:hidden" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                           <span className={`ios-badge ${estadoBadge(p.estado)}`}>{labelEstado(p.estado)}</span>
@@ -540,7 +595,9 @@ export default function PagosPage() {
                               ? p.fecha_vencimiento
                                 ? `Vence ${formatFecha(p.fecha_vencimiento)}`
                                 : 'Aún sin cobrar'
-                              : `${labelMetodoPago(p)} · ${formatFecha(p.fecha_pago)}`}
+                              : etiquetaMetodoVisible(p) !== '—'
+                                ? `${etiquetaMetodoVisible(p)} · ${formatFecha(p.fecha_pago)}`
+                                : formatFecha(p.fecha_pago)}
                           </p>
                           <span className={`hidden sm:inline-flex ios-badge ${estadoBadge(p.estado)}`} style={{ marginTop: 6 }}>
                             {labelEstado(p.estado)}
@@ -667,7 +724,7 @@ export default function PagosPage() {
                   Registrar cobro
                 </h2>
                 <p style={{ fontSize: 12, color: 'var(--label3)', marginTop: 4, lineHeight: 1.35 }}>
-                  Solo confirma lo esencial: el resto (recibo y monto del plan) lo completamos automáticamente.
+                  Indica medio (Yape, transferencia o efectivo) al guardar el cobro. Elige el alumno y el período cubierto.
                 </p>
               </div>
               <button
@@ -704,14 +761,13 @@ export default function PagosPage() {
                 >
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#1A7A34', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span className="material-symbols-rounded" style={{ fontSize: 18 }}>auto_awesome</span>
-                    Automático al guardar
+                    Al guardar
                   </p>
                   <ul style={{ fontSize: 12, color: 'var(--label2)', margin: 0, paddingLeft: 18, lineHeight: 1.55 }}>
                     <li>
                       Estado <strong>Pagado</strong>
                     </li>
-                    <li>Número de recibo único generado</li>
-                    <li>Monto inicial = precio del plan del alumno (editable)</li>
+                    <li>Monto sugerido = precio del plan del alumno (editable)</li>
                   </ul>
                 </div>
 

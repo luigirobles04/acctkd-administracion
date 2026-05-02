@@ -3,9 +3,8 @@
 -- ─ tipo_sangre A+ en todos los alumnos
 -- ─ Sesiones clase por dias_array del turno + asistencias variadas
 -- ─ Alumnos en prueba: UNA marca «Clase de prueba ACCTKD» + alumno.id_clase_prueba (editable en app)
--- Pagos sintéticos: solo alumnos ya formalizados (activo/suspendido), no «en prueba».
--- Recibo mensualidad demo: SYN-ABCDEFYYMM (≤20): SYN- marca demo, ABCDEF=id_alumno 6 dígitos, YYMM=mes (ej. id 203, abril 2026 → SYN-0002032604). Matrícula: M-ABCDEF.
--- Elimina/recrea sólo registros demo (prefijos SYN-/M- y observaciones demostrativas; ver DELETE abajo).
+-- Pagos sintéticos: solo alumnos ya formalizados (activo/suspendido), no «en prueba». Sin número de recibo en pantalla (en la app se muestra medio de cobro).
+-- Elimina/recrea registros de esta plantilla ((series antiguas SYN-/M- en recibo si existían + observaciones; ver DELETE abajo).
 -- =============================================================================
 
 ALTER TABLE alumno ADD COLUMN IF NOT EXISTS id_clase_prueba INTEGER REFERENCES clase(id_clase);
@@ -29,10 +28,10 @@ DELETE FROM pago WHERE numero_recibo LIKE 'SYNTH-ACCTKD-%'
 DELETE FROM asistencia_alumno
 WHERE observacion IN (
     'Clase de prueba ACCTKD',
-    'Recuperación (demo)',
-    'Viaje familia · justificado (demo)',
-    'Certificado médico (demo)',
-    'Justificación (demo)'
+    'Recuperación', 'Recuperación (demo)',
+    'Viaje familia · justificado', 'Viaje familia · justificado (demo)',
+    'Certificado médico', 'Certificado médico (demo)',
+    'Justificación', 'Justificación (demo)'
   )
   OR observacion LIKE 'Viaje familia%';
 
@@ -90,9 +89,9 @@ fin AS (
       ELSE FALSE
     END AS justificado,
     CASE
-      WHEN hm >= 71 AND hm <= 73 THEN 'Viaje familia · justificado (demo)'::TEXT
-      WHEN hm >= 74 AND hm <= 77 THEN 'Certificado médico (demo)'::TEXT
-      WHEN hm >= 85 AND hm <= 91 THEN 'Recuperación (demo)'::TEXT
+      WHEN hm >= 71 AND hm <= 73 THEN 'Viaje familia · justificado'::TEXT
+      WHEN hm >= 74 AND hm <= 77 THEN 'Certificado médico'::TEXT
+      WHEN hm >= 85 AND hm <= 91 THEN 'Recuperación'::TEXT
       ELSE NULL::TEXT
     END AS observacion
   FROM base
@@ -158,7 +157,7 @@ ctx AS (
 INSERT INTO pago (
   id_alumno, id_sede, concepto, monto, descuento,
   fecha_pago, mes_correspondiente, metodo_pago, estado,
-  id_metodo, id_concepto, id_plan, numero_recibo, fecha_vencimiento, observaciones
+  id_metodo, id_concepto, id_plan, fecha_vencimiento, observaciones
 )
 SELECT
   c.id_alumno,
@@ -190,21 +189,25 @@ SELECT
   ),
   (SELECT id_concepto FROM concepto_pago WHERE codigo = 'MENSUALIDAD' LIMIT 1),
   c.id_plan,
-  'SYN-' || LPAD(c.id_alumno::TEXT, 6, '0') || TO_CHAR(c.primer_dia, 'YYMM'),
   CASE
     WHEN (c.hx % 23 = 3) THEN (c.primer_dia + 16)::DATE
     WHEN (c.hx % 61 = 8) THEN (c.primer_dia + 35)::DATE
     WHEN (c.hx % 41 = 7) THEN (c.primer_dia + 10)::DATE
     ELSE NULL::DATE
   END,
-  'Registro sintético coherencia ACCTKD (demo).'::TEXT
+  'Registro de coherencia ACCTKD.'::TEXT
 FROM ctx c
-ON CONFLICT (numero_recibo) DO NOTHING;
+WHERE NOT EXISTS (
+  SELECT 1 FROM pago px
+  WHERE px.id_alumno = c.id_alumno
+    AND px.mes_correspondiente = c.primer_dia
+    AND px.id_concepto = (SELECT id_concepto FROM concepto_pago WHERE codigo = 'MENSUALIDAD' LIMIT 1)
+);
 
 INSERT INTO pago (
   id_alumno, id_sede, concepto, monto, descuento,
   fecha_pago, mes_correspondiente, metodo_pago, estado,
-  id_metodo, id_concepto, numero_recibo, observaciones
+  id_metodo, id_concepto, observaciones
 )
 SELECT
   a.id_alumno,
@@ -225,10 +228,15 @@ SELECT
     ) LIMIT 1
   ),
   (SELECT id_concepto FROM concepto_pago WHERE codigo = 'MATRICULA' LIMIT 1),
-  'M-' || LPAD(a.id_alumno::TEXT, 6, '0'),
-  'Matrícula demo ACCTKD.'::TEXT
+  'Matrícula administrativa ACCTKD.'::TEXT
 FROM alumno a
 WHERE a.estado IN ('activo', 'suspendido')
   AND EXISTS (SELECT 1 FROM concepto_pago cp WHERE cp.codigo = 'MATRICULA')
   AND (ABS(hashtext('mh|' || a.id_alumno::TEXT)) % 7) BETWEEN 2 AND 5
-ON CONFLICT (numero_recibo) DO NOTHING;
+  AND NOT EXISTS (
+    SELECT 1 FROM pago px
+    WHERE px.id_alumno = a.id_alumno
+      AND px.id_concepto = (SELECT id_concepto FROM concepto_pago WHERE codigo = 'MATRICULA' LIMIT 1)
+      AND px.concepto = 'Matrícula'
+      AND DATE_TRUNC('month', px.fecha_pago)::DATE = DATE_TRUNC('month', COALESCE(a.fecha_ingreso, DATE '2026-01-05'))::DATE
+  );

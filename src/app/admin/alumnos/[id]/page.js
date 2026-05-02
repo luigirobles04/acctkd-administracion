@@ -11,7 +11,10 @@ import { supabase } from '@/lib/supabase'
 import { resumenAsistenciaAlumno, ESTADOS } from '@/lib/services/asistencia.service'
 import {
   iniciales, edadDesde, formatFecha, formatMoney, formatTelefono, waLink,
-  labelConceptoPago, labelMetodoPago, gradoHistorialLabel, gradoHistorialColor,
+  labelConceptoPago,
+  etiquetaMetodoVisible,
+  gradoHistorialLabel,
+  gradoHistorialColor,
 } from '@/lib/utils/format'
 
 export default function AlumnoDetallePage() {
@@ -480,12 +483,20 @@ export default function AlumnoDetallePage() {
                 </div>
                 <div className="ios-hstack" style={{ justifyContent: 'space-between', fontSize: 12, color: 'var(--label3)', flexWrap: 'wrap', gap: 6 }}>
                   <span>
-                    {formatFecha(p.fecha_pago)} · {labelMetodoPago(p)}
-                    {p.fecha_vencimiento && (p.estado === 'pendiente' || p.estado === 'vencido') && (
-                      <> · Vence {formatFecha(p.fecha_vencimiento)}</>
-                    )}
+                    {(() => {
+                      const met = p.estado === 'pagado' ? etiquetaMetodoVisible(p) : '—'
+                      const parts = []
+                      if (p.estado === 'pagado' && met !== '—') parts.push(met)
+                      parts.push(formatFecha(p.fecha_pago))
+                      if (
+                        p.fecha_vencimiento &&
+                        (p.estado === 'pendiente' || p.estado === 'vencido')
+                      ) {
+                        parts.push(`Vence ${formatFecha(p.fecha_vencimiento)}`)
+                      }
+                      return parts.join(' · ')
+                    })()}
                   </span>
-                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{p.numero_recibo || '—'}</span>
                 </div>
                 {p.observaciones && (
                   <p style={{ fontSize: 11, color: 'var(--label3)', margin: 0, lineHeight: 1.4 }}>{p.observaciones}</p>
@@ -521,10 +532,6 @@ export default function AlumnoDetallePage() {
           <>
             {alumno.estado === 'prueba' && (
               <Section titulo="Clase de prueba (una sola)">
-                <p style={{ padding: '0 4px', fontSize: 13, color: 'var(--label2)', lineHeight: 1.5, marginBottom: 12 }}>
-                  Ejemplo habitual: esa primera clase gratuita una semana y a la siguiente se inscriben.
-                  Solo cuenta <strong>una sesión</strong> del turno actual; puedes moverla aquí si el día en agenda no coincide con lo vivido en tatami.
-                </p>
                 {!alumno.id_turno ? (
                   <EmptyMsg texto="Edita la ficha y asigna un turno para listar sesiones." />
                 ) : (

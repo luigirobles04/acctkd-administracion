@@ -6,6 +6,7 @@ import AlumnoFormSheet from '@/components/alumnos/AlumnoFormSheet'
 import {
   listarAlumnos, listarPlanes, listarTurnos, listarGrados, contarAlumnosPorEstado,
 } from '@/lib/services/alumno.service'
+import { obtenerMapaAlertasMensualidadPorAlumno } from '@/lib/services/pagoAlerts.service'
 import { iniciales, edadDesde, formatTelefono } from '@/lib/utils/format'
 
 const ESTADOS = [
@@ -27,6 +28,34 @@ function badgeDeEstado(estado) {
   return <span className={`ios-badge ${b.cls}`}>{b.txt}</span>
 }
 
+function MensualidadBadges({ estado, alert }) {
+  if (!alert?.debeMensualidad) return null
+  if (!['activo', 'suspendido'].includes(estado)) return null
+  const base = {
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: 700,
+    padding: '2px 7px',
+    borderRadius: 6,
+  }
+  if (alert.vencida) return <span className="ios-badge badge-red" style={base}>Mensualidad vencida</span>
+  if (alert.vencePronto)
+    return (
+      <span
+        className="ios-badge"
+        style={{
+          ...base,
+          background: 'rgba(245,158,11,0.18)',
+          color: '#92400e',
+          border: '1px solid rgba(245,158,11,0.45)',
+        }}
+      >
+        Próximo a vencer
+      </span>
+    )
+  return <span className="ios-badge badge-yellow" style={base}>Mensualidad sin pagar</span>
+}
+
 export default function AlumnosPage() {
   const router = useRouter()
   const [alumnos, setAlumnos] = useState([])
@@ -38,16 +67,19 @@ export default function AlumnosPage() {
   const [filtroEstado, setFiltroEstado] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  const [mensualidadesPorAlumno, setMensualidadesPorAlumno] = useState({})
 
   async function cargar() {
     setLoading(true)
     setLoadError(null)
     try {
-      const [al, pl, tu, gr] = await Promise.all([
+      const [al, pl, tu, gr, mapaM] = await Promise.all([
         listarAlumnos({ estado: filtroEstado }),
         listarPlanes(), listarTurnos(), listarGrados(),
+        obtenerMapaAlertasMensualidadPorAlumno().catch(() => ({})),
       ])
       setAlumnos(al); setPlanes(pl); setTurnos(tu); setGrados(gr)
+      setMensualidadesPorAlumno(typeof mapaM === 'object' && mapaM ? mapaM : {})
     } catch (err) {
       console.error('Error cargando alumnos:', err)
       setLoadError(err?.message || 'No se pudo cargar el listado. Revisa la conexión a Supabase.')
@@ -171,6 +203,9 @@ export default function AlumnosPage() {
                           {a.codigo_alumno}
                         </span>
                       )}
+                    </div>
+                    <div className="ios-hstack" style={{ gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                      <MensualidadBadges estado={a.estado} alert={mensualidadesPorAlumno[a.id_alumno]} />
                     </div>
                     <p className="truncate-1" style={{ fontSize: 12, color: 'var(--label3)' }}>
                       {a.plan?.nombre || 'Sin plan'} · {a.turno?.nombre || 'Sin turno'}
