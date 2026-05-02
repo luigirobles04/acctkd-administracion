@@ -4,7 +4,8 @@
 -- ─ Sesiones clase por dias_array del turno + asistencias variadas
 -- ─ Alumnos en prueba: UNA marca «Clase de prueba ACCTKD» + alumno.id_clase_prueba (editable en app)
 -- Pagos sintéticos: solo alumnos ya formalizados (activo/suspendido), no «en prueba».
--- Elimina/recrea sólo registros marcados SYNTH-* y observaciones demo (ver DELETE abajo).
+-- Recibo mensualidad demo: SYN-ABCDEFYYMM (≤20): SYN- marca demo, ABCDEF=id_alumno 6 dígitos, YYMM=mes (ej. id 203, abril 2026 → SYN-0002032604). Matrícula: M-ABCDEF.
+-- Elimina/recrea sólo registros demo (prefijos SYN-/M- y observaciones demostrativas; ver DELETE abajo).
 -- =============================================================================
 
 ALTER TABLE alumno ADD COLUMN IF NOT EXISTS id_clase_prueba INTEGER REFERENCES clase(id_clase);
