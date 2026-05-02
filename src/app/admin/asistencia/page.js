@@ -551,7 +551,7 @@ export default function AsistenciaPage() {
               <span className="material-symbols-rounded ios-empty-icon">event_busy</span>
               <p>No hay datos en ese período / turno</p>
             </div>
-          )}
+          ) : null}
         </div>
 
         {toast && !initError && <div className="ios-toast">{toast}</div>}
