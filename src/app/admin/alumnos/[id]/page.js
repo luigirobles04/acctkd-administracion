@@ -5,7 +5,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import AlumnoFormSheet from '@/components/alumnos/AlumnoFormSheet'
 import {
   obtenerAlumno, listarPlanes, listarTurnos, listarGrados,
-  cambiarEstadoAlumno,
+  cambiarEstadoAlumno, listarSesionesParaClasePrueba, actualizarClaseDePrueba,
 } from '@/lib/services/alumno.service'
 import { supabase } from '@/lib/supabase'
 import { resumenAsistenciaAlumno, ESTADOS } from '@/lib/services/asistencia.service'
@@ -26,6 +26,8 @@ export default function AlumnoDetallePage() {
   const [tab, setTab] = useState('info')
   const [showEdit, setShowEdit] = useState(false)
   const [extrasError, setExtrasError] = useState(null)
+  const [sessPrueba, setSessPrueba] = useState([])
+  const [busyClasePrueba, setBusyClasePrueba] = useState(false)
 
   async function cargar() {
     setLoading(true)
@@ -121,6 +123,38 @@ export default function AlumnoDetallePage() {
   }
 
   useEffect(() => { cargar() }, [id])
+
+  useEffect(() => {
+    let cancelled = false
+    async function go() {
+      if (tab !== 'estado' || alumno?.estado !== 'prueba' || !alumno?.id_turno) {
+        if (!cancelled) setSessPrueba([])
+        return
+      }
+      try {
+        const rows = await listarSesionesParaClasePrueba(Number(id))
+        if (!cancelled) setSessPrueba(rows)
+      } catch (e) {
+        console.warn(e)
+      }
+    }
+    go()
+    return () => { cancelled = true }
+  }, [tab, id, alumno?.estado, alumno?.id_turno])
+
+  async function handleElegirClasePrueba(idClaseSel) {
+    const v = Number(idClaseSel)
+    if (!v) return
+    setBusyClasePrueba(true)
+    try {
+      await actualizarClaseDePrueba(Number(id), v)
+      await cargar()
+    } catch (e) {
+      alert(e.message || 'No se pudo actualizar la clase de prueba.')
+    } finally {
+      setBusyClasePrueba(false)
+    }
+  }
 
   async function handleCambioEstado(nuevo) {
     if (!confirm(`¿Cambiar estado a "${nuevo}"?`)) return
@@ -394,6 +428,7 @@ export default function AlumnoDetallePage() {
                       .slice(0, 20)
                       .map((h, i) => {
                         const obs = (h.observacion || '').toLowerCase()
+                        const marcaPruebaObs = obs.includes('clase de prueba')
                         const estado = obs.includes('recuper') ? ESTADOS.RECUPERACION
                                       : h.presente ? ESTADOS.PRESENTE
                                       : h.justificado ? ESTADOS.JUSTIFICADA
@@ -408,10 +443,10 @@ export default function AlumnoDetallePage() {
                           <div key={i} className="ios-form-row">
                             <span className="ios-form-row-label">{formatFecha(h.clase?.fecha)}</span>
                             <span style={{ flex: 1, textAlign: 'right', fontSize: 13, color: 'var(--label3)' }}>
-                              {h.clase?.turno?.nombre || '—'}
+                              {h.clase?.turno?.nombre || alumno.turno?.nombre || '—'}
                             </span>
                             <span style={{ fontSize: 12, fontWeight: 700, color: map[estado].c, marginLeft: 10 }}>
-                              {map[estado].l}
+                              {map[estado].l}{marcaPruebaObs ? ' · clase prueba' : ''}
                             </span>
                           </div>
                         )
@@ -484,6 +519,51 @@ export default function AlumnoDetallePage() {
 
         {tab === 'estado' && (
           <>
+            {alumno.estado === 'prueba' && (
+              <Section titulo="Clase de prueba (una sola)">
+                <p style={{ padding: '0 4px', fontSize: 13, color: 'var(--label2)', lineHeight: 1.5, marginBottom: 12 }}>
+                  Ejemplo habitual: esa primera clase gratuita una semana y a la siguiente se inscriben.
+                  Solo cuenta <strong>una sesión</strong> del turno actual; puedes moverla aquí si el día en agenda no coincide con lo vivido en tatami.
+                </p>
+                {!alumno.id_turno ? (
+                  <EmptyMsg texto="Edita la ficha y asigna un turno para listar sesiones." />
+                ) : (
+                  <>
+                    <Row
+                      label="Sesión marcada"
+                      valor={alumno.clase_prueba?.fecha
+                        ? `${formatFecha(alumno.clase_prueba.fecha)} · ${alumno.turno?.nombre || ''}`.trim()
+                        : ''}
+                    />
+                    <Row
+                      label="Cambiar a…"
+                      valor={(
+                        <select
+                          key={`spr-${sessPrueba.length}-${alumno.id_clase_prueba ?? 'x'}`}
+                          style={{ width: '100%', maxWidth: 320, marginLeft: 'auto', fontSize: 14 }}
+                          disabled={busyClasePrueba}
+                          defaultValue=""
+                          aria-label="Elegir otra clase de prueba"
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (!v) return
+                            if (!confirm('¿Registrar esta fecha como la única clase de prueba del alumno?'))
+                              return
+                            handleElegirClasePrueba(Number(v))
+                          }}>
+                          <option value="">— Elegir otra fecha —</option>
+                          {sessPrueba.map((s) => (
+                            <option key={s.id_clase} value={String(s.id_clase)}>
+                              {formatFecha(s.fecha)}{alumno.id_clase_prueba === s.id_clase ? ' · actual' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    />
+                  </>
+                )}
+              </Section>
+            )}
             <Section titulo="Cambiar estado">
               {['activo','prueba','suspendido','retirado'].map(est => (
                 <button key={est} className="ios-form-row" style={{

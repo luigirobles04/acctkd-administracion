@@ -9,7 +9,8 @@ const SELECT_COMPLETO = `
   apoderado:id_apoderado(id_apoderado, nombres, apellidos, telefono, correo, relacion, dni),
   plan:id_plan(id_plan, codigo, nombre, dias_semana, monto),
   turno:id_turno(id_turno, nombre, hora_inicio, hora_fin, dias_semana),
-  grado:id_grado_actual(id_grado, nombre, color_cinturon, nivel)
+  grado:id_grado_actual(id_grado, nombre, color_cinturon, nivel),
+  clase_prueba:id_clase_prueba(id_clase, fecha, turno:id_turno(nombre, hora_inicio))
 `
 
 export async function listarAlumnos({ busqueda = '', estado = null, idPlan = null, idTurno = null, idGrado = null } = {}) {
@@ -152,7 +153,77 @@ export async function actualizarApoderado(id, patch) {
 }
 
 export async function cambiarEstadoAlumno(id, nuevoEstado) {
-  return actualizarAlumno(id, { estado: nuevoEstado, activo: nuevoEstado === 'activo' || nuevoEstado === 'prueba' })
+  const patch = {
+    estado: nuevoEstado,
+    activo: nuevoEstado === 'activo' || nuevoEstado === 'prueba',
+  }
+  if (nuevoEstado !== 'prueba')
+    patch.id_clase_prueba = null
+
+  return actualizarAlumno(id, patch)
+}
+
+const OBS_CLASE_PRUEBA = 'Clase de prueba ACCTKD'
+
+/** Sesiones existentes del turno del alumno (para mover la marca de clase de prueba). */
+export async function listarSesionesParaClasePrueba(idAlumno) {
+  const a = await obtenerAlumno(idAlumno)
+  if (!a?.id_turno) return []
+  const { data, error } = await sb()
+    .from('clase')
+    .select('id_clase, fecha')
+    .eq('id_turno', a.id_turno)
+    .gte('fecha', '2025-09-01')
+    .lte('fecha', '2027-12-31')
+    .order('fecha', { ascending: false })
+    .limit(180)
+  if (error) throw error
+  return data || []
+}
+
+/**
+ * Una sola clase de prueba: mueve presente/marca a `id_clase` y actualiza alumno.id_clase_prueba.
+ * Solo tiene sentido cuando el alumno está en estado `prueba`.
+ */
+export async function actualizarClaseDePrueba(idAlumno, idClase) {
+  const idNum = Number(idAlumno)
+  const idC = Number(idClase)
+  const a = await obtenerAlumno(idNum)
+  if (a.estado !== 'prueba')
+    throw new Error('La clase de prueba solo se reasigna mientras el alumno está «en prueba».')
+  if (!a.id_turno)
+    throw new Error('El alumno no tiene turno asignado.')
+  const { data: clase, error: ec } = await sb()
+    .from('clase')
+    .select('id_clase, id_turno')
+    .eq('id_clase', idC)
+    .maybeSingle()
+  if (ec) throw ec
+  if (!clase || clase.id_turno !== a.id_turno)
+    throw new Error('Esa clase no pertenece al turno del alumno.')
+
+  await sb()
+    .from('asistencia_alumno')
+    .update({ observacion: null })
+    .eq('id_alumno', idNum)
+    .eq('observacion', OBS_CLASE_PRUEBA)
+
+  const { error: eu } = await sb()
+    .from('asistencia_alumno')
+    .upsert(
+      {
+        id_clase: idC,
+        id_alumno: idNum,
+        presente: true,
+        justificado: false,
+        observacion: OBS_CLASE_PRUEBA,
+      },
+      { onConflict: 'id_clase,id_alumno' },
+    )
+  if (eu) throw eu
+
+  await actualizarAlumno(idNum, { id_clase_prueba: idC })
+  return obtenerAlumno(idNum)
 }
 
 export async function listarPlanes() {
