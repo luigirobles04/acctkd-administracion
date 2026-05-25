@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar, { TABS } from './Sidebar'
+import SupabaseConfigBanner from './SupabaseConfigBanner'
 import { getCurrentUser, isAdmin } from '@/lib/services/auth.service'
 
 export default function AdminLayout({ children, title, subtitle, actions }) {
@@ -53,6 +54,7 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
 
         {/* Contenido */}
         <main style={{ padding: '20px 16px' }}>
+          <SupabaseConfigBanner />
           {children}
         </main>
       </div>
