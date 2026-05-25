@@ -3,6 +3,12 @@ import { useState, useEffect, useRef } from 'react'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { formatMoney, formatFecha } from '@/lib/utils/format'
+import {
+  listarMensualidadesProximasAVencer,
+  obtenerMapaAlertasMensualidadPorAlumno,
+  DIAS_VENCE_MENSUALIDAD_PRONTO,
+} from '@/lib/services/pagoAlerts.service'
 import {
   Chart,
   ArcElement,
@@ -44,13 +50,46 @@ const MESES_LABEL = {
   '2026-05': 'May 26', '2026-06': 'Jun 26', '2025-11': 'Nov 25', '2025-12': 'Dic 25',
 }
 
+function ymRestarMeses(ym, delta) {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  d.setMonth(d.getMonth() - delta)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function sumaCobradoMes(pagosRows, ym) {
+  return (pagosRows || [])
+    .filter((p) => p.estado === 'pagado' && typeof p.fecha_pago === 'string' && p.fecha_pago.startsWith(ym))
+    .reduce((s, p) => s + parseFloat(p.monto_final ?? p.monto ?? 0), 0)
+}
+
+function pctDelta(actual, anterior) {
+  if (!anterior) return actual > 0 ? 100 : 0
+  return Math.round(((actual - anterior) / anterior) * 100)
+}
+
 function ymLabel(ym) {
   return MESES_LABEL[ym] || ym
+}
+
+function tituloMesActual() {
+  const d = new Date()
+  const t = d.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })
+  return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const [stats, setStats] = useState({ alumnos: '—', maestros: '—', pagos: '—', campeonatos: '—' })
+  const [kpis, setKpis] = useState({
+    cobradoMes: 0,
+    deltaMes: 0,
+    vencidos: 0,
+    proximos: 0,
+    pctAsistenciaMes: null,
+    campeonatosActivos: 0,
+  })
+  const [alertasCobro, setAlertasCobro] = useState([])
   const [chartsReady, setChartsReady] = useState(false)
   const pagoEstadoRef = useRef(null)
   const ingresoMesRef = useRef(null)
@@ -65,19 +104,56 @@ export default function DashboardPage() {
     if (!supabase) return
 
     async function load() {
-      const inicioMes = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
-      const [{ count: al }, { count: ma }, { count: pa }, { count: ca }] = await Promise.all([
+      const inicioMes = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
+      const finMes = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+      const ymActual = today.toISOString().slice(0, 7)
+      const ymAnterior = ymRestarMeses(ymActual, 1)
+
+      const [{ count: al }, { count: ma }, { count: pa }, { count: ca }, { count: caAct }] = await Promise.all([
         supabase.from('alumno').select('*', { count: 'exact', head: true }).eq('estado', 'activo'),
         supabase.from('maestro').select('*', { count: 'exact', head: true }).eq('estado', 'activo'),
         supabase.from('pago').select('*', { count: 'exact', head: true }).gte('fecha_pago', inicioMes),
         supabase.from('campeonato').select('*', { count: 'exact', head: true }),
+        supabase.from('campeonato').select('*', { count: 'exact', head: true }).in('estado', ['inscripciones', 'en_curso']),
       ])
       setStats({ alumnos: al ?? 0, maestros: ma ?? 0, pagos: pa ?? 0, campeonatos: ca ?? 0 })
 
-      const [{ data: pagosRows }, { data: asistRows }] = await Promise.all([
-        supabase.from('pago').select('estado, monto, monto_final, fecha_pago').limit(8000),
-        supabase.from('asistencia_alumno').select('presente, justificado, observacion').limit(12000),
+      const [pagosRes, asistRes, mapaAlertas, proximasAlertas] = await Promise.all([
+        supabase.from('pago').select('estado, monto, monto_final, fecha_pago, fecha_vencimiento, concepto_pago(codigo), concepto').limit(8000),
+        supabase.from('asistencia_alumno').select('presente, justificado, observacion, clase!inner(fecha)').gte('clase.fecha', inicioMes).lte('clase.fecha', finMes).limit(8000),
+        obtenerMapaAlertasMensualidadPorAlumno().catch(() => ({})),
+        listarMensualidadesProximasAVencer({ dias: DIAS_VENCE_MENSUALIDAD_PRONTO }).catch(() => []),
       ])
+
+      const pagosRows = pagosRes.data
+      const asistRows = asistRes.data
+
+      const cobradoMes = sumaCobradoMes(pagosRows, ymActual)
+      const cobradoAnterior = sumaCobradoMes(pagosRows, ymAnterior)
+      let vencidos = 0
+      let proximos = 0
+      Object.values(mapaAlertas || {}).forEach((a) => {
+        if (a.vencida) vencidos += 1
+        if (a.pendienteProximo) proximos += 1
+      })
+
+      const asist = { presente: 0, ausente: 0, justificada: 0, recuperacion: 0 }
+      ;(asistRows || []).forEach((r) => {
+        const b = asistenciaBucket(r)
+        if (asist[b] !== undefined) asist[b] += 1
+      })
+      const totalAsistMes = Object.values(asist).reduce((a, b) => a + b, 0)
+      const pctAsistenciaMes = totalAsistMes > 0 ? Math.round((asist.presente / totalAsistMes) * 100) : null
+
+      setKpis({
+        cobradoMes,
+        deltaMes: pctDelta(cobradoMes, cobradoAnterior),
+        vencidos,
+        proximos,
+        pctAsistenciaMes,
+        campeonatosActivos: caAct ?? 0,
+      })
+      setAlertasCobro((proximasAlertas || []).slice(0, 5))
 
       const porEstado = {}
       const ingresoMes = {}
@@ -89,12 +165,6 @@ export default function DashboardPage() {
           const m = parseFloat(p.monto_final ?? p.monto ?? 0)
           if (!Number.isNaN(m)) ingresoMes[ym] = (ingresoMes[ym] || 0) + m
         }
-      })
-
-      const asist = { presente: 0, ausente: 0, justificada: 0, recuperacion: 0 }
-      ;(asistRows || []).forEach((r) => {
-        const b = asistenciaBucket(r)
-        if (asist[b] !== undefined) asist[b] += 1
       })
 
       chartRefs.current.forEach((c) => c.destroy())
@@ -223,9 +293,67 @@ export default function DashboardPage() {
           </p>
           <h2 className="ios-title-lg" style={{ color: 'var(--label)', marginTop: 6 }}>Panel de control</h2>
           <p className="ios-body" style={{ color: 'var(--label3)', marginTop: 4 }}>
-            Estado actual de la academia e indicadores clave.
+            Estado actual de la academia e indicadores clave — {tituloMesActual()}.
           </p>
         </div>
+
+        <div
+          className="anim-fade-up"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: 12,
+            marginBottom: 20,
+            animationDelay: '0.03s',
+          }}
+        >
+          {[
+            { label: 'Cobrado este mes', val: formatMoney(kpis.cobradoMes), sub: `${kpis.deltaMes >= 0 ? '+' : ''}${kpis.deltaMes}% vs mes anterior`, color: '#007AFF', href: '/admin/pagos' },
+            { label: 'Mensualidades vencidas', val: kpis.vencidos, sub: 'Alumnos con cuota vencida', color: '#FF3B30', href: '/admin/alumnos' },
+            { label: `Próximos ${DIAS_VENCE_MENSUALIDAD_PRONTO} días`, val: kpis.proximos, sub: 'Por vencer pronto', color: '#FF9500', href: '/admin/pagos' },
+            { label: 'Asistencia del mes', val: kpis.pctAsistenciaMes != null ? `${kpis.pctAsistenciaMes}%` : '—', sub: 'Marcas presentes / total', color: '#34C759', href: '/admin/asistencia' },
+            { label: 'Campeonatos activos', val: kpis.campeonatosActivos, sub: 'Inscripciones o en curso', color: 'var(--red)', href: '/admin/campeonatos' },
+          ].map((k) => (
+            <button
+              key={k.label}
+              type="button"
+              onClick={() => router.push(k.href)}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: '14px 16px',
+                border: '0.5px solid var(--separator)',
+                boxShadow: 'var(--shadow-sm)',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              <p className="ios-caption" style={{ color: 'var(--label3)' }}>{k.label}</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color: k.color, marginTop: 4 }}>{k.val}</p>
+              <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>{k.sub}</p>
+            </button>
+          ))}
+        </div>
+
+        {alertasCobro.length > 0 && (
+          <div className="ios-card anim-fade-up" style={{ padding: 16, marginBottom: 20, animationDelay: '0.05s' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p className="ios-headline" style={{ color: 'var(--label)' }}>Cobranza próxima</p>
+              <button type="button" className="ios-btn ios-btn-ghost" style={{ height: 32, fontSize: 13 }} onClick={() => router.push('/admin/pagos')}>Ver pagos</button>
+            </div>
+            <div className="ios-group">
+              {alertasCobro.map((p) => (
+                <div key={p.id_pago} className="ios-group-row">
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 15, fontWeight: 600 }}>{p.alumno?.nombres} {p.alumno?.apellidos}</p>
+                    <p className="ios-caption" style={{ color: 'var(--label3)' }}>Vence {formatFecha(p.fecha_vencimiento)} · {formatMoney(p.monto_final ?? p.monto)}</p>
+                  </div>
+                  <span className="ios-badge badge-yellow">Próximo</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div
           className="anim-fade-up"
@@ -334,8 +462,8 @@ export default function DashboardPage() {
               maxWidth: 480,
             }}
           >
-            <p className="ios-headline" style={{ marginBottom: 4, color: 'var(--label)' }}>Asistencias (registro)</p>
-            <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 12 }}>Totales según datos cargados en el sistema</p>
+            <p className="ios-headline" style={{ marginBottom: 4, color: 'var(--label)' }}>Asistencias del mes</p>
+            <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 12 }}>{tituloMesActual()} — marcas en clases del periodo</p>
             <div style={{ height: 200, position: 'relative' }}>
               <canvas ref={asisteRef} aria-label="Gráfico asistencias" />
             </div>

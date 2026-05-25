@@ -1,143 +1,172 @@
 'use client'
+
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
-import { supabase } from '@/lib/supabase'
+import { crearCampeonato, listarCampeonatos } from '@/lib/services/campeonato.service'
+import { formatFecha } from '@/lib/utils/format'
 
 const ESTADOS = {
-  planificado: { label: 'Planificado', badge: 'badge-blue' },
-  inscripciones: { label: 'Inscripciones', badge: 'badge-yellow' },
-  en_curso: { label: 'En Curso', badge: 'badge-green' },
-  finalizado: { label: 'Finalizado', badge: 'badge-gray' },
-  cancelado: { label: 'Cancelado', badge: 'badge-red' },
+  planificado: { label: 'Planificado', cls: 'badge-blue' },
+  inscripciones: { label: 'Inscripciones', cls: 'badge-yellow' },
+  en_curso: { label: 'En curso', cls: 'badge-green' },
+  finalizado: { label: 'Finalizado', cls: 'badge-gray' },
+  cancelado: { label: 'Cancelado', cls: 'badge-red' },
+}
+
+const FORM_INICIAL = {
+  nombre: '',
+  descripcion: '',
+  fecha_inicio: '',
+  fecha_fin: '',
+  lugar: '',
+  ciudad: 'Trujillo',
+  estado: 'planificado',
+  monto_inscripcion: 0,
+}
+
+function conteo(rel) {
+  if (Array.isArray(rel)) return rel.length
+  return rel?.[0]?.count ?? 0
 }
 
 export default function CampeonatosPage() {
+  const router = useRouter()
   const [campeonatos, setCampeonatos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState({
-    nombre: '', descripcion: '', fecha_inicio: '', fecha_fin: '',
-    lugar: '', ciudad: 'Trujillo', estado: 'planificado'
-  })
+  const [form, setForm] = useState(FORM_INICIAL)
+  const [error, setError] = useState(null)
 
-  useEffect(() => { fetchCampeonatos() }, [])
-
-  async function fetchCampeonatos() {
+  async function cargar() {
     setLoading(true)
+    setError(null)
     try {
-      const { data } = await supabase.from('campeonato')
-        .select('*, categoria_campeonato(count), competidor(count)')
-        .order('fecha_inicio', { ascending: false })
-      setCampeonatos(data || [])
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+      setCampeonatos(await listarCampeonatos())
+    } catch (e) {
+      setError(e.message || 'No se pudo cargar campeonatos')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => {
+    cargar()
+  }, [])
 
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      await supabase.from('campeonato').insert(form)
+      const c = await crearCampeonato({
+        ...form,
+        monto_inscripcion: Number(form.monto_inscripcion) || 0,
+      })
       setShowModal(false)
-      setForm({ nombre:'', descripcion:'', fecha_inicio:'', fecha_fin:'', lugar:'', ciudad:'Trujillo', estado:'planificado' })
-      fetchCampeonatos()
-    } catch (err) { alert('Error: ' + err.message) }
-    finally { setSaving(false) }
+      setForm(FORM_INICIAL)
+      router.push(`/admin/campeonatos/${c.id_campeonato}`)
+    } catch (err) {
+      alert('Error: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <AdminLayout title="Campeonatos">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-5">
-          <p className="text-sm text-gray-500">{campeonatos.length} campeonato(s) registrado(s)</p>
-          <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-            style={{ background: 'var(--red)' }}>
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nuevo Campeonato
+    <AdminLayout title="Campeonatos" subtitle="Gestión de eventos deportivos">
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 8px 24px' }}>
+        <div className="anim-fade-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <p className="ios-caption" style={{ color: 'var(--label3)' }}>
+              {campeonatos.length} evento(s) · MVP v1.2
+            </p>
+          </div>
+          <button type="button" className="ios-btn ios-btn-primary" onClick={() => setShowModal(true)}>
+            <span className="material-symbols-rounded" style={{ fontSize: 18 }}>add</span>
+            Nuevo campeonato
           </button>
         </div>
 
+        {error && (
+          <div style={{ padding: 14, marginBottom: 16, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A', fontSize: 14 }}>
+            {error}
+          </div>
+        )}
+
         {loading ? (
-          <div className="tkd-card p-10 text-center text-gray-400">
-            <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="ios-card" style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>
+            Cargando campeonatos…
           </div>
         ) : campeonatos.length === 0 ? (
-          <div className="tkd-card p-16 text-center">
-            <span className="material-symbols-rounded text-6xl text-gray-200 block mb-3">emoji_events</span>
-            <p className="text-gray-400 font-medium">No hay campeonatos registrados</p>
-            <p className="text-gray-300 text-sm mt-1">Crea el primer campeonato de la academia</p>
-            <button onClick={() => setShowModal(true)}
-              className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: 'var(--red)' }}>
-              + Crear Campeonato
+          <div className="ios-card anim-fade-up" style={{ padding: 48, textAlign: 'center' }}>
+            <span className="material-symbols-rounded" style={{ fontSize: 56, color: 'var(--label4)', display: 'block', marginBottom: 12 }}>emoji_events</span>
+            <p className="ios-headline" style={{ color: 'var(--label)' }}>Sin campeonatos registrados</p>
+            <p className="ios-body" style={{ color: 'var(--label3)', marginTop: 6 }}>Crea el primer evento para categorías, inscripciones y competidores.</p>
+            <button type="button" className="ios-btn ios-btn-primary" style={{ marginTop: 20 }} onClick={() => setShowModal(true)}>
+              Crear campeonato
             </button>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {campeonatos.map(c => (
-              <div key={c.id_campeonato} className="tkd-card p-5 hover:shadow-md transition-all cursor-pointer"
-                onClick={() => setSelected(c)}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: 'var(--red)15' }}>
-                    <span className="material-symbols-rounded text-xl" style={{ color: 'var(--red)' }}>emoji_events</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+            {campeonatos.map((c) => {
+              const st = ESTADOS[c.estado] || { label: c.estado, cls: 'badge-gray' }
+              const nCat = conteo(c.categoria_campeonato)
+              const nComp = conteo(c.competidor)
+              const nIns = conteo(c.inscripcion_campeonato)
+              return (
+                <button
+                  key={c.id_campeonato}
+                  type="button"
+                  className="ios-card anim-fade-up"
+                  style={{ padding: 18, textAlign: 'left', cursor: 'pointer', border: '0.5px solid var(--separator)' }}
+                  onClick={() => router.push(`/admin/campeonatos/${c.id_campeonato}`)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(192,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-symbols-rounded" style={{ color: 'var(--red)', fontVariationSettings: "'FILL' 1" }}>emoji_events</span>
+                    </div>
+                    <span className={`ios-badge ${st.cls}`}>{st.label}</span>
                   </div>
-                  <span className={`badge ${ESTADOS[c.estado]?.badge || 'badge-gray'}`}>
-                    {ESTADOS[c.estado]?.label || c.estado}
-                  </span>
-                </div>
-                <h3 className="font-bold text-gray-900 mb-1 line-clamp-2">{c.nombre}</h3>
-                <p className="text-sm text-gray-500 mb-3">{c.lugar || c.ciudad}</p>
-                <div className="flex justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">
-                  <span>Inicio: {c.fecha_inicio || '—'}</span>
-                  <span>Fin: {c.fecha_fin || '—'}</span>
-                </div>
-              </div>
-            ))}
+                  <p className="ios-headline" style={{ color: 'var(--label)', marginBottom: 4 }}>{c.nombre}</p>
+                  <p className="ios-caption" style={{ color: 'var(--label3)' }}>{c.lugar || c.ciudad || 'Trujillo'}</p>
+                  <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 8 }}>
+                    {formatFecha(c.fecha_inicio)} — {formatFecha(c.fecha_fin)}
+                  </p>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--separator)', fontSize: 12, color: 'var(--label3)' }}>
+                    <span>{nCat} cat.</span>
+                    <span>{nIns} insc.</span>
+                    <span>{nComp} comp.</span>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
 
-      {/* Modal nuevo */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="font-bold">Nuevo Campeonato</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400">
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+        <div className="ios-sheet-overlay anim-fade-in flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => !saving && setShowModal(false)}>
+          <div className="ios-sheet anim-fade-up sm:!rounded-[28px]" style={{ maxWidth: 440, padding: '0 20px 24px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="ios-sheet-handle sm:hidden" aria-hidden />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
+              <h3 className="ios-headline">Nuevo campeonato</h3>
+              <button type="button" className="ios-btn ios-btn-ghost" style={{ height: 36, width: 36, padding: 0 }} onClick={() => setShowModal(false)} aria-label="Cerrar">
+                <span className="material-symbols-rounded">close</span>
               </button>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              {[['nombre','Nombre del Campeonato *','text',true],['lugar','Lugar','text',false],['ciudad','Ciudad','text',false],['fecha_inicio','Fecha de Inicio','date',false],['fecha_fin','Fecha de Fin','date',false]].map(([f,l,t,req]) => (
-                <div key={f}>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
-                  <input type={t} required={req} value={form[f]} onChange={e => setForm(p=>({...p,[f]:e.target.value}))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-red-500" />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
-                <textarea rows={2} value={form.descripcion} onChange={e => setForm(p=>({...p,descripcion:e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none resize-none" />
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Nombre del evento *</span><input className="ios-input" required value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} /></label>
+              <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Lugar</span><input className="ios-input" value={form.lugar} onChange={(e) => setForm((p) => ({ ...p, lugar: e.target.value }))} /></label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Inicio</span><input className="ios-input" type="date" value={form.fecha_inicio} onChange={(e) => setForm((p) => ({ ...p, fecha_inicio: e.target.value }))} /></label>
+                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Fin</span><input className="ios-input" type="date" value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} /></label>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={saving}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: 'var(--red)' }}>
-                  {saving ? 'Guardando...' : 'Crear Campeonato'}
-                </button>
+              <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Descripción</span><textarea className="ios-input" rows={2} style={{ height: 'auto', paddingTop: 10 }} value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} /></label>
+              <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Estado inicial</span><select className="ios-input" value={form.estado} onChange={(e) => setForm((p) => ({ ...p, estado: e.target.value }))}>{Object.entries(ESTADOS).map(([k, v]) => (<option key={k} value={k}>{v.label}</option>))}</select></label>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button type="button" className="ios-btn ios-btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="submit" className="ios-btn ios-btn-primary" style={{ flex: 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear y abrir'}</button>
               </div>
             </form>
           </div>
