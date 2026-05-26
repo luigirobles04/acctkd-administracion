@@ -31,13 +31,22 @@ export default function CampeonatoPublicoPage() {
               Inscripciones hasta {formatFecha(camp.fecha_cierre_inscripcion)}
             </p>
             {data?.inscripcion?.ok && (
-              <Link
-                href={`/inscripcion/${slug}`}
-                className="ios-btn ios-btn-primary"
-                style={{ display: 'inline-flex', marginTop: 20 }}
-              >
-                Inscribir mi academia
-              </Link>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+                <Link
+                  href={`/registro-academia?slug=${slug}`}
+                  className="ios-btn ios-btn-primary"
+                  style={{ display: 'inline-flex', justifyContent: 'center' }}
+                >
+                  Registrar mi academia
+                </Link>
+                <Link
+                  href="/login"
+                  className="ios-btn ios-btn-secondary"
+                  style={{ display: 'inline-flex', justifyContent: 'center' }}
+                >
+                  Ya tengo cuenta (DNI)
+                </Link>
+              </div>
             )}
             {camp.bases_pdf_url && (
               <a href={camp.bases_pdf_url} target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: 16, color: 'var(--red)' }}>

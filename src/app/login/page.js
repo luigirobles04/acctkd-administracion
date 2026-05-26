@@ -2,11 +2,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { login, isAdmin, isMaestro } from '@/lib/services/auth.service'
+import { login, isAdmin, isMaestro, isRepresentante } from '@/lib/services/auth.service'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ identificador: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -16,8 +16,9 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const user = await login(form.username, form.password)
+      const user = await login(form.identificador, form.password)
       if (isAdmin(user)) router.push('/admin/dashboard')
+      else if (isRepresentante(user)) router.push('/portal')
       else if (isMaestro(user)) router.push('/maestro/clases')
       else router.push('/alumno/dashboard')
     } catch (err) {
@@ -88,7 +89,7 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
         >
-          <FieldLabel>Usuario</FieldLabel>
+          <FieldLabel>Usuario o DNI</FieldLabel>
           <InputField
             icon={
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -97,9 +98,9 @@ export default function LoginPage() {
               </svg>
             }
             type="text"
-            value={form.username}
-            onChange={v => setForm(p => ({ ...p, username: v }))}
-            placeholder="Ingresa tu usuario"
+            value={form.identificador}
+            onChange={v => setForm(p => ({ ...p, identificador: v }))}
+            placeholder="Admin: usuario · Academia: DNI"
             autoComplete="username"
             required
           />
@@ -172,18 +173,18 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !form.username || !form.password}
+            disabled={loading || !form.identificador || !form.password}
             style={{
               marginTop: 10,
               width: '100%', height: 48,
-              background: loading || !form.username || !form.password
+              background: loading || !form.identificador || !form.password
                 ? 'rgba(192,0,0,0.35)'
                 : 'var(--red)',
               color: '#fff', border: 'none', borderRadius: 12,
               fontSize: 15, fontWeight: 600, fontFamily: 'inherit',
               letterSpacing: -0.2,
-              cursor: (loading || !form.username || !form.password) ? 'not-allowed' : 'pointer',
-              boxShadow: (loading || !form.username || !form.password) ? 'none' : '0 1px 2px rgba(0,0,0,0.2), 0 6px 20px rgba(192,0,0,0.30)',
+              cursor: (loading || !form.identificador || !form.password) ? 'not-allowed' : 'pointer',
+              boxShadow: (loading || !form.identificador || !form.password) ? 'none' : '0 1px 2px rgba(0,0,0,0.2), 0 6px 20px rgba(192,0,0,0.30)',
               transition: 'background 0.18s, transform 0.12s, box-shadow 0.18s',
             }}
             onMouseDown={e => !loading && (e.currentTarget.style.transform = 'scale(0.99)')}
@@ -202,6 +203,13 @@ export default function LoginPage() {
               </span>
             ) : 'Iniciar sesión'}
           </button>
+
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(235,235,245,0.55)' }}>
+            ¿Representas una academia?{' '}
+            <a href="/registro-academia" style={{ color: '#FF8A80', fontWeight: 600, textDecoration: 'none' }}>
+              Regístrate aquí
+            </a>
+          </p>
         </form>
 
         {/* Pie */}

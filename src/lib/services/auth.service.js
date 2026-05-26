@@ -1,40 +1,34 @@
-import { supabase } from '../supabase'
 import bcrypt from 'bcryptjs'
 
 const USER_KEY = 'acctkd_user'
+const SESSION_KEY = 'acctkd_session'
 
-export async function login(username, password) {
-  if (!supabase) throw new Error('Supabase no está configurado')
+export async function login(identificador, password) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identificador, password }),
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'Credenciales incorrectas')
 
-  const { data: usuario, error } = await supabase
-    .from('usuario')
-    .select('id_usuario, username, password_hash, id_rol, activo, email, nombre_completo, rol(nombre)')
-    .eq('username', username)
-    .eq('activo', true)
-    .single()
+  localStorage.setItem(USER_KEY, JSON.stringify(json.user))
+  localStorage.setItem(SESSION_KEY, json.sessionToken)
+  return json.user
+}
 
-  if (error || !usuario) throw new Error('Usuario no encontrado o inactivo')
+export async function registerAcademia(payload) {
+  const res = await fetch('/api/auth/registro-academia', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'Error en registro')
 
-  const passwordOk = await bcrypt.compare(password, usuario.password_hash)
-  if (!passwordOk) throw new Error('Contraseña incorrecta')
-
-  await supabase
-    .from('usuario')
-    .update({ ultimo_acceso: new Date().toISOString() })
-    .eq('id_usuario', usuario.id_usuario)
-
-  const rolNombre = usuario.rol?.nombre || null
-  const userData = {
-    id_usuario: usuario.id_usuario,
-    username: usuario.username,
-    email: usuario.email || null,
-    nombre: usuario.nombre_completo || usuario.username,
-    id_rol: usuario.id_rol,
-    rol: rolNombre,
-  }
-
-  localStorage.setItem(USER_KEY, JSON.stringify(userData))
-  return userData
+  localStorage.setItem(USER_KEY, JSON.stringify(json.user))
+  localStorage.setItem(SESSION_KEY, json.sessionToken)
+  return json
 }
 
 export function getCurrentUser() {
@@ -47,8 +41,14 @@ export function getCurrentUser() {
   }
 }
 
+export function getSessionToken() {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(SESSION_KEY)
+}
+
 export function logout() {
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(SESSION_KEY)
 }
 
 function rolNombre(user) {
@@ -65,6 +65,10 @@ export function isMaestro(user) {
   return rolNombre(user) === 'maestro' || user?.id_rol === 2
 }
 
-export function isAlumno(user) {
-  return rolNombre(user) === 'alumno' || user?.id_rol === 3
+export function isRepresentante(user) {
+  return rolNombre(user) === 'representante'
+}
+
+export function isOrganizador(user) {
+  return rolNombre(user) === 'organizador'
 }

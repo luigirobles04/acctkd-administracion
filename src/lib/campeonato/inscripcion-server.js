@@ -127,6 +127,162 @@ export async function recuperarAcademiaPorTelefono(sb, { idCampeonato, telefono 
   return null
 }
 
+export async function resolverRepresentante(sb, idUsuario) {
+  const { data: usuario, error } = await sb
+    .from('usuario')
+    .select('*, rol(nombre)')
+    .eq('id_usuario', idUsuario)
+    .eq('activo', true)
+    .single()
+  if (error || !usuario) return null
+  if (usuario.rol?.nombre !== 'representante') return null
+  if (!usuario.id_academia) return null
+  return usuario
+}
+
+export async function resolverAcademiaCampeonato(sb, { idAcademia, slug, idCampeonato }) {
+  let idCamp = idCampeonato
+  if (slug && !idCamp) {
+    const camp = await obtenerCampeonatoPorSlug(sb, slug)
+    if (!camp) return null
+    idCamp = camp.id_campeonato
+  }
+  const { data: ac } = await sb
+    .from('academia_campeonato')
+    .select('*, academia:id_academia(*), campeonato:id_campeonato(*)')
+    .eq('id_campeonato', idCamp)
+    .eq('id_academia', idAcademia)
+    .maybeSingle()
+  return ac
+}
+
+export function puedeEnviarLista(ac) {
+  if (!ac) return { ok: false, reason: 'Inscripción no encontrada' }
+  if (ac.estado_aprobacion === 'rechazada') {
+    return { ok: false, reason: ac.motivo_rechazo || 'Academia rechazada' }
+  }
+  if (ac.estado_aprobacion !== 'aprobada') {
+    return { ok: false, reason: 'Espera la aprobación de ACCTKD para enviar la lista' }
+  }
+  return { ok: true }
+}
+
+export function puedeSubirVoucher(ac) {
+  return puedeEnviarLista(ac)
+}
+
+/** Registro academia + representante (Hayllis) */
+export async function registrarAcademiaRepresentante(sb, {
+  idCampeonato,
+  nombreAcademia,
+  telefono,
+  ciudad,
+  representanteNombre,
+  representanteDni,
+  passwordHash,
+  idRolRepresentante,
+}) {
+  const dni = String(representanteDni).replace(/\D/g, '')
+  if (dni.length < 8) throw new Error('DNI inválido')
+
+  const { data: dniExiste } = await sb.from('usuario').select('id_usuario').eq('dni', dni).maybeSingle()
+  if (dniExiste) throw new Error('Este DNI ya está registrado como representante')
+
+  const { data: camp } = await sb.from('campeonato').select('*').eq('id_campeonato', idCampeonato).single()
+  if (!camp?.publicado) throw new Error('Campeonato no disponible')
+  const check = puedeInscribir(camp)
+  if (!check.ok) throw new Error(check.reason)
+
+  const prefijo = await resolverPrefijoUnico(sb, nombreAcademia)
+  const { data: academia, error: errA } = await sb
+    .from('academia')
+    .insert({
+      nombre: nombreAcademia.trim(),
+      telefono,
+      ciudad,
+      representante_nombre: representanteNombre.trim(),
+      representante_dni: dni,
+      codigo_prefijo: prefijo,
+    })
+    .select()
+    .single()
+  if (errA) throw errA
+
+  const { data: usuario, error: errU } = await sb
+    .from('usuario')
+    .insert({
+      username: `rep_${dni}`,
+      dni,
+      password_hash: passwordHash,
+      nombre_completo: representanteNombre.trim(),
+      id_rol: idRolRepresentante,
+      id_academia: academia.id_academia,
+      activo: true,
+    })
+    .select('id_usuario, dni, nombre_completo, id_rol, id_academia')
+    .single()
+  if (errU) {
+    await sb.from('academia').delete().eq('id_academia', academia.id_academia)
+    throw errU
+  }
+
+  const { data: ac, error: errAc } = await sb
+    .from('academia_campeonato')
+    .insert({
+      id_academia: academia.id_academia,
+      id_campeonato: idCampeonato,
+      estado_aprobacion: 'pendiente',
+      token: generarToken(32),
+    })
+    .select('*, academia:id_academia(*)')
+    .single()
+  if (errAc) throw errAc
+
+  await sb.from('bitacora_inscripcion').insert({
+    id_academia_campeonato: ac.id,
+    accion: 'academia_registrada',
+    detalle: { nombre: nombreAcademia, dni, ciudad },
+    actor: 'portal',
+  })
+
+  return { academia, usuario, academiaCampeonato: ac, campeonato: camp }
+}
+
+export async function unirAcademiaACampeonato(sb, idAcademia, idCampeonato) {
+  const { data: existente } = await sb
+    .from('academia_campeonato')
+    .select('id')
+    .eq('id_academia', idAcademia)
+    .eq('id_campeonato', idCampeonato)
+    .maybeSingle()
+  if (existente) throw new Error('Ya estás inscrito en este campeonato')
+
+  const { data: camp } = await sb.from('campeonato').select('*').eq('id_campeonato', idCampeonato).single()
+  if (!camp?.publicado) throw new Error('Campeonato no disponible')
+  const check = puedeInscribir(camp)
+  if (!check.ok) throw new Error(check.reason)
+
+  const { data: ac, error } = await sb
+    .from('academia_campeonato')
+    .insert({
+      id_academia: idAcademia,
+      id_campeonato: idCampeonato,
+      estado_aprobacion: 'pendiente',
+      token: generarToken(32),
+    })
+    .select('*, academia:id_academia(*), campeonato:id_campeonato(*)')
+    .single()
+  if (error) throw error
+
+  await sb.from('bitacora_inscripcion').insert({
+    id_academia_campeonato: ac.id,
+    accion: 'academia_solicitud_campeonato',
+    actor: 'portal',
+  })
+
+  return ac
+}
+
 export async function resolverTokenAcademia(sb, token) {
   if (!token) return null
 

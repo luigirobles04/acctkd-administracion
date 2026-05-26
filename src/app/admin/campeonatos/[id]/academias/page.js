@@ -6,14 +6,22 @@ import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { getSupabase } from '@/lib/supabase'
-import { generarToken, whatsappUrl } from '@/lib/campeonato/constants'
+import { whatsappUrl } from '@/lib/campeonato/constants'
+
+const ESTADO_APRO = {
+  pendiente: { label: 'Pendiente', cls: 'badge-yellow' },
+  aprobada: { label: 'Aprobada', cls: 'badge-green' },
+  rechazada: { label: 'Rechazada', cls: 'badge-red' },
+}
 
 export default function CampeonatoAcademiasPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [academias, setAcademias] = useState([])
+  const [filtro, setFiltro] = useState('pendiente')
   const [loading, setLoading] = useState(true)
+  const [procesando, setProcesando] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -35,38 +43,74 @@ export default function CampeonatoAcademiasPage() {
     cargar()
   }, [cargar])
 
-  async function regenerarLink(acId) {
-    const nuevo = generarToken(40)
-    const expira = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
-    const ac = academias.find((a) => a.id === acId)
+  async function aprobar(acId) {
+    setProcesando(acId)
     await getSupabase()
       .from('academia_campeonato')
-      .update({
-        token_anterior: ac.token,
-        token_anterior_expira: expira,
-        token: nuevo,
-      })
+      .update({ estado_aprobacion: 'aprobada', motivo_rechazo: null })
       .eq('id', acId)
+    await getSupabase().from('bitacora_inscripcion').insert({
+      id_academia_campeonato: acId,
+      accion: 'academia_aprobada',
+      actor: 'admin',
+    })
+    setProcesando(null)
+    cargar()
+  }
+
+  async function rechazar(acId) {
+    const motivo = prompt('Motivo del rechazo (opcional):') || 'No cumple requisitos'
+    setProcesando(acId)
+    await getSupabase()
+      .from('academia_campeonato')
+      .update({ estado_aprobacion: 'rechazada', motivo_rechazo: motivo })
+      .eq('id', acId)
+    await getSupabase().from('bitacora_inscripcion').insert({
+      id_academia_campeonato: acId,
+      accion: 'academia_rechazada',
+      detalle: { motivo },
+      actor: 'admin',
+    })
+    setProcesando(null)
     cargar()
   }
 
   const slug = campeonato?.slug
-  const linkGenerico = slug ? `${typeof window !== 'undefined' ? window.location.origin : ''}/inscripcion/${slug}` : ''
+  const pendientes = academias.filter((a) => a.estado_aprobacion === 'pendiente')
+  const listado = filtro === 'pendiente' ? pendientes : academias
 
   return (
     <AdminLayout title="Academias" subtitle={campeonato?.nombre}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px 24px' }}>
         <Link href={`/admin/campeonatos/${id}`} className="ios-caption" style={{ color: 'var(--red)' }}>← Volver al campeonato</Link>
 
-        {slug && (
-          <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
-            <strong>Link genérico inscripción</strong>
-            <p style={{ fontSize: 13, wordBreak: 'break-all', marginTop: 8 }}>{linkGenerico}</p>
-            <Link href={`/campeonato/${slug}`} className="ios-btn ios-btn-secondary" style={{ marginTop: 8, display: 'inline-flex' }}>
+        <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
+          <strong>Sistema Hayllis — inscripción con usuario</strong>
+          <p style={{ fontSize: 13, marginTop: 8, color: 'var(--label2)' }}>
+            Las academias se registran en <code>/registro-academia</code> con DNI + contraseña.
+            Aprueba aquí para habilitar envío de lista y pagos.
+          </p>
+          {slug && (
+            <Link href={`/campeonato/${slug}`} className="ios-btn ios-btn-secondary" style={{ marginTop: 12, display: 'inline-flex' }}>
               Ver página pública
             </Link>
+          )}
+        </div>
+
+        {pendientes.length > 0 && (
+          <div className="badge badge-yellow" style={{ marginBottom: 12, display: 'inline-block' }}>
+            {pendientes.length} academia(s) pendiente(s) de aprobación
           </div>
         )}
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button type="button" className={filtro === 'pendiente' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('pendiente')}>
+            Pendientes ({pendientes.length})
+          </button>
+          <button type="button" className={filtro === 'todas' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('todas')}>
+            Todas ({academias.length})
+          </button>
+        </div>
 
         {loading ? (
           <p>Cargando…</p>
@@ -76,38 +120,44 @@ export default function CampeonatoAcademiasPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
                   <th style={{ padding: 10 }}>Academia</th>
-                  <th>Prefijo</th>
+                  <th>Representante</th>
+                  <th>Ciudad</th>
                   <th>Estado</th>
+                  <th>Lista / Pago</th>
                   <th>Total</th>
-                  <th>Link</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {academias.map((ac) => {
-                  const link = `/inscripcion/a/${ac.token}`
+                {listado.map((ac) => {
+                  const est = ESTADO_APRO[ac.estado_aprobacion] || ESTADO_APRO.pendiente
                   return (
                     <tr key={ac.id} style={{ borderBottom: '1px solid var(--separator)' }}>
-                      <td style={{ padding: 10 }}>{ac.academia?.nombre}</td>
-                      <td>{ac.academia?.codigo_prefijo}</td>
-                      <td>{ac.estado_lista} / {ac.estado_pago}</td>
-                      <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
-                      <td>
-                        <a href={link} target="_blank" rel="noreferrer" style={{ color: 'var(--red)', fontSize: 12 }}>Portal</a>
+                      <td style={{ padding: 10 }}>
+                        <strong>{ac.academia?.nombre}</strong>
+                        <div style={{ fontSize: 12, color: 'var(--label3)' }}>{ac.academia?.codigo_prefijo}</div>
                       </td>
-                      <td>
-                        <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => regenerarLink(ac.id)}>
-                          Regenerar
-                        </button>
+                      <td style={{ fontSize: 13 }}>
+                        {ac.academia?.representante_nombre || '—'}
+                        <div style={{ color: 'var(--label3)' }}>DNI {ac.academia?.representante_dni || '—'}</div>
+                      </td>
+                      <td>{ac.academia?.ciudad || '—'}</td>
+                      <td><span className={`badge ${est.cls}`}>{est.label}</span></td>
+                      <td style={{ fontSize: 12 }}>{ac.estado_lista} / {ac.estado_pago}</td>
+                      <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {ac.estado_aprobacion === 'pendiente' && (
+                          <>
+                            <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12, padding: '4px 10px', marginRight: 6 }} disabled={procesando === ac.id} onClick={() => aprobar(ac.id)}>
+                              Aprobar
+                            </button>
+                            <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} disabled={procesando === ac.id} onClick={() => rechazar(ac.id)}>
+                              Rechazar
+                            </button>
+                          </>
+                        )}
                         {ac.academia?.telefono && (
-                          <a
-                            href={whatsappUrl(ac.academia.telefono, `Tu link de inscripción ACCTKD: ${typeof window !== 'undefined' ? window.location.origin : ''}${link}`)}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ marginLeft: 8, fontSize: 12, color: '#25D366' }}
-                          >
-                            WA
-                          </a>
+                          <a href={whatsappUrl(ac.academia.telefono, `Hola ${ac.academia.nombre}, tu inscripción en ${campeonato?.nombre} fue ${ac.estado_aprobacion}.`)} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#25D366' }}>WA</a>
                         )}
                       </td>
                     </tr>
@@ -115,6 +165,7 @@ export default function CampeonatoAcademiasPage() {
                 })}
               </tbody>
             </table>
+            {listado.length === 0 && <p style={{ padding: 20, color: 'var(--label3)' }}>Sin academias en esta vista.</p>}
           </div>
         )}
       </div>
