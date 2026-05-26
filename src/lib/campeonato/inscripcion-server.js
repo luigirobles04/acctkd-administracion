@@ -1,5 +1,6 @@
 import { generarToken, edadWT } from '@/lib/campeonato/constants'
 import { resolverPrefijoUnico, formatearDorsal } from '@/lib/campeonato/prefix'
+import { throwSupabase } from '@/lib/supabase-errors'
 
 export async function obtenerCampeonatoPorSlug(sb, slug) {
   const { data, error } = await sb
@@ -11,7 +12,7 @@ export async function obtenerCampeonatoPorSlug(sb, slug) {
   return data
 }
 
-export async function puedeInscribir(campeonato) {
+export function puedeInscribir(campeonato) {
   if (!campeonato) return { ok: false, reason: 'Campeonato no encontrado' }
   if (campeonato.estado !== 'inscripciones') return { ok: false, reason: 'Inscripciones cerradas' }
   const hoy = new Date().toISOString().slice(0, 10)
@@ -188,10 +189,11 @@ export async function registrarAcademiaRepresentante(sb, {
   const { data: dniExiste } = await sb.from('usuario').select('id_usuario').eq('dni', dni).maybeSingle()
   if (dniExiste) throw new Error('Este DNI ya está registrado como representante')
 
-  const { data: camp } = await sb.from('campeonato').select('*').eq('id_campeonato', idCampeonato).single()
-  if (!camp?.publicado) throw new Error('Campeonato no disponible')
+  const { data: camp, error: errCamp } = await sb.from('campeonato').select('*').eq('id_campeonato', idCampeonato).single()
+  if (errCamp) throwSupabase(errCamp, 'Campeonato no encontrado')
+  if (!camp?.publicado) throw new Error('Campeonato no disponible para inscripción')
   const check = puedeInscribir(camp)
-  if (!check.ok) throw new Error(check.reason)
+  if (!check.ok) throw new Error(check.reason || 'Inscripciones no disponibles')
 
   const prefijo = await resolverPrefijoUnico(sb, nombreAcademia)
   const { data: academia, error: errA } = await sb
@@ -206,7 +208,7 @@ export async function registrarAcademiaRepresentante(sb, {
     })
     .select()
     .single()
-  if (errA) throw errA
+  if (errA) throwSupabase(errA, 'No se pudo crear la academia')
 
   const { data: usuario, error: errU } = await sb
     .from('usuario')
@@ -223,7 +225,7 @@ export async function registrarAcademiaRepresentante(sb, {
     .single()
   if (errU) {
     await sb.from('academia').delete().eq('id_academia', academia.id_academia)
-    throw errU
+    throwSupabase(errU, 'No se pudo crear el usuario representante')
   }
 
   const { data: ac, error: errAc } = await sb
@@ -234,9 +236,13 @@ export async function registrarAcademiaRepresentante(sb, {
       estado_aprobacion: 'pendiente',
       token: generarToken(32),
     })
-    .select('*, academia:id_academia(*)')
+    .select('*')
     .single()
-  if (errAc) throw errAc
+  if (errAc) {
+    await sb.from('usuario').delete().eq('id_usuario', usuario.id_usuario)
+    await sb.from('academia').delete().eq('id_academia', academia.id_academia)
+    throwSupabase(errAc, 'No se pudo vincular la academia al campeonato')
+  }
 
   await sb.from('bitacora_inscripcion').insert({
     id_academia_campeonato: ac.id,

@@ -7,6 +7,19 @@ import {
   obtenerCampeonatoPorSlug,
 } from '@/lib/campeonato/inscripcion-server'
 
+function formatError(e) {
+  if (!e) return 'Error desconocido'
+  if (typeof e === 'string') return e
+  return (
+    e.message ||
+    e.details ||
+    e.hint ||
+    e.error_description ||
+    (e.code ? `Error ${e.code}` : null) ||
+    'No se pudo completar el registro. Intenta de nuevo.'
+  )
+}
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -74,7 +87,8 @@ export async function POST(request) {
       mensaje: 'Registro exitoso. Puedes armar tu lista mientras ACCTKD aprueba tu academia.',
     })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 400 })
+    console.error('[registro-academia]', e)
+    return NextResponse.json({ error: formatError(e) }, { status: 400 })
   }
 }
 
