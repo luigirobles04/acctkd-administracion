@@ -4,8 +4,9 @@ import { resolverTokenAcademia, puedeInscribir, aplicarFifoPagos, recalcularMont
 
 export async function POST(request, { params }) {
   try {
+    const { token } = await params
     const sb = getSupabaseAdmin()
-    const ac = await resolverTokenAcademia(sb, params.token)
+    const ac = await resolverTokenAcademia(sb, token)
     if (!ac) return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
 
     const check = puedeInscribir(ac.campeonato)

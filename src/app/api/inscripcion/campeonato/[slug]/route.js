@@ -9,8 +9,9 @@ import {
 
 export async function GET(_request, { params }) {
   try {
+    const { slug } = await params
     const sb = getSupabaseAdmin()
-    const campeonato = await obtenerCampeonatoPorSlug(sb, params.slug)
+    const campeonato = await obtenerCampeonatoPorSlug(sb, slug)
     if (!campeonato) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
     const { data: tarifas } = await sb
@@ -47,8 +48,9 @@ export async function GET(_request, { params }) {
 
 export async function POST(request, { params }) {
   try {
+    const { slug } = await params
     const sb = getSupabaseAdmin()
-    const campeonato = await obtenerCampeonatoPorSlug(sb, params.slug)
+    const campeonato = await obtenerCampeonatoPorSlug(sb, slug)
     if (!campeonato) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
     const check = puedeInscribir(campeonato)
