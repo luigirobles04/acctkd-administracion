@@ -143,6 +143,14 @@ body {
 .ios-btn:disabled { opacity: 0.40; cursor: not-allowed; transform: none; }
 
 /* ── iOS Input ────────────────────────────────────────────────────── */
+.ios-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label2);
+  margin-bottom: 6px;
+}
+
 .ios-input {
   width: 100%;
   height: 46px;

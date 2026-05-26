@@ -225,20 +225,36 @@ export default function CampeonatoDetallePage() {
         </div>
 
         {tab === 'resumen' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Categorías', val: categorias.length, icon: 'category', color: '#007AFF' },
-              { label: 'Inscripciones', val: inscripciones.length, icon: 'groups', color: '#FF9500' },
-              { label: 'Competidores', val: competidores.length, icon: 'sports_martial_arts', color: 'var(--red)' },
-              { label: 'Inscripción S/', val: formatMoney(campeonato.monto_inscripcion), icon: 'payments', color: '#34C759' },
-            ].map((k) => (
-              <div key={k.label} className="ios-card" style={{ padding: 16 }}>
-                <span className="material-symbols-rounded" style={{ color: k.color, fontSize: 22 }}>{k.icon}</span>
-                <p style={{ fontSize: 22, fontWeight: 700, marginTop: 8 }}>{k.val}</p>
-                <p className="ios-caption" style={{ color: 'var(--label3)' }}>{k.label}</p>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Categorías', val: categorias.length, icon: 'category', color: '#007AFF' },
+                { label: 'Inscripciones', val: inscripciones.length, icon: 'groups', color: '#FF9500' },
+                { label: 'Competidores', val: competidores.length, icon: 'sports_martial_arts', color: 'var(--red)' },
+                { label: 'Inscripción S/', val: formatMoney(campeonato.monto_inscripcion), icon: 'payments', color: '#34C759' },
+              ].map((k) => (
+                <div key={k.label} className="ios-card" style={{ padding: 16 }}>
+                  <span className="material-symbols-rounded" style={{ color: k.color, fontSize: 22 }}>{k.icon}</span>
+                  <p style={{ fontSize: 22, fontWeight: 700, marginTop: 8 }}>{k.val}</p>
+                  <p className="ios-caption" style={{ color: 'var(--label3)' }}>{k.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="ios-card" style={{ padding: 18 }}>
+              <p className="ios-headline" style={{ marginBottom: 12 }}>Módulo inscripciones F1</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                <a href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-primary">Academias y links</a>
+                <a href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-secondary">Pagos y aprobación</a>
+                <a href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje offline</a>
+                {campeonato.slug && (
+                  <>
+                    <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
+                    <a href={`/inscripcion/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Link genérico</a>
+                  </>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          </>
         )}
 
         {tab === 'categorias' && (

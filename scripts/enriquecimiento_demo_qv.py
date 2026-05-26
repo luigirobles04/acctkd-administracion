@@ -13,7 +13,9 @@ NOM_AP = [
     "Nancy", "César Augusto", "Teresa", "Ricardo", "Sandra", "Pablo César", "Mili",
     "José Antonio", "Alicia", "Víctor", "Cecilia", "Bruno", "Lourdes", "Andrés", "Fiorella",
     "Diego", "Mónica", "Santiago", "Liliana", "Walter", "Irma", "Franco", "Natalia", "Gustavo",
-    "Mirtha",
+    "Mirtha", "Paola", "Rodrigo", "Estefanía", "Fabricio", "Jimena", "Hugo", "Vanessa",
+    "Arturo", "Marisol", "Elías", "Rocío", "Fabián", "Karina", "Matías", "Claudia",
+    "Rafael", "Noemí", "Tomás", "Brenda",
 ]
 REL = ("Madre", "Padre", "Padre", "Tutor", "Tía", "Abuela", "Padre", "Madre", "Tutor", "Tía")
 
@@ -339,7 +341,7 @@ SELECT
   CASE WHEN hm.h = 4 THEN true ELSE false END,
   CASE WHEN hm.h = 5 THEN 'Recuperación' ELSE NULL END
 FROM clase c
-JOIN alumno a ON a.id_turno = c.id_turno AND a.estado = 'activo'
+JOIN alumno a ON a.id_turno = c.id_turno AND a.estado IN ('activo', 'prueba')
 CROSS JOIN LATERAL (
   SELECT mod(abs(hashtext(a.id_alumno::text || c.fecha::text)), 6)::int AS h
 ) hm

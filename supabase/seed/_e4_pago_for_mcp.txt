@@ -1,0 +1,30 @@
+BEGIN;
+-- Un pago de mensualidadreciente por alumno demo (monto = plan)
+INSERT INTO pago (
+  id_alumno, id_sede, id_concepto, id_metodo, id_plan,
+  monto, descuento, estado, fecha_pago, mes_correspondiente,
+  concepto, metodo_pago, observaciones, numero_recibo
+)
+SELECT
+  a.id_alumno,
+  a.id_sede,
+  (SELECT id_concepto FROM concepto_pago WHERE codigo = 'MENSUALIDAD' LIMIT 1),
+  (SELECT id_metodo FROM metodo_pago WHERE codigo = 'EFECTIVO' LIMIT 1),
+  a.id_plan,
+  pm.monto,
+  0,
+  'pagado',
+  DATE '2026-04-10',
+  DATE '2026-04-01',
+  'Mensualidad',
+  'efectivo',
+  'Cobro demo (abril 2026) — ficticio',
+  'DMO-REC-' || a.codigo_alumno
+FROM alumno a
+JOIN plan_mensualidad pm ON pm.id_plan = a.id_plan
+WHERE a.codigo_alumno LIKE 'CCTKD-DEMO-%'
+  AND NOT EXISTS (
+    SELECT 1 FROM pago p WHERE p.numero_recibo = 'DMO-REC-' || a.codigo_alumno
+  );
+
+COMMIT;
