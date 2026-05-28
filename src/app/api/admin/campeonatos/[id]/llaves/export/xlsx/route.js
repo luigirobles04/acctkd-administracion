@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { buildExportLlaves } from '@/lib/campeonato/export-llaves'
-import { buildLlavesExcelResponse } from '@/lib/campeonato/export-llaves-excel'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export async function GET(_request, { params }) {
@@ -13,8 +14,23 @@ export async function GET(_request, { params }) {
 
     const sb = getSupabaseAdmin()
     const data = await buildExportLlaves(sb, idCampeonato)
-    return buildLlavesExcelResponse(data)
+
+    const { buildLlavesExcelBuffer } = await import('@/lib/campeonato/export-llaves-excel')
+    const { slugArchivo } = await import('@/lib/campeonato/export-excel-html')
+
+    const buffer = await buildLlavesExcelBuffer(data)
+    const camp = data.campeonato?.nombre || 'Campeonato'
+    const filename = `llaves-kyorugi-${slugArchivo(camp)}.xlsx`
+    const body = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)
+
+    return new NextResponse(body, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    console.error('[xlsx export]', e)
+    return NextResponse.json({ error: e?.message || 'Error al exportar Excel' }, { status: 500 })
   }
 }

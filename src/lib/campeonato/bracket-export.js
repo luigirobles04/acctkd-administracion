@@ -35,16 +35,29 @@ export function labelRondaExport(ronda, maxRonda) {
   return RONDA_LABEL_EXPORT[ronda] || `R${ronda}`
 }
 
-function slotFromCompetidor(c) {
+function slotFromCompetidor(c, color = null) {
   if (!c?.id_linea && !c?.nombres) {
-    return { nombre: 'POR DEFINIR', academia: '', dorsal: '', vacio: true }
+    return { nombre: 'POR DEFINIR', academia: '', dorsal: '', vacio: true, color }
   }
   return {
     nombre: (c.nombres || 'POR DEFINIR').toUpperCase(),
     academia: c.academia || '',
     dorsal: c.dorsal || '',
     vacio: false,
+    color,
   }
+}
+
+export function byePlayersEnLlave(porRonda) {
+  const out = []
+  for (const r of Object.values(porRonda || {})) {
+    for (const m of r || []) {
+      if (!m?.es_bye) continue
+      if (m.competidor1?.id_linea) out.push({ ...slotFromCompetidor(m.competidor1, m.color1 || 'azul'), ronda: m.ronda })
+      if (m.competidor2?.id_linea) out.push({ ...slotFromCompetidor(m.competidor2, m.color2 || 'rojo'), ronda: m.ronda })
+    }
+  }
+  return out
 }
 
 export function emparejamientosPrimeraRonda(porRonda) {
@@ -84,8 +97,9 @@ export function columnasBracket(porRonda) {
       .map((m) => ({
         match_numero: m.match_numero,
         numero_combate: m.orden_pista || '',
-        chung: slotFromCompetidor(m.competidor1),
-        hong: slotFromCompetidor(m.competidor2),
+        es_bye: m.es_bye,
+        chung: slotFromCompetidor(m.competidor1, m.color1 || 'azul'),
+        hong: slotFromCompetidor(m.competidor2, m.color2 || 'rojo'),
         ganador: ganadorNombre(m),
       })),
   }))

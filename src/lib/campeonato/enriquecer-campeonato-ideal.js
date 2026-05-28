@@ -1,5 +1,5 @@
 import { generarTodasLasLlaves, registrarGanadorCombate } from '@/lib/campeonato/llaves-kyorugi'
-import { asignarDorsalLinea } from '@/lib/campeonato/inscripcion-server'
+import { asignarDorsalLinea, registrarPagoTotalAcademia, recalcularMontosAcademia } from '@/lib/campeonato/inscripcion-server'
 
 const KYORUGI_TARGETS = [5, 7, 9, 11]
 const POOMSAE_MIN = 5
@@ -126,7 +126,7 @@ function apiError(json, fallback = 'Error') {
 }
 
 async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
-  const seleccionadas = catsKy.slice(0, 24)
+  const seleccionadas = catsKy.filter((c) => c.genero === 'M' || c.genero === 'F').slice(0, 40)
   let globalSeq = 9000
   let added = 0
 
@@ -165,7 +165,7 @@ async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
 }
 
 async function llenarPoomsae(sb, idCampeonato, academias, catsPm) {
-  const seleccionadas = catsPm.slice(0, 30)
+  const seleccionadas = catsPm || []
   let globalSeq = 8000
   let added = 0
 
@@ -239,9 +239,48 @@ async function aplicarPesaje(sb, idCampeonato) {
   return (lineas || []).length
 }
 
+async function aprobarLineasPoomsae(sb, idCampeonato) {
+  const { data: lineas } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea')
+    .eq('id_campeonato', idCampeonato)
+    .like('modalidad', 'poomsae%')
+    .in('estado', ['pagado', 'pendiente_pago', 'borrador'])
+
+  let n = 0
+  for (const l of lineas || []) {
+    await sb
+      .from('linea_inscripcion')
+      .update({ estado: 'aprobado', updated_at: new Date().toISOString() })
+      .eq('id_linea', l.id_linea)
+    n++
+  }
+  return n
+}
+
+async function liquidarPagosAcademias(sb, idCampeonato) {
+  const { data: academias } = await sb
+    .from('academia_campeonato')
+    .select('id')
+    .eq('id_campeonato', idCampeonato)
+    .eq('estado_aprobacion', 'aprobada')
+
+  let pagadas = 0
+  let monto = 0
+  for (const ac of academias || []) {
+    await recalcularMontosAcademia(sb, ac.id)
+    const r = await registrarPagoTotalAcademia(sb, ac.id)
+    if (r.monto > 0) {
+      pagadas++
+      monto += r.monto
+    }
+  }
+  return { academias_pagadas: pagadas, monto_total: monto }
+}
+
 async function finalizarCombates(sb, idCampeonato) {
   let ok = 0
-  for (let pass = 0; pass < 8; pass++) {
+  for (let pass = 0; pass < 30; pass++) {
     const { data: combates } = await sb
       .from('llave_kyorugi')
       .select('*')
@@ -249,8 +288,10 @@ async function finalizarCombates(sb, idCampeonato) {
       .eq('estado', 'pendiente')
       .not('id_linea1', 'is', null)
       .not('id_linea2', 'is', null)
+      .order('ronda', { ascending: false })
       .order('orden_pista', { ascending: true, nullsFirst: false })
 
+    let progress = 0
     for (const c of combates || []) {
       try {
         const g = Math.random() > 0.5 ? c.id_linea1 : c.id_linea2
@@ -258,10 +299,12 @@ async function finalizarCombates(sb, idCampeonato) {
         const p2 = g === c.id_linea1 ? Math.max(0, p1 - 2) : p1 + 2
         await registrarGanadorCombate(sb, c.id_llave, g, { puntaje1: p1, puntaje2: Math.max(0, p2) })
         ok++
+        progress++
       } catch {
-        /* ronda bloqueada */
+        /* esperar oponente */
       }
     }
+    if (!progress) break
   }
   return ok
 }
@@ -292,7 +335,14 @@ export async function enriquecerCampeonatoIdeal(sb, idCampeonato, { fase = 'todo
     result.kyorugi_agregados = await llenarKyorugi(sb, idCampeonato, academias, catsKy || [])
     result.poomsae_agregados = await llenarPoomsae(sb, idCampeonato, academias, catsPm || [])
     result.dorsales_asignados = await aprobarYDorsales(sb, idCampeonato)
+    result.poomsae_aprobados = await aprobarLineasPoomsae(sb, idCampeonato)
     result.pesaje_ok = await aplicarPesaje(sb, idCampeonato)
+  }
+
+  if (fase === 'pagos' || fase === 'todo') {
+    const pagos = await liquidarPagosAcademias(sb, idCampeonato)
+    result.academias_pagadas = pagos.academias_pagadas
+    result.monto_pagado = pagos.monto_total
   }
 
   if (fase === 'llaves' || fase === 'todo') {

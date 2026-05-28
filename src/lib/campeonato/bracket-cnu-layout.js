@@ -28,11 +28,11 @@ export function layoutCnuBracket(porRonda) {
     const seedB = mi * 2 + 2
 
     set(rTop, 0, { v: seedA, align: 'center', bold: true, bg: 'white' })
-    set(rTop, 1, { v: m.chung?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.chung?.vacio })
+    set(rTop, 1, { v: m.chung?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.chung?.vacio, chung: true })
     set(rTop, 2, { v: m.chung?.academia || '', bg: 'gray', small: true })
 
     set(rBot, 0, { v: seedB, align: 'center', bold: true, bg: 'white' })
-    set(rBot, 1, { v: m.hong?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.hong?.vacio })
+    set(rBot, 1, { v: m.hong?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.hong?.vacio, hong: true })
     set(rBot, 2, { v: m.hong?.academia || '', bg: 'gray', small: true })
 
     const col0 = 3

@@ -104,8 +104,9 @@ function buildCompactSlots(participantes) {
   const byeCount = n % 2
   const shuffled = shuffleInPlace([...participantes])
 
-  const byePlayers = byeCount ? [shuffled[0]] : []
-  let fighters = byeCount ? shuffled.slice(1) : [...shuffled]
+  // Bye al extremo inferior (convención CNU / FESTCUP)
+  const byePlayers = byeCount ? [shuffled[n - 1]] : []
+  let fighters = byeCount ? shuffled.slice(0, n - 1) : [...shuffled]
 
   const counts = {}
   for (const p of fighters) {

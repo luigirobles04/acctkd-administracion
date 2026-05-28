@@ -14,12 +14,22 @@ const FILL = {
 
 const BORDER = { style: 'thin', color: { argb: 'FF111111' } }
 
+function safeMerge(ws, r1, c1, r2, c2) {
+  try {
+    ws.mergeCells(r1, c1, r2, c2)
+  } catch {
+    /* celda ya fusionada */
+  }
+}
+
 function applyCell(ws, r, c, spec) {
   const cell = ws.getCell(r, c)
   if (spec.v != null) cell.value = spec.v
-  if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
+  if (spec.chung) cell.font = { bold: true, size: 10, color: { argb: 'FF1D4ED8' }, italic: spec.italic }
+  else if (spec.hong) cell.font = { bold: true, size: 10, color: { argb: 'FFDC2626' }, italic: spec.italic }
+  else if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
   else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
-  if (spec.matchNo) cell.font = { bold: true, size: 12, color: { argb: 'FF111111' } }
+  if (spec.matchNo) cell.font = { bold: true, size: 13, color: { argb: 'FF111111' } }
   if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle' }
   if (spec.bg === 'yellow') cell.fill = FILL.yellow
   if (spec.bg === 'gray') cell.fill = FILL.gray
@@ -38,7 +48,7 @@ function writeCategoriaCnu(ws, cat, startRow) {
   const layout = layoutCnuBracket(cat.porRonda)
   if (!layout) return startRow
 
-  ws.mergeCells(startRow, 1, startRow, Math.max(12, layout.cols))
+  safeMerge(ws, startRow, 1, startRow, Math.max(12, layout.cols))
   const title = ws.getCell(startRow, 1)
   title.value = `Categoría ${cat.nombre}`
   title.fill = FILL.yellow
@@ -47,7 +57,7 @@ function writeCategoriaCnu(ws, cat, startRow) {
 
   let row = startRow + 1
   for (let r = 0; r < layout.rows; r++) {
-    ws.getRow(row + r).height = 15
+    ws.getRow(row + r).height = 18
     for (let c = 0; c < layout.cols; c++) {
       const cell = ws.getCell(row + r, c + 1)
       if (c >= 3) cell.fill = FILL.areaBg
@@ -60,7 +70,7 @@ function writeCategoriaCnu(ws, cat, startRow) {
 
 function addResumenSheet(wb, camp, resumen) {
   const ws = wb.addWorksheet('Resumen')
-  ws.mergeCells(1, 1, 1, 7)
+  safeMerge(ws, 1, 1, 1, 7)
   const h = ws.getCell(1, 1)
   h.value = `LLAVES KYORUGI · ${camp}`
   h.fill = FILL.red
@@ -91,7 +101,7 @@ function addResumenSheet(wb, camp, resumen) {
 
 function addAreaSheet(wb, camp, areaNum, categorias) {
   const ws = wb.addWorksheet(`AREA ${areaNum}`)
-  ws.mergeCells(1, 1, 1, 14)
+  safeMerge(ws, 1, 1, 1, 14)
   const h = ws.getCell(1, 1)
   h.value = `ÁREA # ${areaNum} · ${camp}`
   h.fill = FILL.yellow

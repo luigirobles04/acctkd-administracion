@@ -21,6 +21,7 @@ function enrichCombate(l, lineaMap, catMap) {
     rondaLabel: RONDA_LABEL[l.ronda] || `Ronda ${l.ronda}`,
     match_numero: l.match_numero,
     estado: l.estado,
+    es_bye: l.es_bye,
     cancha: l.cancha,
     orden_pista: l.orden_pista,
     color1: l.color1,
