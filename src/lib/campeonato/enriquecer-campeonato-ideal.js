@@ -144,14 +144,18 @@ async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
       const sexo = cat.genero === 'F' ? 'F' : cat.genero === 'M' ? 'M' : null
       const p = perfilDemo(academias.indexOf(ac), seq, sexo)
       p.apellidos = `${ac.academia.codigo_prefijo || 'AC'} Demo`
-      p.documento_numero = `8${idCampeonato}${String(seq).padStart(6, '0')}`
+      p.documento_numero = `8${idCampeonato}${String(seq).padStart(7, '0')}${String(n).padStart(2, '0')}`
 
       const { data: perfil, error: errP } = await sb
         .from('competidor_perfil')
         .insert({ ...p, id_academia: ac.academia.id_academia })
         .select()
         .single()
-      if (errP || !perfil?.id_perfil) throw new Error(errP?.message || 'No se pudo crear perfil de competidor')
+      if (errP) {
+        if (errP.code === '23505') continue
+        throw new Error(errP.message || 'No se pudo crear perfil de competidor')
+      }
+      if (!perfil?.id_perfil) throw new Error('No se pudo crear perfil de competidor')
 
       await crearLineaKyorugi(sb, ac, idCampeonato, cat, perfil, pesoPara(cat))
       added++
@@ -181,14 +185,18 @@ async function llenarPoomsae(sb, idCampeonato, academias, catsPm) {
       const seq = globalSeq++
       const p = perfilDemo(academias.indexOf(ac), seq)
       p.apellidos = `${ac.academia.codigo_prefijo || 'AC'} Poomsae`
-      p.documento_numero = `9${idCampeonato}${String(seq).padStart(6, '0')}`
+      p.documento_numero = `9${idCampeonato}${String(seq).padStart(7, '0')}${String(n).padStart(2, '0')}`
 
       const { data: perfil, error: errP } = await sb
         .from('competidor_perfil')
         .insert({ ...p, id_academia: ac.academia.id_academia })
         .select()
         .single()
-      if (errP || !perfil?.id_perfil) throw new Error(errP?.message || 'No se pudo crear perfil poomsae')
+      if (errP) {
+        if (errP.code === '23505') continue
+        throw new Error(errP.message || 'No se pudo crear perfil poomsae')
+      }
+      if (!perfil?.id_perfil) throw new Error('No se pudo crear perfil poomsae')
 
       await crearLineaPoomsae(sb, ac, idCampeonato, cat, perfil)
       added++
