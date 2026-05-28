@@ -3,16 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
-import {
-  actualizarCampeonato,
-  crearInscripcion,
-  listarCategorias,
-  listarInscripciones,
-  listarAcademiasCampeonato,
-  listarLineasInscripcion,
-  obtenerCampeonato,
-  actualizarInscripcion,
-} from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN } from '@/lib/campeonato/constants'
 
@@ -25,10 +15,10 @@ const ESTADOS = {
 }
 
 const TABS = [
-  { id: 'resumen', label: 'Resumen', icon: 'info' },
-  { id: 'categorias', label: 'Categorías', icon: 'category' },
-  { id: 'inscripciones', label: 'Inscripciones', icon: 'groups' },
-  { id: 'competidores', label: 'Competidores', icon: 'sports_martial_arts' },
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'categorias', label: 'Categorías' },
+  { id: 'inscripciones', label: 'Inscripciones' },
+  { id: 'competidores', label: 'Competidores' },
 ]
 
 export default function CampeonatoDetallePage() {
@@ -42,34 +32,34 @@ export default function CampeonatoDetallePage() {
   const [inscripciones, setInscripciones] = useState([])
   const [academiasCamp, setAcademiasCamp] = useState([])
   const [lineasInscripcion, setLineasInscripcion] = useState([])
+  const [recaudacion, setRecaudacion] = useState({ totalEsperado: 0, recaudado: 0, pendiente: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activando, setActivando] = useState(false)
-  const [autoReparado, setAutoReparado] = useState(false)
-
-  const [formIns, setFormIns] = useState({ nombre_academia: 'Christopher Cabrera Taekwondo', coach_nombres: '', coach_apellidos: '', coach_telefono: '', cantidad_competidores: 1 })
   const [editPerfil, setEditPerfil] = useState(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
   const cargar = useCallback(async () => {
-    if (!idCampeonato) return
+    if (!idCampeonato) {
+      setError('ID de campeonato inválido')
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const [camp, cats, ins, acs, lineas] = await Promise.all([
-        obtenerCampeonato(idCampeonato),
-        listarCategorias(idCampeonato),
-        listarInscripciones(idCampeonato),
-        listarAcademiasCampeonato(idCampeonato),
-        listarLineasInscripcion(idCampeonato),
-      ])
-      setCampeonato(camp)
-      setCategorias(cats)
-      setInscripciones(ins)
-      setAcademiasCamp(acs)
-      setLineasInscripcion(lineas)
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/detalle`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'No se pudo cargar el campeonato')
+      setCampeonato(json.campeonato)
+      setCategorias(json.categorias || [])
+      setInscripciones(json.inscripciones || [])
+      setAcademiasCamp(json.academiasCamp || [])
+      setLineasInscripcion(json.lineasInscripcion || [])
+      setRecaudacion(json.recaudacion || { totalEsperado: 0, recaudado: 0, pendiente: 0 })
     } catch (e) {
       setError(e.message || 'Error al cargar el campeonato')
+      setCampeonato(null)
     } finally {
       setLoading(false)
     }
@@ -78,96 +68,6 @@ export default function CampeonatoDetallePage() {
   useEffect(() => {
     cargar()
   }, [cargar])
-
-  async function cambiarEstado(estado) {
-    try {
-      await actualizarCampeonato(idCampeonato, { estado })
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
-  async function activarParaPortal(silent = false) {
-    setActivando(true)
-    try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/activar`, { method: 'POST' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-      if (!silent) alert(json.mensaje || `Listo: ${json.categorias_creadas} categorías`)
-      await cargar()
-      return true
-    } catch (e) {
-      if (!silent) alert(e.message)
-      return false
-    } finally {
-      setActivando(false)
-    }
-  }
-
-  const catalogoViejo =
-    categorias.length < 480
-    || !categorias.some((c) => String(c.nombre || '').includes('Infantil A'))
-    || categorias.some((c) => String(c.nombre || '').includes('Poomsae Cadete B'))
-    || !categorias.some((c) => String(c.nombre || '').includes('Poomsae Il Jang · Cadete'))
-  const necesitaActivacion = !campeonato?.slug || !campeonato?.publicado || catalogoViejo
-
-  useEffect(() => {
-    if (loading || autoReparado || activando || !campeonato) return
-    if (necesitaActivacion) {
-      setAutoReparado(true)
-      activarParaPortal(true)
-    }
-  }, [loading, campeonato, categorias.length, autoReparado, activando, necesitaActivacion])
-
-  async function guardarInscripcion(e) {
-    e.preventDefault()
-    try {
-      await crearInscripcion({
-        id_campeonato: idCampeonato,
-        ...formIns,
-        cantidad_competidores: Number(formIns.cantidad_competidores) || 0,
-        estado: 'pendiente',
-      })
-      setFormIns({ nombre_academia: 'Christopher Cabrera Taekwondo', coach_nombres: '', coach_apellidos: '', coach_telefono: '', cantidad_competidores: 1 })
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
-  async function aprobarInscripcion(ins) {
-    try {
-      await actualizarInscripcion(ins.id_inscripcion, { estado: 'aprobada', fecha_aprobacion: new Date().toISOString() })
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
-  async function eliminarCampeonato() {
-    if (!confirm(`¿Eliminar "${campeonato?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return
-    try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-      router.push('/admin/campeonatos')
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
-  const recaudacion = useMemo(() => {
-    const base = academiasCamp.reduce(
-      (acc, ac) => {
-        acc.totalEsperado += Number(ac.monto_total || 0)
-        acc.recaudado += Number(ac.monto_asignado || 0)
-        return acc
-      },
-      { totalEsperado: 0, recaudado: 0 }
-    )
-    return { ...base, pendiente: Math.max(0, base.totalEsperado - base.recaudado) }
-  }, [academiasCamp])
 
   const perfilesPortal = useMemo(() => {
     const map = new Map()
@@ -183,15 +83,58 @@ export default function CampeonatoDetallePage() {
     return [...map.values()].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || ''))
   }, [lineasInscripcion])
 
+  async function cambiarEstado(estado) {
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
+  async function activarParaPortal() {
+    setActivando(true)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/activar`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      alert(json.mensaje || `Listo: ${json.categorias_creadas} categorías`)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setActivando(false)
+    }
+  }
+
+  async function eliminarCampeonato() {
+    if (!confirm(`¿Eliminar "${campeonato?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      router.push('/admin/campeonatos')
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
   async function guardarPerfilAdmin(e) {
     e.preventDefault()
     if (!editPerfil) return
     setGuardandoPerfil(true)
     try {
+      const { id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero } = editPerfil
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/perfil`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editPerfil),
+        body: JSON.stringify({ idPerfil: id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
@@ -204,7 +147,7 @@ export default function CampeonatoDetallePage() {
     }
   }
 
-  if (loading && !campeonato) {
+  if (loading) {
     return (
       <AdminLayout title="Campeonato">
         <div style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>Cargando…</div>
@@ -216,9 +159,12 @@ export default function CampeonatoDetallePage() {
     return (
       <AdminLayout title="Campeonato">
         <div style={{ padding: 16, margin: 24, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A' }}>{error || 'No encontrado'}</div>
-        <button type="button" className="ios-btn ios-btn-secondary" style={{ marginLeft: 24 }} onClick={() => router.push('/admin/campeonatos')}>
-          Volver
-        </button>
+        <div style={{ display: 'flex', gap: 10, marginLeft: 24 }}>
+          <button type="button" className="ios-btn ios-btn-primary" onClick={cargar}>Reintentar</button>
+          <button type="button" className="ios-btn ios-btn-secondary" onClick={() => router.push('/admin/campeonatos')}>
+            Volver
+          </button>
+        </div>
       </AdminLayout>
     )
   }
@@ -226,6 +172,12 @@ export default function CampeonatoDetallePage() {
   const st = ESTADOS[campeonato.estado] || { label: campeonato.estado, cls: 'badge-gray' }
   const catsKyorugi = categorias.filter((c) => c.modalidad === 'kyorugi')
   const catsPoomsae = categorias.filter((c) => c.modalidad === 'poomsae')
+  const catalogoViejo =
+    categorias.length < 480
+    || !categorias.some((c) => String(c.nombre || '').includes('Infantil A'))
+    || categorias.some((c) => String(c.nombre || '').includes('Poomsae Cadete B'))
+    || !categorias.some((c) => String(c.nombre || '').includes('Poomsae Il Jang · Cadete'))
+  const necesitaActivacion = !campeonato.slug || !campeonato.publicado || catalogoViejo
 
   return (
     <AdminLayout title={campeonato.nombre} subtitle={`${formatFecha(campeonato.fecha_inicio)} — ${formatFecha(campeonato.fecha_fin)}`}>
@@ -239,9 +191,9 @@ export default function CampeonatoDetallePage() {
           <div className="ios-card" style={{ padding: 16, marginBottom: 16, background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.35)' }}>
             <p className="ios-headline" style={{ marginBottom: 6 }}>Este campeonato no está listo para el portal</p>
             <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12, lineHeight: 1.5 }}>
-              Falta publicarlo, asignar enlace (slug) o generar categorías WT. Las academias no lo verán en registro ni en el portal hasta activarlo.
+              Falta publicarlo, asignar enlace (slug) o generar categorías WT.
             </p>
-            <button type="button" className="ios-btn ios-btn-primary" disabled={activando} onClick={() => activarParaPortal(false)}>
+            <button type="button" className="ios-btn ios-btn-primary" disabled={activando} onClick={activarParaPortal}>
               {activando ? 'Activando…' : 'Activar para inscripciones'}
             </button>
           </div>
@@ -264,12 +216,7 @@ export default function CampeonatoDetallePage() {
 
         <div className="ios-segment anim-fade-up" style={{ marginBottom: 20 }}>
           {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`ios-segment-item ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
+            <button key={t.id} type="button" className={`ios-segment-item ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
               {t.label}
             </button>
           ))}
@@ -282,9 +229,9 @@ export default function CampeonatoDetallePage() {
                 { label: 'Categorías', val: categorias.length, icon: 'category', color: '#007AFF' },
                 { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759' },
                 { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500' },
-                { label: 'Recaudado', val: `S/ ${recaudacion.recaudado.toFixed(0)}`, icon: 'payments', color: '#34C759' },
-                { label: 'Pendiente', val: `S/ ${recaudacion.pendiente.toFixed(0)}`, icon: 'pending', color: '#FF9500' },
-                { label: 'Total esperado', val: `S/ ${recaudacion.totalEsperado.toFixed(0)}`, icon: 'account_balance', color: '#5856D6' },
+                { label: 'Recaudado', val: `S/ ${Number(recaudacion.recaudado || 0).toFixed(0)}`, icon: 'payments', color: '#34C759' },
+                { label: 'Pendiente', val: `S/ ${Number(recaudacion.pendiente || 0).toFixed(0)}`, icon: 'pending', color: '#FF9500' },
+                { label: 'Total esperado', val: `S/ ${Number(recaudacion.totalEsperado || 0).toFixed(0)}`, icon: 'account_balance', color: '#5856D6' },
                 { label: 'Slug portal', val: campeonato.slug || '—', icon: 'link', color: '#5856D6' },
               ].map((k) => (
                 <div key={k.label} className="ios-card" style={{ padding: 16 }}>
@@ -319,19 +266,12 @@ export default function CampeonatoDetallePage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
               <div>
                 <p className="ios-headline">Categorías WT</p>
-                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 6, maxWidth: 520 }}>
-                  Generadas automáticamente al crear el campeonato. No es necesario agregarlas manualmente.
-                </p>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 6 }}>{categorias.length} categorías generadas</p>
               </div>
-              <span className="ios-badge badge-blue">{categorias.length} categorías</span>
             </div>
-
             {categorias.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 20 }}>
-                <p className="ios-body" style={{ color: 'var(--label3)', marginBottom: 14 }}>
-                  Sin categorías generadas aún.
-                </p>
-                <button type="button" className="ios-btn ios-btn-primary" disabled={activando} onClick={() => activarParaPortal(false)}>
+                <button type="button" className="ios-btn ios-btn-primary" disabled={activando} onClick={activarParaPortal}>
                   {activando ? 'Generando…' : 'Generar categorías WT'}
                 </button>
               </div>
@@ -369,16 +309,13 @@ export default function CampeonatoDetallePage() {
             <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p className="ios-headline">{academiasCamp.length} academias · {lineasInscripcion.length} líneas</p>
-                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>
-                  Inscripciones del portal (líneas por modalidad). Pagos y dorsales en la vista dedicada.
-                </p>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>Inscripciones del portal por academia.</p>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <a href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</a>
                 <a href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos y dorsales</a>
               </div>
             </div>
-
             <div className="ios-group">
               {academiasCamp.length === 0 ? (
                 <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin academias inscritas</p>
@@ -396,25 +333,16 @@ export default function CampeonatoDetallePage() {
                         </div>
                       </div>
                       <span className="ios-caption" style={{ color: 'var(--label3)' }}>
-                        {lineasAc.length} líneas · {pagadas} pagadas/aprobadas · lista {ac.estado_lista} · S/ {Number(ac.monto_asignado || 0).toFixed(0)}/{Number(ac.monto_total || 0).toFixed(0)}
+                        {lineasAc.length} líneas · {pagadas} pagadas/aprobadas · S/ {Number(ac.monto_asignado || 0).toFixed(0)}/{Number(ac.monto_total || 0).toFixed(0)}
                       </span>
-                      {lineasAc.slice(0, 4).map((l) => {
-                        const miembro = l.miembros?.[0]?.perfil
-                        const nombre = miembro ? `${miembro.nombres} ${miembro.apellidos}` : '—'
-                        return (
-                          <span key={l.id_linea} className="ios-caption" style={{ color: 'var(--label2)' }}>
-                            {l.dorsal_display || '—'} · {l.modalidad} · {nombre} · {l.estado}
-                          </span>
-                        )
-                      })}
-                      {lineasAc.length > 4 && (
-                        <span className="ios-caption" style={{ color: 'var(--label3)' }}>+{lineasAc.length - 4} líneas más</span>
-                      )}
                     </div>
                   )
                 })
               )}
             </div>
+            {inscripciones.length > 0 && (
+              <p className="ios-caption" style={{ color: 'var(--label3)' }}>{inscripciones.length} solicitud(es) legacy (modelo anterior).</p>
+            )}
           </div>
         )}
 
@@ -423,9 +351,6 @@ export default function CampeonatoDetallePage() {
             <div className="ios-group">
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--separator)' }}>
                 <p className="ios-headline">{perfilesPortal.length} competidores (portal)</p>
-                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>
-                  Inscripciones del portal por academia. Edita datos personales aquí o desde el plantel de cada academia.
-                </p>
               </div>
               {perfilesPortal.length === 0 ? (
                 <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin competidores inscritos vía portal</p>
@@ -435,23 +360,10 @@ export default function CampeonatoDetallePage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p className="ios-headline">{p.nombres} {p.apellidos}</p>
                       <p className="ios-caption" style={{ color: 'var(--label3)' }}>
-                        {p.documento_tipo} {p.documento_numero} · {p.grado || '—'} · {p.sexo}
-                      </p>
-                      <p className="ios-caption" style={{ color: 'var(--label2)', marginTop: 4 }}>
-                        {(p.lineas || []).length} inscripción(es)
-                        {(p.lineas || []).slice(0, 2).map((l) => (
-                          <span key={l.id_linea} style={{ display: 'block' }}>
-                            {l.dorsal_display || '—'} · {l.modalidad} · {l.estado}
-                          </span>
-                        ))}
+                        {p.documento_tipo} {p.documento_numero} · {p.grado || '—'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="ios-btn ios-btn-secondary"
-                      style={{ fontSize: 12, flexShrink: 0 }}
-                      onClick={() => setEditPerfil({ ...p })}
-                    >
+                    <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => setEditPerfil({ ...p })}>
                       Editar
                     </button>
                   </div>
