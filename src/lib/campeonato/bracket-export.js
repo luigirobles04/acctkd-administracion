@@ -113,7 +113,6 @@ function esc(s) {
 }
 
 export function bracketCategoriaHtmlExcel(cat) {
-  const cols = columnasBracket(cat.porRonda)
   const pairs = emparejamientosPrimeraRonda(cat.porRonda)
   if (!pairs.length) return ''
 
@@ -165,25 +164,6 @@ export function bracketCategoriaHtmlExcel(cat) {
   })
 
   html += '</table>'
-
-  if (cols.length > 1) {
-    html += `<table style="border-collapse:collapse;width:100%;margin:0 0 16px;font-family:Calibri,Arial,sans-serif;font-size:8pt;">`
-    html += `<tr><td colspan="6" style="font-weight:bold;padding:4px 0;color:#555;">Programación por rondas</td></tr>`
-    for (const col of cols) {
-      html += `<tr><td colspan="6" style="background:#1e293b;color:#fff;font-weight:bold;padding:4px 8px;">${esc(col.label)}</td></tr>`
-      for (const m of col.combates) {
-        html += '<tr>'
-        html += cell(`#${m.match_numero}`, 'width:36px;font-weight:bold;')
-        html += cell(m.chung ? `<span style="color:#1d4ed8;font-weight:bold;">${esc(m.chung.nombre)}</span>` : '—')
-        html += cell(m.chung?.academia || '')
-        html += cell('vs', 'text-align:center;width:24px;')
-        html += cell(m.hong ? `<span style="color:#dc2626;font-weight:bold;">${esc(m.hong.nombre)}</span>` : '—')
-        html += cell(m.ganador ? `<b>${esc(m.ganador)}</b>` : '—')
-        html += '</tr>'
-      }
-    }
-    html += '</table>'
-  }
 
   return html
 }
