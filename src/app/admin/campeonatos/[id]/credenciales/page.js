@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import CredencialCard from '@/components/campeonatos/CredencialCard'
+import CredencialTemplateEditor from '@/components/campeonatos/CredencialTemplateEditor'
 import { readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/credenciales.css'
 
@@ -12,6 +13,8 @@ export default function CredencialesPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
+  const [templateUrl, setTemplateUrl] = useState('/credenciales/plantilla-frente.png')
+  const [credencialLayout, setCredencialLayout] = useState(null)
   const [academias, setAcademias] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
@@ -23,6 +26,8 @@ export default function CredencialesPage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setCampeonato(json.campeonato)
+      setTemplateUrl(json.campeonato?.template_url || '/credenciales/plantilla-frente.png')
+      setCredencialLayout(json.campeonato?.credencial_layout || null)
       setAcademias(json.academias || [])
     } catch (e) {
       alert(e.message)
@@ -80,8 +85,18 @@ export default function CredencialesPage() {
             </button>
           </div>
 
+          <CredencialTemplateEditor
+            idCampeonato={idCampeonato}
+            templateUrl={templateUrl}
+            layout={credencialLayout}
+            onSaved={(camp, url) => {
+              setCredencialLayout(camp?.credencial_layout || null)
+              if (url) setTemplateUrl(url)
+            }}
+          />
+
           <p className="credenciales-hint">
-            Plantilla FESTCUP · 54×86 mm. Márgenes <strong>Ninguno</strong> + gráficos de fondo. Próximamente podrás subir tu plantilla y marcar en pantalla dónde va la foto (círculo/cuadrado) y los datos del participante.
+            Plantilla 54×86 mm · Márgenes <strong>Ninguno</strong> + gráficos de fondo al imprimir. Usa <strong>Plantilla y zonas</strong> para subir tu diseño y marcar dónde va la foto y los datos.
           </p>
         </div>
 
@@ -115,7 +130,12 @@ export default function CredencialesPage() {
 
               <div className="credenciales-stack">
                 {academia.competidores.map((c) => (
-                  <CredencialCard key={c.id_linea} competidor={c} />
+                  <CredencialCard
+                    key={c.id_linea}
+                    competidor={c}
+                    templateUrl={templateUrl}
+                    layout={credencialLayout}
+                  />
                 ))}
               </div>
             </section>

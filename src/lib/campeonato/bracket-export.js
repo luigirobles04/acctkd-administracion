@@ -8,14 +8,19 @@ export const RONDA_LABEL_EXPORT = {
   5: 'R32',
 }
 
+export function combateEnBracket(m) {
+  return m && m.estado !== 'vacío' && m.estado !== 'bye'
+}
+
+/** @deprecated use combateEnBracket */
 export function combateExportable(m) {
-  return m && m.estado !== 'vacío' && m.estado !== 'bye' && (m.competidor1 || m.competidor2)
+  return combateEnBracket(m)
 }
 
 export function rondasOrdenadas(porRonda) {
   return Object.keys(porRonda || {})
     .map(Number)
-    .filter((r) => (porRonda[r] || []).some(combateExportable))
+    .filter((r) => (porRonda[r] || []).some(combateEnBracket))
     .sort((a, b) => b - a)
 }
 
@@ -31,11 +36,14 @@ export function labelRondaExport(ronda, maxRonda) {
 }
 
 function slotFromCompetidor(c) {
-  if (!c?.id_linea && !c?.nombres) return null
+  if (!c?.id_linea && !c?.nombres) {
+    return { nombre: 'POR DEFINIR', academia: '', dorsal: '', vacio: true }
+  }
   return {
-    nombre: (c.nombres || 'Por definir').toUpperCase(),
+    nombre: (c.nombres || 'POR DEFINIR').toUpperCase(),
     academia: c.academia || '',
     dorsal: c.dorsal || '',
+    vacio: false,
   }
 }
 
@@ -44,7 +52,7 @@ export function emparejamientosPrimeraRonda(porRonda) {
   if (!rondas.length) return []
   const primera = rondas[0]
   const combates = (porRonda[primera] || [])
-    .filter(combateExportable)
+    .filter(combateEnBracket)
     .sort((a, b) => a.match_numero - b.match_numero)
 
   return combates.map((m) => ({
@@ -71,7 +79,7 @@ export function columnasBracket(porRonda) {
     ronda: r,
     label: labelRondaExport(r, maxR),
     combates: (porRonda[r] || [])
-      .filter(combateExportable)
+      .filter(combateEnBracket)
       .sort((a, b) => a.match_numero - b.match_numero)
       .map((m) => ({
         match_numero: m.match_numero,
@@ -118,36 +126,36 @@ export function bracketCategoriaHtmlExcel(cat) {
   pairs.forEach((pair, idx) => {
     const seedA = idx * 2 + 1
     const seedB = idx * 2 + 2
-    const chung = pair.chung || { nombre: '—', academia: '' }
-    const hong = pair.hong || { nombre: '—', academia: '' }
+    const chung = pair.chung || { nombre: 'POR DEFINIR', academia: '', vacio: true }
+    const hong = pair.hong || { nombre: 'POR DEFINIR', academia: '', vacio: true }
 
     html += '<tr>'
     html += cell(String(seedA), `background:#fff;border-left:${BORDER_MED};border-top:${BORDER_MED};width:28px;text-align:center;font-weight:bold;`)
-    html += cell(`<b>${esc(chung.nombre)}</b>`, `background:${BG_SLOT};border-top:${BORDER_MED};min-width:180px;`)
-    html += cell(esc(chung.academia), `background:${BG_SLOT};border-top:${BORDER_MED};color:#333;font-size:8pt;min-width:140px;`)
-    html += emptyCell(`border-top:${BORDER_MED};border-right:${BORDER_MED};width:40px;`)
-    html += emptyCell('width:30px;')
-    html += emptyCell('width:30px;')
-    html += emptyCell('width:30px;')
+    html += cell(`<b>${esc(chung.nombre)}</b>`, `background:${BG_SLOT};border-top:${BORDER_MED};min-width:180px;${chung.vacio ? 'color:#888;font-style:italic;' : ''}`)
+    html += cell(esc(chung.academia) || '&nbsp;', `background:${BG_SLOT};border-top:${BORDER_MED};color:#333;font-size:8pt;min-width:140px;`)
+    html += emptyCell(`border-top:${BORDER};border-right:${BORDER};width:36px;height:10px;`)
+    html += emptyCell(`border-top:${BORDER};width:28px;height:10px;`)
+    html += emptyCell(`border-top:${BORDER};border-right:${BORDER};width:28px;height:10px;`)
+    html += emptyCell('width:24px;')
     html += '</tr>'
 
     html += '<tr>'
     html += emptyCell(`border-left:${BORDER_MED};`)
     html += emptyCell(`background:${BG_SLOT};`)
     html += emptyCell(`background:${BG_SLOT};`)
-    html += emptyCell(`border-right:${BORDER_MED};`)
-    html += emptyCell('')
-    html += emptyCell('')
+    html += emptyCell(`border-right:${BORDER};width:36px;`)
+    html += emptyCell(`border-right:${BORDER};width:28px;`)
+    html += emptyCell(`border-right:${BORDER};width:28px;`)
     html += emptyCell('')
     html += '</tr>'
 
     html += '<tr>'
     html += cell(String(seedB), `background:#fff;border-left:${BORDER_MED};border-bottom:${BORDER_MED};text-align:center;font-weight:bold;`)
-    html += cell(`<b>${esc(hong.nombre)}</b>`, `background:${BG_SLOT};border-bottom:${BORDER_MED};`)
-    html += cell(esc(hong.academia), `background:${BG_SLOT};border-bottom:${BORDER_MED};color:#333;font-size:8pt;`)
-    html += emptyCell(`border-right:${BORDER_MED};border-bottom:${BORDER_MED};`)
-    html += emptyCell('')
-    html += emptyCell('')
+    html += cell(`<b>${esc(hong.nombre)}</b>`, `background:${BG_SLOT};border-bottom:${BORDER_MED};${hong.vacio ? 'color:#888;font-style:italic;' : ''}`)
+    html += cell(esc(hong.academia) || '&nbsp;', `background:${BG_SLOT};border-bottom:${BORDER_MED};color:#333;font-size:8pt;`)
+    html += emptyCell(`border-right:${BORDER};border-bottom:${BORDER};width:36px;`)
+    html += emptyCell(`border-bottom:${BORDER};width:28px;`)
+    html += emptyCell(`border-right:${BORDER};border-bottom:${BORDER};width:28px;`)
     html += emptyCell('')
     html += '</tr>'
 

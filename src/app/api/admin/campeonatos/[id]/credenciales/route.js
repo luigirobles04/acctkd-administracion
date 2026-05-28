@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import { credencialTemplateSrc } from '@/lib/campeonato/credencial-layout'
 
 function mapCanchaPorLinea(llaves) {
   const canchaPorLinea = {}
@@ -30,7 +31,7 @@ export async function GET(_request, { params }) {
     const [{ data: campeonato, error: errCamp }, { data: lineas, error }, { data: llaves }] = await Promise.all([
       sb
         .from('campeonato')
-        .select('id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio')
+        .select('id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio, template_competidor_url, credencial_layout')
         .eq('id_campeonato', idCampeonato)
         .single(),
       sb
@@ -102,7 +103,15 @@ export async function GET(_request, { params }) {
       a.nombre.localeCompare(b.nombre, 'es')
     )
 
-    return NextResponse.json({ campeonato, competidores, academias })
+    const templateUrl = credencialTemplateSrc(campeonato?.template_competidor_url)
+
+    return NextResponse.json({
+      campeonato: campeonato
+        ? { ...campeonato, template_url: templateUrl }
+        : campeonato,
+      competidores,
+      academias,
+    })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

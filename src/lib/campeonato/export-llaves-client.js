@@ -1,101 +1,43 @@
 'use client'
 
-import * as XLSX from 'xlsx'
-import { agruparPorArea } from '@/lib/campeonato/bracket-export'
+import { agruparPorArea, hojaAreaHtmlExcel } from '@/lib/campeonato/bracket-export'
 import { descargarLlavesBracketPdf, descargarCategoriaBracketPdf } from '@/lib/campeonato/export-bracket-pdf'
-import { slugArchivo } from '@/lib/campeonato/export-excel-html'
+import { descargarExcelHtml, slugArchivo, tdCell, thCell, XL } from '@/lib/campeonato/export-excel-html'
 
-function filasCategoriaExcel(cat) {
-  const rows = []
-  rows.push([`Categoría ${cat.nombre}`])
-  rows.push([`${cat.inscritos} inscritos · Área ${cat.cancha || '—'}`])
-  rows.push([])
-
-  const porRonda = {}
-  for (const f of cat.filasCombates || []) {
-    if (!porRonda[f.rondaLabel]) porRonda[f.rondaLabel] = []
-    porRonda[f.rondaLabel].push(f)
+function resumenHtmlExcel(camp, resumen) {
+  let html = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;"><tr>`
+  html += `<td style="background:${XL.red};color:#fff;font-weight:bold;font-size:14pt;padding:10px 14px;">LLAVES KYORUGI · ${camp}</td>`
+  html += '</tr></table>'
+  html += '<table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;font-size:10pt;">'
+  html += `<tr>${thCell('Categoría')}${thCell('División')}${thCell('Género')}${thCell('Inscritos')}${thCell('Combates')}${thCell('Área')}${thCell('Llave')}</tr>`
+  for (const r of resumen || []) {
+    html += '<tr>'
+    html += tdCell(r.categoria, { bold: true })
+    html += tdCell(r.division)
+    html += tdCell(r.genero)
+    html += tdCell(r.inscritos, { align: 'center' })
+    html += tdCell(r.combates, { align: 'center' })
+    html += tdCell(r.cancha, { align: 'center' })
+    html += tdCell(r.llave, { align: 'center', bg: r.llave === 'Sí' ? XL.greenBg : XL.gray })
+    html += '</tr>'
   }
-
-  for (const [ronda, filas] of Object.entries(porRonda)) {
-    rows.push([ronda])
-    rows.push(['# Combate', 'Pelea', 'Chung (Azul)', 'Academia Chung', 'Hong (Rojo)', 'Academia Hong', 'Ganador'])
-    for (const f of filas) {
-      rows.push([
-        f.numero_combate || '',
-        f.match_numero,
-        f.chung,
-        f.academia_chung,
-        f.hong,
-        f.academia_hong,
-        f.ganador || '—',
-      ])
-    }
-    rows.push([])
-  }
-  return rows
-}
-
-function filasAreaExcel(camp, areaNum, categorias) {
-  const rows = [
-    [`LLAVES KYORUGI · ${camp} · ÁREA ${areaNum}`],
-    [`${categorias.length} categoría(s)`],
-    [],
-  ]
-  for (const cat of categorias) {
-    rows.push(...filasCategoriaExcel(cat))
-    rows.push([])
-  }
-  return rows
+  html += '</table>'
+  return html
 }
 
 export async function descargarLlavesExcel(data) {
   const camp = data.campeonato?.nombre || 'Campeonato'
-  const wb = XLSX.utils.book_new()
   const areas = agruparPorArea(data.categorias)
 
-  const resumenRows = [
-    [`LLAVES KYORUGI · ${camp}`],
-    [],
-    ['Categoría', 'División', 'Género', 'Inscritos', 'Combates', 'Área', 'Llave'],
-    ...(data.resumen || []).map((r) => [
-      r.categoria,
-      r.division,
-      r.genero,
-      r.inscritos,
-      r.combates,
-      r.cancha,
-      r.llave,
-    ]),
-  ]
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenRows), 'Resumen')
+  const sheets = [{ name: 'Resumen', html: resumenHtmlExcel(camp, data.resumen) }]
 
   for (const n of [1, 2, 3]) {
     const cats = areas[n]
     if (!cats.length) continue
-    const ws = XLSX.utils.aoa_to_sheet(filasAreaExcel(camp, n, cats))
-    ws['!cols'] = [
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 32 },
-      { wch: 28 },
-      { wch: 32 },
-      { wch: 28 },
-      { wch: 32 },
-    ]
-    XLSX.utils.book_append_sheet(wb, ws, `AREA ${n}`)
+    sheets.push({ name: `AREA ${n}`, html: hojaAreaHtmlExcel(camp, n, cats) })
   }
 
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const blob = new Blob([buf], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `llaves-kyorugi-${slugArchivo(camp)}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
+  descargarExcelHtml(`llaves-kyorugi-${slugArchivo(camp)}`, sheets)
 }
 
 export async function descargarLlavesPdf(data) {

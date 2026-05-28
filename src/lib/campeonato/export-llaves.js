@@ -17,8 +17,8 @@ function combateExportable(c) {
   return c && !['vacío', 'bye'].includes(c.estado)
 }
 
-function combateVisibleExport(c) {
-  return c && c.estado !== 'vacío' && (c.competidor1 || c.competidor2)
+function combateBracketExport(c) {
+  return c && !['vacío', 'bye'].includes(c.estado)
 }
 
 /** Agrupa combates por categoría con metadata para export */
@@ -69,7 +69,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
   const categoriasExport = (categorias || []).map((cat) => {
     const combates = (porCat[cat.id_categoria] || []).filter(combateExportable)
     const porRonda = (porCat[cat.id_categoria] || [])
-      .filter(combateVisibleExport)
+      .filter(combateBracketExport)
       .reduce((acc, c) => {
         if (!acc[c.ronda]) acc[c.ronda] = []
         acc[c.ronda].push(c)

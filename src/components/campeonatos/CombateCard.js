@@ -108,12 +108,12 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
         <div style={{ padding: '5px 12px', background: '#111', color: '#fff', fontSize: 10, fontWeight: 700 }}>
           CANCHA {combate.cancha}
           {combate.orden_pista ? (
-            <span style={{ float: 'right', opacity: 0.85 }}>Combate #{combate.orden_pista}</span>
+            <span style={{ float: 'right', fontSize: 12, fontWeight: 800 }}>Combate #{combate.orden_pista}</span>
           ) : null}
         </div>
       )}
       {!showCancha && combate.orden_pista ? (
-        <div style={{ padding: '4px 10px', background: '#374151', color: '#fff', fontSize: 9, fontWeight: 700 }}>
+        <div style={{ padding: '5px 12px', background: '#111827', color: '#fff', fontSize: compact ? 12 : 13, fontWeight: 800, letterSpacing: 0.3 }}>
           Combate #{combate.orden_pista}
         </div>
       ) : null}
