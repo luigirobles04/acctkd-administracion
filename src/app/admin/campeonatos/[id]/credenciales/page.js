@@ -81,7 +81,7 @@ export default function CredencialesPage() {
           </div>
 
           <p className="credenciales-hint">
-            Diseño frente + reverso con sponsors. Cada competidor = frente (foto + datos) y reverso (patrocinadores). Imprime por academia o todas.
+            Usa la plantilla oficial del evento. Solo se imprime el frente: foto en el círculo y tus datos donde decía JUEZ. Una credencial por hoja.
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export default function CredencialesPage() {
 
               <div className="credenciales-stack">
                 {academia.competidores.map((c) => (
-                  <CredencialCard key={c.id_linea} competidor={c} campeonato={campeonato} />
+                  <CredencialCard key={c.id_linea} competidor={c} />
                 ))}
               </div>
             </section>
