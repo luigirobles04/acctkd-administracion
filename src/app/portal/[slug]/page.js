@@ -110,24 +110,30 @@ export default function PortalCampeonatoPage() {
   const gradoInfo = parseGrado(perfil.grado)
   const esDan = gradoInfo?.tipo === 'dan'
 
-  const catsKyorugi = useMemo(
-    () => categoriasValidas(
-      (data?.categorias || []).filter((c) => c.modalidad === 'kyorugi'),
-      perfil,
-      anio,
-      modalidadesSel.kyorugi_individual?.peso || ''
-    ),
-    [data?.categorias, perfil, anio, modalidadesSel.kyorugi_individual?.peso]
-  )
+  const catsKyorugi = useMemo(() => {
+    try {
+      return categoriasValidas(
+        (data?.categorias || []).filter((c) => c.modalidad === 'kyorugi'),
+        perfil,
+        anio,
+        modalidadesSel.kyorugi_individual?.peso || ''
+      )
+    } catch {
+      return []
+    }
+  }, [data?.categorias, perfil, anio, modalidadesSel.kyorugi_individual?.peso])
 
-  const catsPoomsae = useMemo(
-    () => categoriasPoomsaeValidas(
-      (data?.categorias || []).filter((c) => c.modalidad === 'poomsae'),
-      perfil,
-      anio
-    ),
-    [data?.categorias, perfil, anio]
-  )
+  const catsPoomsae = useMemo(() => {
+    try {
+      return categoriasPoomsaeValidas(
+        (data?.categorias || []).filter((c) => c.modalidad === 'poomsae'),
+        perfil,
+        anio
+      )
+    } catch {
+      return []
+    }
+  }, [data?.categorias, perfil, anio])
 
   function toggleModalidad(key) {
     const mod = MODALIDADES_PORTAL.find((m) => m.key === key)
@@ -496,7 +502,7 @@ export default function PortalCampeonatoPage() {
                       disabled={disabled}
                       onToggle={() => toggleModalidad(key)}
                     >
-                      {key === 'kyorugi_individual' && (
+                      {key === 'kyorugi_individual' && modalidadesSel[key] && (
                         <>
                           <PortalField label="Peso declarado (kg)">
                             <input
@@ -504,14 +510,14 @@ export default function PortalCampeonatoPage() {
                               type="number"
                               step="0.1"
                               placeholder="Ej. 45.5"
-                              value={modalidadesSel[key].peso}
+                              value={modalidadesSel[key]?.peso || ''}
                               onChange={(e) => updateModalidad(key, { peso: e.target.value, idCategoria: '' })}
                             />
                           </PortalField>
                           <PortalField label="Categoría kyorugi">
                             <PortalCategoriaPicker
                               categorias={catsKyorugi}
-                              value={modalidadesSel[key].idCategoria}
+                              value={modalidadesSel[key]?.idCategoria || ''}
                               onChange={(v) => updateModalidad(key, { idCategoria: v })}
                               emptyMessage="No hay categorías válidas. Revisa edad, sexo o peso."
                             />
@@ -519,7 +525,7 @@ export default function PortalCampeonatoPage() {
                         </>
                       )}
 
-                      {modalidadRequiereCategoriaPoomsae(key) && (
+                      {modalidadRequiereCategoriaPoomsae(key) && modalidadesSel[key] && (
                         <PortalField
                           label="División poomsae"
                           hint={
@@ -532,7 +538,7 @@ export default function PortalCampeonatoPage() {
                         >
                           <PortalCategoriaPicker
                             categorias={catsPoomsae}
-                            value={modalidadesSel[key].idCategoria}
+                            value={modalidadesSel[key]?.idCategoria || ''}
                             onChange={(v) => updateModalidad(key, { idCategoria: v })}
                             emptyMessage="No hay divisiones poomsae para esta edad, sexo o grado."
                             grouped
@@ -540,9 +546,9 @@ export default function PortalCampeonatoPage() {
                         </PortalField>
                       )}
 
-                      {key === 'oficial' && (
+                      {key === 'oficial' && modalidadesSel[key] && (
                         <PortalField label="Rol">
-                          <select className="ios-input" value={modalidadesSel[key].tipoOficial} onChange={(e) => updateModalidad(key, { tipoOficial: e.target.value })}>
+                          <select className="ios-input" value={modalidadesSel[key]?.tipoOficial || 'coach'} onChange={(e) => updateModalidad(key, { tipoOficial: e.target.value })}>
                             {ROLES_OFICIAL.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                           </select>
                         </PortalField>

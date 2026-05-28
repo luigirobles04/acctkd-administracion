@@ -10,7 +10,7 @@ import {
   puedeEnviarLista,
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
-import { validarLineaInscripcion } from '@/lib/campeonato/validar-categoria'
+import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
 
 async function insertarLineaInscripcion(sb, ac, body) {
   const { modalidad, idPerfiles, idCategoria, pesoDeclarado, tipoOficial, grupoUuid } = body
