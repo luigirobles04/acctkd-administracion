@@ -325,11 +325,12 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
     estructura.push({ ronda: r, count: 2 ** (r - 1) })
   }
 
-  const idsPorRonda = []
+  // Preparar todas las filas para batch insert
+  const rowsToInsert = []
+  const rowMetaByRondaMatch = {}  // key: `${ronda}_${m}` → row index in rowsToInsert
 
   for (let ri = 0; ri < estructura.length; ri++) {
     const { ronda, count } = estructura[ri]
-    idsPorRonda[ri] = []
     for (let m = 1; m <= count; m++) {
       let id_linea1 = null
       let id_linea2 = null
@@ -359,72 +360,56 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
       }
 
       const { color1, color2 } = coloresCombate(id_linea1, id_linea2)
-
-      const { data: ins, error: errI } = await sb
-        .from('llave_kyorugi')
-        .insert({
-          id_campeonato: idCampeonato,
-          id_categoria: idCategoria,
-          ronda,
-          match_numero: m,
-          id_linea1,
-          id_linea2,
-          es_bye,
-          ganador_id_linea,
-          estado,
-          color1,
-          color2,
-        })
-        .select()
-        .single()
-      if (errI) throw errI
-      idsPorRonda[ri].push(ins.id_llave)
+      const rowIdx = rowsToInsert.length
+      rowsToInsert.push({ id_campeonato: idCampeonato, id_categoria: idCategoria, ronda, match_numero: m, id_linea1, id_linea2, es_bye, ganador_id_linea, estado, color1, color2 })
+      rowMetaByRondaMatch[`${ronda}_${m}`] = { ri, mi: m - 1, rowIdx }
     }
   }
+
+  // Batch insert — un solo round-trip
+  const { data: inserted, error: errI } = await sb.from('llave_kyorugi').insert(rowsToInsert).select('id_llave, ronda, match_numero')
+  if (errI) throw errI
+
+  // Construir map ronda→match_numero→id_llave de los registros insertados
+  const idMap = {}
+  for (const row of inserted || []) {
+    idMap[`${row.ronda}_${row.match_numero}`] = row.id_llave
+  }
+
+  const idsPorRonda = estructura.map(({ ronda, count }) =>
+    Array.from({ length: count }, (_, mi) => idMap[`${ronda}_${mi + 1}`]).filter(Boolean)
+  )
+
+  // Computar siguiente_llave y propagar bye-advances en paralelo
+  const sigUpdates = []
+  const byeAdvances = []
 
   for (let ri = 0; ri < idsPorRonda.length - 1; ri++) {
     for (let mi = 0; mi < idsPorRonda[ri].length; mi++) {
       const idActual = idsPorRonda[ri][mi]
-      const idSiguiente = idsPorRonda[ri + 1][Math.floor(mi / 2)]
-      await sb.from('llave_kyorugi').update({ siguiente_llave: idSiguiente }).eq('id_llave', idActual)
+      const idSiguiente = idsPorRonda[ri + 1]?.[Math.floor(mi / 2)]
+      if (!idActual || !idSiguiente) continue
+      sigUpdates.push(sb.from('llave_kyorugi').update({ siguiente_llave: idSiguiente }).eq('id_llave', idActual))
 
-      const { data: match } = await sb.from('llave_kyorugi').select('*').eq('id_llave', idActual).single()
-      if (!match || match.estado === 'saltado' || match.estado === 'vacío') continue
-      if (match?.ganador_id_linea && idSiguiente) {
-        const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', idSiguiente).single()
-        if (!sig) continue
-        const patch = {}
-        const g = match.ganador_id_linea
-        if (!sig.id_linea1) {
-          patch.id_linea1 = g
-          patch.color1 = g === match.id_linea1 ? match.color1 : match.color2
-        } else if (!sig.id_linea2 && sig.id_linea1 !== g) {
-          patch.id_linea2 = g
-          patch.color2 = g === match.id_linea1 ? match.color1 : match.color2
-        }
-        if (Object.keys(patch).length) {
-          await sb.from('llave_kyorugi').update(patch).eq('id_llave', idSiguiente)
-        }
+      const row = rowsToInsert[rowMetaByRondaMatch[`${estructura[ri].ronda}_${mi + 1}`]?.rowIdx]
+      if (row?.ganador_id_linea) {
+        const g = row.ganador_id_linea
+        const isFirst = mi % 2 === 0
+        const advPatch = isFirst
+          ? { id_linea1: g, color1: g === row.id_linea1 ? row.color1 : row.color2 }
+          : { id_linea2: g, color2: g === row.id_linea1 ? row.color1 : row.color2 }
+        byeAdvances.push(sb.from('llave_kyorugi').update(advPatch).eq('id_llave', idSiguiente))
       }
     }
   }
 
-        if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
+  await Promise.all([...sigUpdates, ...byeAdvances])
+
+  if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
     const bye = byePlayers[0]
     const sfIds = idsPorRonda[idsPorRonda.length - 2]
     const idSfBye = sfIds[sfIds.length - 1]
-
-    // Bye en semifinal (último cuadro SF), no en final
-    await sb
-      .from('llave_kyorugi')
-      .update({
-        id_linea1: bye.id_linea,
-        color1: COLOR_CHUNG,
-        id_linea2: null,
-        estado: 'pendiente',
-        es_bye: true,
-      })
-      .eq('id_llave', idSfBye)
+    await sb.from('llave_kyorugi').update({ id_linea1: bye.id_linea, color1: COLOR_CHUNG, id_linea2: null, estado: 'pendiente', es_bye: true }).eq('id_llave', idSfBye)
   }
 
   if (asignarCanchas) await asignarCanchasCampeonato(sb, idCampeonato)
