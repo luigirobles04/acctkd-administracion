@@ -7,6 +7,8 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN, MODALIDADES } from '@/lib/campeonato/constants'
 import { categoriasPoomsaeValidas, categoriasValidas } from '@/lib/campeonato/validar-categoria'
+import { agruparLineasPorAcademia } from '@/lib/campeonato/agrupar-academias'
+import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 const ESTADOS = {
@@ -46,6 +48,7 @@ export default function CampeonatoDetallePage() {
   const [editLinea, setEditLinea] = useState(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [guardandoLinea, setGuardandoLinea] = useState(false)
+  const [expandidasIns, setExpandidasIns] = useState({})
 
   const cargar = useCallback(async () => {
     if (!idCampeonato) {
@@ -121,7 +124,12 @@ export default function CampeonatoDetallePage() {
       }
     }
     return [...map.values()].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || ''))
-  }, [lineasInscripcion])
+  }, [lineasInscripcion, academiasCamp])
+
+  const gruposInscripcion = useMemo(
+    () => agruparLineasPorAcademia(lineasOrdenadas, academiasCamp),
+    [lineasOrdenadas, academiasCamp]
+  )
 
   async function cambiarEstado(estado) {
     try {
@@ -318,6 +326,7 @@ export default function CampeonatoDetallePage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-primary">Academias inscritas</Link>
                 <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-secondary">Pagos y aprobación</Link>
+                <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
                 <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
                 {campeonato.slug && (
                   <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
@@ -368,46 +377,52 @@ export default function CampeonatoDetallePage() {
         {tab === 'inscripciones' && (
           <div style={{ display: 'grid', gap: 20 }}>
             <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-              <p className="ios-headline">{academiasCamp.length} academias · {lineasInscripcion.length} inscripciones</p>
+              <p className="ios-headline">{gruposInscripcion.length} academias · {lineasInscripcion.length} inscripciones</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
                 <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
+                <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
               </div>
             </div>
-            <div className="ios-card" style={{ padding: 0, overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left', background: 'var(--fill2, rgba(0,0,0,0.03))' }}>
-                    <th style={{ padding: '10px 12px' }}>Dorsal</th>
-                    <th style={{ padding: '10px 12px' }}>Participante</th>
-                    <th style={{ padding: '10px 12px' }}>Academia</th>
-                    <th style={{ padding: '10px 12px' }}>Modalidad</th>
-                    <th style={{ padding: '10px 12px' }}>Categoría</th>
-                    <th style={{ padding: '10px 12px' }}>Peso</th>
-                    <th style={{ padding: '10px 12px' }}>Tarifa</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineasOrdenadas.map((l) => {
-                    const acNom = academiasCamp.find((ac) => ac.id === l.id_academia_campeonato)?.academia?.nombre || '—'
-                    return (
-                      <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>{nombreParticipante(l)}</td>
-                        <td style={{ padding: '10px 12px', color: 'var(--label2)' }}>{acNom}</td>
-                        <td style={{ padding: '10px 12px' }}>{l.modalidad?.replace(/_/g, ' ')}</td>
-                        <td style={{ padding: '10px 12px' }}>{l.categoria?.nombre || '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
-                        <td style={{ padding: '10px 12px' }}>S/ {l.precio_aplicado}</td>
+            {gruposInscripcion.map((g) => (
+              <AcademiaExpansible
+                key={g.id}
+                nombre={g.nombre}
+                resumen={`${g.lineas.length} competidor(es) inscrito(s)`}
+                expandido={Boolean(expandidasIns[g.id])}
+                onToggle={() => setExpandidasIns((e) => ({ ...e, [g.id]: !e[g.id] }))}
+              >
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 6px' }}>Dorsal</th>
+                        <th style={{ padding: '8px 6px' }}>Participante</th>
+                        <th style={{ padding: '8px 6px' }}>Modalidad</th>
+                        <th style={{ padding: '8px 6px' }}>Categoría</th>
+                        <th style={{ padding: '8px 6px' }}>Peso</th>
+                        <th style={{ padding: '8px 6px' }}>Tarifa</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              {lineasOrdenadas.length === 0 && (
-                <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
-              )}
-            </div>
+                    </thead>
+                    <tbody>
+                      {g.lineas.map((l) => (
+                        <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                          <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>{nombreParticipante(l)}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.modalidad?.replace(/_/g, ' ')}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AcademiaExpansible>
+            ))}
+            {gruposInscripcion.length === 0 && (
+              <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
+            )}
           </div>
         )}
 

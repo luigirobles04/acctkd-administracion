@@ -4,6 +4,7 @@ import {
   aplicarFifoPagos,
   asignarDorsalLinea,
   registrarPagoManualLinea,
+  registrarPagoTotalAcademia,
   recalcularMontosAcademia,
 } from '@/lib/campeonato/inscripcion-server'
 
@@ -86,6 +87,14 @@ export async function GET(_request, { params }) {
     return NextResponse.json({
       comprobantes,
       lineas: lineasConPago,
+      academias: (acs || []).map((ac) => ({
+        id: ac.id,
+        nombre: ac.academia?.nombre,
+        monto_total: Number(ac.monto_total || 0),
+        monto_asignado: Number(ac.monto_asignado || 0),
+        pendiente: Math.max(0, Number(ac.monto_total || 0) - Number(ac.monto_asignado || 0)),
+        estado_pago: ac.estado_pago,
+      })),
       recaudacion,
       resumen,
     })
@@ -167,6 +176,23 @@ export async function PATCH(request, { params }) {
 
       const montos = await registrarPagoManualLinea(sb, idLinea, linea.id_academia_campeonato)
       return NextResponse.json({ ok: true, montos })
+    }
+
+    if (body.accion === 'pago_total') {
+      const { idAcademiaCampeonato } = body
+      if (!idAcademiaCampeonato) return NextResponse.json({ error: 'idAcademiaCampeonato requerido' }, { status: 400 })
+
+      const { data: ac } = await sb
+        .from('academia_campeonato')
+        .select('id, id_campeonato')
+        .eq('id', idAcademiaCampeonato)
+        .single()
+      if (!ac || ac.id_campeonato !== idCampeonato) {
+        return NextResponse.json({ error: 'Academia no encontrada' }, { status: 404 })
+      }
+
+      const result = await registrarPagoTotalAcademia(sb, idAcademiaCampeonato)
+      return NextResponse.json(result)
     }
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 })

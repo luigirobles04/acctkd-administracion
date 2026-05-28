@@ -447,6 +447,57 @@ export async function registrarPagoManualLinea(sb, idLinea, idAcademiaCampeonato
   return recalcularMontosAcademia(sb, idAcademiaCampeonato)
 }
 
+export async function registrarPagoTotalAcademia(sb, idAcademiaCampeonato) {
+  const { data: lineas, error } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea, precio_aplicado')
+    .eq('id_academia_campeonato', idAcademiaCampeonato)
+    .neq('estado', 'anulado')
+  if (error) throw error
+
+  const pendientes = []
+  let totalFalta = 0
+
+  for (const linea of lineas || []) {
+    const precio = Number(linea.precio_aplicado || 0)
+    if (precio <= 0) continue
+    const { data: asigs } = await sb.from('asignacion_pago').select('monto').eq('id_linea', linea.id_linea)
+    const pagado = (asigs || []).reduce((s, a) => s + Number(a.monto || 0), 0)
+    const falta = precio - pagado
+    if (falta > 0) {
+      pendientes.push({ id_linea: linea.id_linea, pagado, falta })
+      totalFalta += falta
+    }
+  }
+
+  if (totalFalta <= 0) return { ok: true, yaPagado: true, monto: 0, lineas: 0 }
+
+  const { data: comp, error: errC } = await sb
+    .from('comprobante_pago')
+    .insert({
+      id_academia_campeonato: idAcademiaCampeonato,
+      monto_declarado: totalFalta,
+      monto_validado: totalFalta,
+      estado: 'validado',
+      observaciones: 'Pago total academia (admin)',
+      numero_operacion: `TOTAL-${idAcademiaCampeonato}-${Date.now()}`,
+    })
+    .select()
+    .single()
+  if (errC) throw errC
+
+  for (const p of pendientes) {
+    await sb.from('asignacion_pago').insert({
+      id_comprobante: comp.id_comprobante,
+      id_linea: p.id_linea,
+      monto: p.pagado + p.falta,
+    })
+  }
+
+  const montos = await recalcularMontosAcademia(sb, idAcademiaCampeonato)
+  return { ok: true, monto: totalFalta, lineas: pendientes.length, montos }
+}
+
 export async function asignarDorsalesPendientes(sb, idAcademiaCampeonato) {
   const { data: lineas } = await sb
     .from('linea_inscripcion')
