@@ -185,11 +185,22 @@ export default function CampeonatoDetallePage() {
       return
     setEnriqueciendoDemo(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/enriquecer-demo`, { method: 'POST' })
-      const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
+      const fases = ['inscripciones', 'llaves', 'combates']
+      const resumen = []
+      for (const fase of fases) {
+        const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/enriquecer-demo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fase }),
+        })
+        const json = await readJsonResponse(res)
+        if (!res.ok) throw new Error(json.error || `Error en fase ${fase}`)
+        resumen.push(json)
+      }
+      const last = resumen[resumen.length - 1]
+      const ins = resumen[0]
       alert(
-        `Escenario listo:\n• ${json.kyorugi_agregados} kyorugi nuevos\n• ${json.poomsae_agregados} poomsae nuevos\n• ${json.llaves_generadas} llaves\n• ${json.combates_finalizados} combates cerrados`
+        `Escenario listo:\n• +${ins.kyorugi_agregados || 0} kyorugi, +${ins.poomsae_agregados || 0} poomsae\n• ${resumen[1]?.llaves_generadas || 0} llaves\n• ${last.combates_finalizados || 0} combates cerrados`
       )
       await cargar()
     } catch (e) {

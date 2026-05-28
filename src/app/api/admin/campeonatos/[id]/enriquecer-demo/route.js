@@ -11,8 +11,11 @@ export async function POST(request, { params }) {
     const idCampeonato = Number(id)
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
+    const body = await request.json().catch(() => ({}))
+    const fase = body.fase || new URL(request.url).searchParams.get('fase') || 'todo'
+
     const sb = getSupabaseAdmin()
-    const result = await enriquecerCampeonatoIdeal(sb, idCampeonato)
+    const result = await enriquecerCampeonatoIdeal(sb, idCampeonato, { fase })
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

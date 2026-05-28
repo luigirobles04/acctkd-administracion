@@ -119,7 +119,7 @@ async function crearLineaPoomsae(sb, ac, idCampeonato, cat, perfil) {
 }
 
 async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
-  const seleccionadas = catsKy.slice(0, 48)
+  const seleccionadas = catsKy.slice(0, 24)
   let globalSeq = 9000
   let added = 0
 
@@ -150,7 +150,7 @@ async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
 }
 
 async function llenarPoomsae(sb, idCampeonato, academias, catsPm) {
-  const seleccionadas = catsPm.slice(0, 60)
+  const seleccionadas = catsPm.slice(0, 30)
   let globalSeq = 8000
   let added = 0
 
@@ -244,46 +244,45 @@ async function finalizarCombates(sb, idCampeonato) {
 }
 
 /** Enriquece campeonato existente con escenario ideal terminado */
-export async function enriquecerCampeonatoIdeal(sb, idCampeonato) {
+export async function enriquecerCampeonatoIdeal(sb, idCampeonato, { fase = 'todo' } = {}) {
   const { data: camp } = await sb.from('campeonato').select('id_campeonato, slug').eq('id_campeonato', idCampeonato).single()
   if (!camp) throw new Error('Campeonato no encontrado')
 
-  const academias = await ensureAcademias(sb, idCampeonato)
+  const result = { id_campeonato: idCampeonato, slug: camp.slug, fase }
 
-  const { data: catsKy } = await sb
-    .from('categoria_campeonato')
-    .select('*')
-    .eq('id_campeonato', idCampeonato)
-    .eq('modalidad', 'kyorugi')
-    .order('orden')
-  const { data: catsPm } = await sb
-    .from('categoria_campeonato')
-    .select('*')
-    .eq('id_campeonato', idCampeonato)
-    .eq('modalidad', 'poomsae')
-    .order('orden')
+  if (fase === 'inscripciones' || fase === 'todo') {
+    const academias = await ensureAcademias(sb, idCampeonato)
+    const { data: catsKy } = await sb
+      .from('categoria_campeonato')
+      .select('*')
+      .eq('id_campeonato', idCampeonato)
+      .eq('modalidad', 'kyorugi')
+      .order('orden')
+    const { data: catsPm } = await sb
+      .from('categoria_campeonato')
+      .select('*')
+      .eq('id_campeonato', idCampeonato)
+      .eq('modalidad', 'poomsae')
+      .order('orden')
 
-  const kyAdded = await llenarKyorugi(sb, idCampeonato, academias, catsKy || [])
-  const pmAdded = await llenarPoomsae(sb, idCampeonato, academias, catsPm || [])
-  const dorsales = await aprobarYDorsales(sb, idCampeonato)
-  const pesaje = await aplicarPesaje(sb, idCampeonato)
-
-  await sb.from('llave_kyorugi').delete().eq('id_campeonato', idCampeonato)
-  const llaves = await generarTodasLasLlaves(sb, idCampeonato)
-  const finalizados = await finalizarCombates(sb, idCampeonato)
-
-    await sb.from('campeonato').update({ estado: 'finalizado' }).eq('id_campeonato', idCampeonato)
-
-  return {
-    id_campeonato: idCampeonato,
-    slug: camp.slug,
-    academias: academias.length,
-    kyorugi_agregados: kyAdded,
-    poomsae_agregados: pmAdded,
-    dorsales_asignados: dorsales,
-    pesaje_ok: pesaje,
-    llaves_generadas: llaves.generadas,
-    combates_finalizados: finalizados,
-    errores_llaves: llaves.errores?.length || 0,
+    result.academias = academias.length
+    result.kyorugi_agregados = await llenarKyorugi(sb, idCampeonato, academias, catsKy || [])
+    result.poomsae_agregados = await llenarPoomsae(sb, idCampeonato, academias, catsPm || [])
+    result.dorsales_asignados = await aprobarYDorsales(sb, idCampeonato)
+    result.pesaje_ok = await aplicarPesaje(sb, idCampeonato)
   }
+
+  if (fase === 'llaves' || fase === 'todo') {
+    await sb.from('llave_kyorugi').delete().eq('id_campeonato', idCampeonato)
+    const llaves = await generarTodasLasLlaves(sb, idCampeonato)
+    result.llaves_generadas = llaves.generadas
+    result.errores_llaves = llaves.errores?.length || 0
+  }
+
+  if (fase === 'combates' || fase === 'todo') {
+    result.combates_finalizados = await finalizarCombates(sb, idCampeonato)
+    await sb.from('campeonato').update({ estado: 'finalizado' }).eq('id_campeonato', idCampeonato)
+  }
+
+  return result
 }
