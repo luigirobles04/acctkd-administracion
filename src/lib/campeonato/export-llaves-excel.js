@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { agruparPorArea } from '@/lib/campeonato/bracket-export'
 import { layoutCnuBracket } from '@/lib/campeonato/bracket-cnu-layout'
-import { slugArchivo } from '@/lib/campeonato/export-excel-html'
+import { slugArchivo } from '@/lib/campeonato/export-utils'
 
 const FILL = {
   yellow: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },

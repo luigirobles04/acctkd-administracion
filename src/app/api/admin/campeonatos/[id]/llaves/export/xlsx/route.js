@@ -16,7 +16,7 @@ export async function GET(_request, { params }) {
     const data = await buildExportLlaves(sb, idCampeonato)
 
     const { buildLlavesExcelBuffer } = await import('@/lib/campeonato/export-llaves-excel')
-    const { slugArchivo } = await import('@/lib/campeonato/export-excel-html')
+    const { slugArchivo } = await import('@/lib/campeonato/export-utils')
 
     const buffer = await buildLlavesExcelBuffer(data)
     const camp = data.campeonato?.nombre || 'Campeonato'

@@ -1,7 +1,7 @@
 'use client'
 
 import { descargarLlavesBracketPdf, descargarCategoriaBracketPdf } from '@/lib/campeonato/export-bracket-pdf'
-import { slugArchivo } from '@/lib/campeonato/export-excel-html'
+import { slugArchivo } from '@/lib/campeonato/export-utils'
 
 export function apiError(json, fallback) {
   const e = json?.error
