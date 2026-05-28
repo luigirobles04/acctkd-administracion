@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { generarLlaveCategoria, generarTodasLasLlaves } from '@/lib/campeonato/llaves-kyorugi'
 
+export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+
 export async function GET(_request, { params }) {
   try {
     const { id } = await params

@@ -172,6 +172,18 @@ function nombreLinea(l) {
   return `${l.dorsal_display || ''} ${m.nombres || ''} ${m.apellidos || ''}`.trim()
 }
 
+async function batchUpdateCanchas(sb, rows) {
+  const CHUNK = 40
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const slice = rows.slice(i, i + CHUNK)
+    await Promise.all(
+      slice.map(({ id_llave, cancha, orden_pista }) =>
+        sb.from('llave_kyorugi').update({ cancha, orden_pista }).eq('id_llave', id_llave)
+      )
+    )
+  }
+}
+
 /** Toda una categoría en la misma cancha; categorías repartidas 1→2→3→1… */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: categorias, error: errC } = await sb
@@ -200,6 +212,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
   let ordenGlobal = 1
   const resumen = []
+  const updates = []
 
   for (let ci = 0; ci < catsConLlave.length; ci++) {
     const cat = catsConLlave[ci]
@@ -210,19 +223,18 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     })
 
     for (const c of combates) {
-      await sb
-        .from('llave_kyorugi')
-        .update({ cancha, orden_pista: ordenGlobal })
-        .eq('id_llave', c.id_llave)
+      updates.push({ id_llave: c.id_llave, cancha, orden_pista: ordenGlobal })
       ordenGlobal++
     }
     resumen.push({ categoria: cat.nombre, cancha, combates: combates.length })
   }
 
+  if (updates.length) await batchUpdateCanchas(sb, updates)
+
   return { asignados: llaves?.length || 0, canchas: numCanchas, porCategoria: resumen }
 }
 
-export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
+export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asignarCanchas = true } = {}) {
   const { data: cat } = await sb
     .from('categoria_campeonato')
     .select('id_categoria, nombre, modalidad')
@@ -381,7 +393,7 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
       .eq('id_llave', idFinal)
   }
 
-  await asignarCanchasCampeonato(sb, idCampeonato)
+  if (asignarCanchas) await asignarCanchasCampeonato(sb, idCampeonato)
 
   return {
     categoria: cat.nombre,
@@ -401,30 +413,35 @@ export async function generarTodasLasLlaves(sb, idCampeonato) {
     .order('orden', { ascending: true })
   if (error) throw error
 
+  const { data: lineasInscritas, error: errL } = await sb
+    .from('linea_inscripcion')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  if (errL) throw errL
+
+  const inscritosPorCat = (lineasInscritas || []).reduce((acc, l) => {
+    if (l.id_categoria) acc[l.id_categoria] = (acc[l.id_categoria] || 0) + 1
+    return acc
+  }, {})
+
   const resultados = []
   const errores = []
 
   for (const cat of categorias || []) {
-    const { count } = await sb
-      .from('linea_inscripcion')
-      .select('id_linea', { count: 'exact', head: true })
-      .eq('id_campeonato', idCampeonato)
-      .eq('id_categoria', cat.id_categoria)
-      .eq('modalidad', 'kyorugi_individual')
-      .eq('estado', 'aprobado')
-      .not('dorsal_numero', 'is', null)
-
-    if ((count || 0) < 2) continue
+    if ((inscritosPorCat[cat.id_categoria] || 0) < 2) continue
 
     try {
-      const r = await generarLlaveCategoria(sb, idCampeonato, cat.id_categoria)
+      const r = await generarLlaveCategoria(sb, idCampeonato, cat.id_categoria, { asignarCanchas: false })
       resultados.push({ id_categoria: cat.id_categoria, nombre: cat.nombre, ...r })
     } catch (e) {
       errores.push({ id_categoria: cat.id_categoria, nombre: cat.nombre, error: e.message })
     }
   }
 
-  await asignarCanchasCampeonato(sb, idCampeonato)
+  if (resultados.length) await asignarCanchasCampeonato(sb, idCampeonato)
 
   return { generadas: resultados.length, resultados, errores }
 }

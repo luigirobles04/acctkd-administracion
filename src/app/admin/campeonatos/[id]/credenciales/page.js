@@ -1,33 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
-import { obtenerCampeonato } from '@/lib/services/campeonato.service'
+import CredencialCard from '@/components/campeonatos/CredencialCard'
 import { readJsonResponse } from '@/lib/public-app-url'
-
-function qrUrl(data) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data)}`
-}
+import '@/components/campeonatos/credenciales.css'
 
 export default function CredencialesPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
-  const [competidores, setCompetidores] = useState([])
+  const [academias, setAcademias] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
 
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const camp = await obtenerCampeonato(idCampeonato)
-      setCampeonato(camp)
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/credenciales`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
-      setCompetidores(json.competidores || [])
+      setCampeonato(json.campeonato)
+      setAcademias(json.academias || [])
     } catch (e) {
       alert(e.message)
     } finally {
@@ -39,87 +35,99 @@ export default function CredencialesPage() {
     cargar()
   }, [cargar])
 
-  const lista = competidores.filter((c) => {
+  const academiasFiltradas = useMemo(() => {
     const q = filtro.trim().toLowerCase()
-    if (!q) return true
-    return [c.dorsal, c.nombres, c.categoria, c.academia].join(' ').toLowerCase().includes(q)
-  })
+    if (!q) return academias
+    return academias
+      .map((a) => ({
+        ...a,
+        competidores: a.competidores.filter((c) =>
+          [c.dorsal, c.nombres, c.categoria, a.nombre, c.codigo_academia].join(' ').toLowerCase().includes(q)
+        ),
+      }))
+      .filter((a) => a.competidores.length > 0)
+  }, [academias, filtro])
+
+  const totalCredenciales = academiasFiltradas.reduce((n, a) => n + a.competidores.length, 0)
+
+  function imprimir(scope) {
+    const sheets = document.querySelectorAll('.credencial-sheet')
+    sheets.forEach((el) => {
+      if (scope === 'all') el.classList.remove('print-hide')
+      else el.classList.toggle('print-hide', String(el.dataset.academia) !== String(scope))
+    })
+    window.print()
+    sheets.forEach((el) => el.classList.remove('print-hide'))
+  }
+
+  const diaEvento = 1
 
   return (
     <AdminLayout title="Credenciales" subtitle={campeonato?.nombre}>
-      <div className="credenciales-root" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 8px 32px' }}>
-        <Link href={`/admin/campeonatos/${id}`} style={{ color: 'var(--red)', fontSize: 13 }}>← Campeonato</Link>
+      <div className="credenciales-root">
+        <div className="no-print credenciales-toolbar">
+          <Link href={`/admin/campeonatos/${id}`} className="credenciales-back">
+            ← Campeonato
+          </Link>
 
-        <div style={{ display: 'flex', gap: 10, margin: '16px 0', flexWrap: 'wrap', alignItems: 'center' }} className="no-print">
-          <input
-            className="ios-input"
-            placeholder="Buscar dorsal, nombre, categoría…"
-            style={{ flex: '1 1 200px', maxWidth: 360 }}
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-          />
-          <button type="button" className="ios-btn ios-btn-primary" onClick={() => window.print()}>
-            Imprimir credenciales
-          </button>
+          <div className="credenciales-actions">
+            <input
+              className="ios-input"
+              placeholder="Buscar academia, dorsal, nombre…"
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+            />
+            <button type="button" className="ios-btn ios-btn-primary" onClick={() => imprimir('all')}>
+              Imprimir todas ({totalCredenciales})
+            </button>
+          </div>
+
+          <p className="credenciales-hint">
+            Cada credencial ocupa una hoja (100×148 mm). Agrupadas por academia — usa el botón de cada academia para imprimir solo la suya.
+          </p>
         </div>
 
         {loading ? (
-          <p>Cargando…</p>
+          <p className="no-print">Cargando credenciales…</p>
+        ) : academiasFiltradas.length === 0 ? (
+          <p className="no-print">No hay competidores con dorsal aprobado.</p>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: 16,
-            }}
-          >
-            {lista.map((c) => (
-              <div
-                key={c.id_linea}
-                className="credencial-card"
-                style={{
-                  border: '2px solid #111',
-                  borderRadius: 12,
-                  overflow: 'hidden',
-                  background: '#fff',
-                  breakInside: 'avoid',
-                }}
-              >
-                <div style={{ background: '#C0000A', color: '#fff', padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
-                  ACCTKD · {campeonato?.nombre}
+          academiasFiltradas.map((academia) => (
+            <section
+              key={academia.id_academia_campeonato}
+              className="credenciales-academia"
+              data-academia={academia.id_academia_campeonato}
+            >
+              <header className="no-print credenciales-academia-head">
+                <div>
+                  <h2>{academia.nombre}</h2>
+                  <p>
+                    {academia.codigo_academia ? `${academia.codigo_academia} · ` : ''}
+                    {academia.competidores.length} credencial{academia.competidores.length !== 1 ? 'es' : ''}
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: 12, padding: 12 }}>
-                  <div style={{ flexShrink: 0 }}>
-                    {c.foto_url ? (
-                      <img src={c.foto_url} alt="" style={{ width: 72, height: 88, objectFit: 'cover', borderRadius: 6, border: '2px solid #eee' }} />
-                    ) : (
-                      <div style={{ width: 72, height: 88, background: '#f3f4f6', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#999' }}>
-                        Sin foto
-                      </div>
-                    )}
-                    <img src={qrUrl(c.qr_data)} alt="QR" width={72} height={72} style={{ marginTop: 6, borderRadius: 4 }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: '#C0000A', lineHeight: 1 }}>{c.dorsal}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, marginTop: 6, lineHeight: 1.2 }}>{c.nombres}</div>
-                    <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>{c.academia}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 8, padding: '4px 8px', background: '#f3f4f6', borderRadius: 6 }}>
-                      {c.categoria}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                <button
+                  type="button"
+                  className="ios-btn ios-btn-secondary"
+                  onClick={() => imprimir(String(academia.id_academia_campeonato))}
+                >
+                  Imprimir academia
+                </button>
+              </header>
 
-        <style jsx global>{`
-          @media print {
-            .no-print, nav, aside, header { display: none !important; }
-            .credenciales-root { max-width: none !important; padding: 0 !important; }
-            .credencial-card { page-break-inside: avoid; }
-          }
-        `}</style>
+              <div className="credenciales-stack">
+                {academia.competidores.map((c) => (
+                  <CredencialCard
+                    key={c.id_linea}
+                    competidor={c}
+                    campeonato={campeonato}
+                    dia={diaEvento}
+                  />
+                ))}
+              </div>
+            </section>
+          ))
+        )}
       </div>
     </AdminLayout>
   )
