@@ -6,6 +6,7 @@ import { slugArchivo } from '@/lib/campeonato/export-excel-html'
 const FILL = {
   yellow: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
   gray: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } },
+  areaBg: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } },
   white: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
   red: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC0000A' } },
   green: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCfce7' } },
@@ -18,7 +19,7 @@ function applyCell(ws, r, c, spec) {
   if (spec.v != null) cell.value = spec.v
   if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
   else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
-  if (spec.matchNo) cell.font = { bold: true, size: 11, color: { argb: 'FF111111' } }
+  if (spec.matchNo) cell.font = { bold: true, size: 12, color: { argb: 'FF111111' } }
   if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle' }
   if (spec.bg === 'yellow') cell.fill = FILL.yellow
   if (spec.bg === 'gray') cell.fill = FILL.gray
@@ -46,7 +47,10 @@ function writeCategoriaCnu(ws, cat, startRow) {
 
   let row = startRow + 1
   for (let r = 0; r < layout.rows; r++) {
+    ws.getRow(row + r).height = 15
     for (let c = 0; c < layout.cols; c++) {
+      const cell = ws.getCell(row + r, c + 1)
+      if (c >= 3) cell.fill = FILL.areaBg
       const spec = layout.cells.get(`${r},${c}`)
       if (spec) applyCell(ws, row + r, c + 1, spec)
     }

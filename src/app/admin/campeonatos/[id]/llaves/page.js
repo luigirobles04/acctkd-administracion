@@ -13,6 +13,7 @@ import {
   descargarLlavesPdf,
   descargarCategoriaBracketPdf,
   fetchExportLlaves,
+  apiError,
 } from '@/lib/campeonato/export-llaves-client'
 
 const RONDA_LABEL = { 1: 'Final', 2: 'Semifinal', 3: 'Cuartos de final', 4: 'Octavos de final', 5: 'Dieciseisavos de final' }
@@ -45,7 +46,7 @@ export default function CampeonatoLlavesPage() {
       setCampeonato(camp)
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
+      if (!res.ok) throw new Error(apiError(json, 'Error al cargar categorías'))
       setCategorias(json.categorias || [])
       return json.categorias || []
     } catch (e) {
@@ -59,7 +60,7 @@ export default function CampeonatoLlavesPage() {
   const cargarCanchas = useCallback(async () => {
     const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/canchas`, { cache: 'no-store' })
     const json = await readJsonResponse(res)
-    if (!res.ok) throw new Error(json.error)
+    if (!res.ok) throw new Error(apiError(json, 'Error al cargar canchas'))
     setPorCancha(json.porCancha || { 1: [], 2: [], 3: [] })
   }, [idCampeonato])
 
@@ -80,7 +81,7 @@ export default function CampeonatoLlavesPage() {
     const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/${cat.id_categoria}`, { cache: 'no-store' })
     const json = await readJsonResponse(res)
     if (!res.ok) {
-      alert(json.error)
+      alert(apiError(json, 'Error al cargar llave'))
       return
     }
     setLlaves(json.llaves || [])
@@ -105,7 +106,7 @@ export default function CampeonatoLlavesPage() {
         body: JSON.stringify({ todas: true }),
       })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : json.error?.message || 'Error al generar llaves')
+      if (!res.ok) throw new Error(apiError(json, 'Error al generar llaves'))
 
       const cats = await cargarCats({ silent: true })
       await cargarCanchas()
@@ -133,7 +134,7 @@ export default function CampeonatoLlavesPage() {
         body: JSON.stringify({ idCategoria: cat.id_categoria }),
       })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : json.error?.message || 'Error al generar llave')
+      if (!res.ok) throw new Error(apiError(json, 'Error al generar llave'))
       await cargarCats({ silent: true })
       setPorCancha(null)
       await verLlave({ ...cat, tiene_llave: true })
@@ -158,8 +159,7 @@ export default function CampeonatoLlavesPage() {
         body: JSON.stringify({ idLlave: Number(idLlave), ganadorIdLinea: Number(ganadorIdLinea) }),
       })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
-      if (selCat) await verLlave(selCat)
+      if (!res.ok) throw new Error(apiError(json, 'Error al registrar ganador'))
       if (porCancha) await cargarCanchas()
     } catch (e) {
       alert(e.message)

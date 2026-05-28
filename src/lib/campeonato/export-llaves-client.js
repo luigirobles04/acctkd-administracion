@@ -3,7 +3,7 @@
 import { descargarLlavesBracketPdf, descargarCategoriaBracketPdf } from '@/lib/campeonato/export-bracket-pdf'
 import { slugArchivo } from '@/lib/campeonato/export-excel-html'
 
-function apiError(json, fallback) {
+export function apiError(json, fallback) {
   const e = json?.error
   if (typeof e === 'string') return e
   if (e?.message) return e.message
