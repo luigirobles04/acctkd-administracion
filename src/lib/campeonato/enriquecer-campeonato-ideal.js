@@ -125,8 +125,8 @@ function apiError(json, fallback = 'Error') {
   return fallback
 }
 
-async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
-  const seleccionadas = catsKy.filter((c) => c.genero === 'M' || c.genero === 'F').slice(0, 40)
+async function llenarKyorugi(sb, idCampeonato, academias, catsKy, limite = 12) {
+  const seleccionadas = catsKy.filter((c) => c.genero === 'M' || c.genero === 'F').slice(0, limite)
   let globalSeq = 9000
   let added = 0
 
@@ -164,8 +164,8 @@ async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
   return added
 }
 
-async function llenarPoomsae(sb, idCampeonato, academias, catsPm) {
-  const seleccionadas = catsPm || []
+async function llenarPoomsae(sb, idCampeonato, academias, catsPm, limite = 15) {
+  const seleccionadas = (catsPm || []).slice(0, limite)
   let globalSeq = 8000
   let added = 0
 
@@ -267,13 +267,20 @@ async function liquidarPagosAcademias(sb, idCampeonato) {
 
   let pagadas = 0
   let monto = 0
-  for (const ac of academias || []) {
-    await recalcularMontosAcademia(sb, ac.id)
-    const r = await registrarPagoTotalAcademia(sb, ac.id)
-    if (r.monto > 0) {
-      pagadas++
-      monto += r.monto
-    }
+  const lista = academias || []
+  const CHUNK = 4
+  for (let i = 0; i < lista.length; i += CHUNK) {
+    const slice = lista.slice(i, i + CHUNK)
+    await Promise.all(
+      slice.map(async (ac) => {
+        await recalcularMontosAcademia(sb, ac.id)
+        const r = await registrarPagoTotalAcademia(sb, ac.id)
+        if (r.monto > 0) {
+          pagadas++
+          monto += r.monto
+        }
+      })
+    )
   }
   return { academias_pagadas: pagadas, monto_total: monto }
 }
@@ -310,7 +317,7 @@ async function finalizarCombates(sb, idCampeonato) {
 }
 
 /** Enriquece campeonato existente con escenario ideal terminado */
-export async function enriquecerCampeonatoIdeal(sb, idCampeonato, { fase = 'todo' } = {}) {
+export async function enriquecerCampeonatoIdeal(sb, idCampeonato, { fase = 'todo', limiteCats = 12 } = {}) {
   const { data: camp } = await sb.from('campeonato').select('id_campeonato, slug').eq('id_campeonato', idCampeonato).single()
   if (!camp) throw new Error('Campeonato no encontrado')
 
@@ -332,8 +339,8 @@ export async function enriquecerCampeonatoIdeal(sb, idCampeonato, { fase = 'todo
       .order('orden')
 
     result.academias = academias.length
-    result.kyorugi_agregados = await llenarKyorugi(sb, idCampeonato, academias, catsKy || [])
-    result.poomsae_agregados = await llenarPoomsae(sb, idCampeonato, academias, catsPm || [])
+    result.kyorugi_agregados = await llenarKyorugi(sb, idCampeonato, academias, catsKy || [], limiteCats)
+    result.poomsae_agregados = await llenarPoomsae(sb, idCampeonato, academias, catsPm || [], limiteCats)
     result.dorsales_asignados = await aprobarYDorsales(sb, idCampeonato)
     result.poomsae_aprobados = await aprobarLineasPoomsae(sb, idCampeonato)
     result.pesaje_ok = await aplicarPesaje(sb, idCampeonato)

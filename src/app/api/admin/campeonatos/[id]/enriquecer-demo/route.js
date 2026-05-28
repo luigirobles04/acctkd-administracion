@@ -13,9 +13,10 @@ export async function POST(request, { params }) {
 
     const body = await request.json().catch(() => ({}))
     const fase = body.fase || new URL(request.url).searchParams.get('fase') || 'todo'
+    const limiteCats = Number(body.limiteCats) || 12
 
     const sb = getSupabaseAdmin()
-    const result = await enriquecerCampeonatoIdeal(sb, idCampeonato, { fase })
+    const result = await enriquecerCampeonatoIdeal(sb, idCampeonato, { fase, limiteCats })
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
