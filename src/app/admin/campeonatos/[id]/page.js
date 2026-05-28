@@ -7,8 +7,9 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN, MODALIDADES } from '@/lib/campeonato/constants'
 import { categoriasPoomsaeValidas, categoriasValidas } from '@/lib/campeonato/validar-categoria'
-import { agruparLineasPorAcademia } from '@/lib/campeonato/agrupar-academias'
+import { agruparLineasPorAcademia, filtrarLineasGrupo, modalidadesEnLineas } from '@/lib/campeonato/agrupar-academias'
 import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
+import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 const ESTADOS = {
@@ -23,7 +24,6 @@ const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'categorias', label: 'Categorías' },
   { id: 'inscripciones', label: 'Inscripciones' },
-  { id: 'competidores', label: 'Competidores' },
 ]
 
 export default function CampeonatoDetallePage() {
@@ -49,6 +49,7 @@ export default function CampeonatoDetallePage() {
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [guardandoLinea, setGuardandoLinea] = useState(false)
   const [expandidasIns, setExpandidasIns] = useState({})
+  const [filtrosIns, setFiltrosIns] = useState({})
 
   const cargar = useCallback(async () => {
     if (!idCampeonato) {
@@ -82,7 +83,7 @@ export default function CampeonatoDetallePage() {
   }, [cargar])
 
   useEffect(() => {
-    if ((tab !== 'categorias' && tab !== 'competidores') || categorias.length || !idCampeonato) return
+    if ((tab !== 'categorias' && tab !== 'inscripciones') || categorias.length || !idCampeonato) return
     setLoadingCats(true)
     fetch(`/api/admin/campeonatos/${idCampeonato}/categorias`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -208,6 +209,28 @@ export default function CampeonatoDetallePage() {
       return categoriasPoomsaeValidas(poom, perfil, anio)
     }
     return []
+  }
+
+  function abrirEditarPerfil(l) {
+    const p = l.miembros?.[0]?.perfil
+    if (!p?.id_perfil) return
+    const full = perfilesPortal.find((x) => x.id_perfil === p.id_perfil) || { ...p, lineas: [l] }
+    setEditLinea(null)
+    setEditPerfil({ ...full })
+  }
+
+  function abrirEditarLinea(l) {
+    const p = l.miembros?.[0]?.perfil
+    if (!p) return
+    setEditPerfil(null)
+    setEditLinea({
+      id_linea: l.id_linea,
+      modalidad: l.modalidad,
+      id_categoria: l.id_categoria ? String(l.id_categoria) : '',
+      peso_declarado: l.peso_declarado ?? '',
+      perfil: p,
+      categoria_nombre: l.categoria?.nombre,
+    })
   }
 
   async function guardarLineaAdmin(e) {
@@ -375,119 +398,100 @@ export default function CampeonatoDetallePage() {
         )}
 
         {tab === 'inscripciones' && (
-          <div style={{ display: 'grid', gap: 20 }}>
-            <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-              <p className="ios-headline">{gruposInscripcion.length} academias · {lineasInscripcion.length} inscripciones</p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
-                <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
-                <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
-              </div>
-            </div>
-            {gruposInscripcion.map((g) => (
-              <AcademiaExpansible
-                key={g.id}
-                nombre={g.nombre}
-                resumen={`${g.lineas.length} competidor(es) inscrito(s)`}
-                expandido={Boolean(expandidasIns[g.id])}
-                onToggle={() => setExpandidasIns((e) => ({ ...e, [g.id]: !e[g.id] }))}
-              >
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
-                        <th style={{ padding: '8px 6px' }}>Dorsal</th>
-                        <th style={{ padding: '8px 6px' }}>Participante</th>
-                        <th style={{ padding: '8px 6px' }}>Modalidad</th>
-                        <th style={{ padding: '8px 6px' }}>Categoría</th>
-                        <th style={{ padding: '8px 6px' }}>Peso</th>
-                        <th style={{ padding: '8px 6px' }}>Tarifa</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {g.lineas.map((l) => (
-                        <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
-                          <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
-                          <td style={{ padding: '8px 6px' }}>{nombreParticipante(l)}</td>
-                          <td style={{ padding: '8px 6px' }}>{l.modalidad?.replace(/_/g, ' ')}</td>
-                          <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
-                          <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
-                          <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </AcademiaExpansible>
-            ))}
-            {gruposInscripcion.length === 0 && (
-              <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
-            )}
-          </div>
-        )}
-
-        {tab === 'competidores' && (
           <div style={{ display: 'grid', gap: 20, gridTemplateColumns: (editPerfil || editLinea) ? 'minmax(0, 1fr) minmax(300px, 360px)' : '1fr' }}>
-            <div className="ios-group">
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--separator)' }}>
-                <p className="ios-headline">{perfilesPortal.length} competidores (portal)</p>
-                {loadingCats && categorias.length === 0 && (
-                  <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>Cargando categorías…</p>
-                )}
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p className="ios-headline">{gruposInscripcion.length} academias · {lineasInscripcion.length} inscripciones</p>
+                  {loadingCats && categorias.length === 0 && (
+                    <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>Cargando categorías…</p>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
+                  <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
+                  <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
+                </div>
               </div>
-              {perfilesPortal.length === 0 ? (
-                <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin competidores inscritos vía portal</p>
-              ) : (
-                perfilesPortal.map((p) => (
-                  <div key={p.id_perfil} className="ios-group-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', width: '100%', gap: 8, alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p className="ios-headline">{p.nombres} {p.apellidos}</p>
-                        <p className="ios-caption" style={{ color: 'var(--label3)' }}>{p.documento_tipo} {p.documento_numero} · {p.grado}</p>
-                      </div>
-                      <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => { setEditLinea(null); setEditPerfil({ ...p }) }}>
-                        Datos
-                      </button>
+              {gruposInscripcion.map((g) => {
+                const filtro = filtrosIns[g.id] || { buscar: '', modalidad: 'todas' }
+                const lineasFiltradas = filtrarLineasGrupo(g.lineas, filtro)
+                return (
+                  <AcademiaExpansible
+                    key={g.id}
+                    nombre={g.nombre}
+                    resumen={`${g.lineas.length} competidor(es) inscrito(s)`}
+                    expandido={Boolean(expandidasIns[g.id])}
+                    onToggle={() => setExpandidasIns((e) => ({ ...e, [g.id]: !e[g.id] }))}
+                  >
+                    <FiltroLineasAcademia
+                      filtro={filtro}
+                      onChange={(f) => setFiltrosIns((s) => ({ ...s, [g.id]: f }))}
+                      total={g.lineas.length}
+                      filtradas={lineasFiltradas.length}
+                      modalidades={modalidadesEnLineas(g.lineas)}
+                    />
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
+                            <th style={{ padding: '8px 6px' }}>Dorsal</th>
+                            <th style={{ padding: '8px 6px' }}>Participante</th>
+                            <th style={{ padding: '8px 6px' }}>Modalidad</th>
+                            <th style={{ padding: '8px 6px' }}>Categoría</th>
+                            <th style={{ padding: '8px 6px' }}>Peso</th>
+                            <th style={{ padding: '8px 6px' }}>Tarifa</th>
+                            <th style={{ padding: '8px 6px' }}>Estado</th>
+                            <th style={{ padding: '8px 6px' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lineasFiltradas.map((l) => {
+                            const p = l.miembros?.[0]?.perfil
+                            return (
+                              <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                                <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                                <td style={{ padding: '8px 6px' }}>
+                                  <div>{nombreParticipante(l)}</div>
+                                  {p && (
+                                    <div className="ios-caption" style={{ color: 'var(--label3)', marginTop: 2 }}>
+                                      {p.documento_tipo} {p.documento_numero} · {p.grado}
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 6px' }}>{MODALIDADES[l.modalidad]?.label || l.modalidad?.replace(/_/g, ' ')}</td>
+                                <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
+                                <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
+                                <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado}</td>
+                                <td style={{ padding: '8px 6px' }}>
+                                  <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
+                                    {l.estado?.replace(/_/g, ' ') || '—'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
+                                  {p && (
+                                    <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, padding: '2px 8px', marginRight: 4 }} onClick={() => abrirEditarPerfil(l)}>
+                                      Datos
+                                    </button>
+                                  )}
+                                  <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => abrirEditarLinea(l)}>
+                                    Editar
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                      {lineasFiltradas.length === 0 && (
+                        <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
+                      )}
                     </div>
-                    {(p.lineas || []).map((l) => (
-                      <div key={l.id_linea} style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--fill2, rgba(0,0,0,0.04))', fontSize: 13 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                          <div>
-                            <strong>{MODALIDADES[l.modalidad]?.label || l.modalidad.replace(/_/g, ' ')}</strong>
-                            <div style={{ color: 'var(--label3)', marginTop: 2 }}>
-                              {l.categoria?.nombre || 'Sin categoría'}
-                              {l.peso_declarado != null && ` · ${l.peso_declarado} kg`}
-                              {l.dorsal_display && ` · ${l.dorsal_display}`}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
-                              {l.estado.replace(/_/g, ' ')}
-                            </span>
-                            <button
-                              type="button"
-                              className="ios-btn ios-btn-ghost"
-                              style={{ fontSize: 11, padding: '2px 8px' }}
-                              onClick={() => {
-                                setEditPerfil(null)
-                                setEditLinea({
-                                  id_linea: l.id_linea,
-                                  modalidad: l.modalidad,
-                                  id_categoria: l.id_categoria ? String(l.id_categoria) : '',
-                                  peso_declarado: l.peso_declarado ?? '',
-                                  perfil: p,
-                                  categoria_nombre: l.categoria?.nombre,
-                                })
-                              }}
-                            >
-                              Editar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))
+                  </AcademiaExpansible>
+                )
+              })}
+              {gruposInscripcion.length === 0 && (
+                <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
               )}
             </div>
             {editPerfil && (

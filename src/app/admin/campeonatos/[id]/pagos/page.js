@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
+import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
-import { agruparLineasPorAcademia, nombreParticipanteLinea } from '@/lib/campeonato/agrupar-academias'
+import { agruparLineasPorAcademia, filtrarLineasGrupo, modalidadesEnLineas, nombreParticipanteLinea } from '@/lib/campeonato/agrupar-academias'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 export default function CampeonatoPagosPage() {
@@ -24,6 +25,7 @@ export default function CampeonatoPagosPage() {
   const [procesando, setProcesando] = useState(null)
   const [montosEdit, setMontosEdit] = useState({})
   const [expandidas, setExpandidas] = useState({})
+  const [filtrosAcademia, setFiltrosAcademia] = useState({})
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -213,6 +215,8 @@ export default function CampeonatoPagosPage() {
               const pendiente = acMeta?.pendiente ?? Math.max(0, g.lineas.reduce((s, l) => s + Math.max(0, Number(l.precio_aplicado || 0) - Number(l.monto_pagado || 0)), 0))
               const pagadas = g.lineas.filter((l) => l.pago_completo).length
               const conDorsal = g.lineas.filter((l) => l.dorsal_display).length
+              const filtroGrupo = filtrosAcademia[g.id] || { buscar: '', modalidad: 'todas' }
+              const lineasFiltradas = filtrarLineasGrupo(g.lineas, filtroGrupo)
               return (
                 <AcademiaExpansible
                   key={g.id}
@@ -236,6 +240,13 @@ export default function CampeonatoPagosPage() {
                     )
                   }
                 >
+                  <FiltroLineasAcademia
+                    filtro={filtroGrupo}
+                    onChange={(f) => setFiltrosAcademia((s) => ({ ...s, [g.id]: f }))}
+                    total={g.lineas.length}
+                    filtradas={lineasFiltradas.length}
+                    modalidades={modalidadesEnLineas(g.lineas)}
+                  />
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
@@ -248,7 +259,7 @@ export default function CampeonatoPagosPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {g.lineas.map((l) => (
+                        {lineasFiltradas.map((l) => (
                           <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
                             <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
                             <td style={{ padding: '8px 6px' }}>{nombreParticipanteLinea(l)}</td>
@@ -269,6 +280,9 @@ export default function CampeonatoPagosPage() {
                         ))}
                       </tbody>
                     </table>
+                    {lineasFiltradas.length === 0 && (
+                      <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
+                    )}
                   </div>
                 </AcademiaExpansible>
               )

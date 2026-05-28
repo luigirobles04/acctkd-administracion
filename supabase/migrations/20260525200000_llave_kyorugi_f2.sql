@@ -20,3 +20,6 @@ CREATE INDEX IF NOT EXISTS llave_kyorugi_categoria_idx ON llave_kyorugi(id_categ
 CREATE INDEX IF NOT EXISTS llave_kyorugi_campeonato_idx ON llave_kyorugi(id_campeonato);
 
 ALTER TABLE llave_kyorugi ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Acceso total anon" ON llave_kyorugi;
+CREATE POLICY "Acceso total anon" ON llave_kyorugi FOR ALL TO anon USING (true) WITH CHECK (true);

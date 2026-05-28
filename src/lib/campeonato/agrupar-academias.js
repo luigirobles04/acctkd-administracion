@@ -31,6 +31,24 @@ export function agruparLineasPorAcademia(lineas, academias = []) {
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
 }
 
+/** Filtra líneas dentro de un grupo expandido */
+export function filtrarLineasGrupo(lineas, { buscar = '', modalidad = 'todas' } = {}) {
+  const q = buscar.trim().toLowerCase()
+  return (lineas || []).filter((l) => {
+    if (modalidad && modalidad !== 'todas' && l.modalidad !== modalidad) return false
+    if (!q) return true
+    const nombre = nombreParticipanteLinea(l).toLowerCase()
+    const dorsal = (l.dorsal_display || '').toLowerCase()
+    const cat = (l.categoria?.nombre || '').toLowerCase()
+    const mod = (l.modalidad || '').replace(/_/g, ' ').toLowerCase()
+    return nombre.includes(q) || dorsal.includes(q) || cat.includes(q) || mod.includes(q)
+  })
+}
+
+export function modalidadesEnLineas(lineas) {
+  return [...new Set((lineas || []).map((l) => l.modalidad).filter(Boolean))]
+}
+
 export function nombreParticipanteLinea(l) {
   return (l.miembros || [])
     .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
