@@ -1,7 +1,6 @@
-'use client'
-
 import ExcelJS from 'exceljs'
-import { agruparPorArea, emparejamientosPrimeraRonda } from '@/lib/campeonato/bracket-export'
+import { agruparPorArea } from '@/lib/campeonato/bracket-export'
+import { layoutCnuBracket } from '@/lib/campeonato/bracket-cnu-layout'
 import { slugArchivo } from '@/lib/campeonato/export-excel-html'
 
 const FILL = {
@@ -12,11 +11,47 @@ const FILL = {
   green: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCfce7' } },
 }
 
-const BORDER_THIN = { style: 'thin', color: { argb: 'FF111111' } }
-const BORDER_MED = { style: 'medium', color: { argb: 'FF111111' } }
+const BORDER = { style: 'thin', color: { argb: 'FF111111' } }
 
-function setBorder(cell, sides) {
-  cell.border = sides
+function applyCell(ws, r, c, spec) {
+  const cell = ws.getCell(r, c)
+  if (spec.v != null) cell.value = spec.v
+  if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
+  else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
+  if (spec.matchNo) cell.font = { bold: true, size: 11, color: { argb: 'FF111111' } }
+  if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle' }
+  if (spec.bg === 'yellow') cell.fill = FILL.yellow
+  if (spec.bg === 'gray') cell.fill = FILL.gray
+  if (spec.bg === 'white') cell.fill = FILL.white
+  if (spec.border) {
+    cell.border = {
+      top: spec.border.top ? BORDER : undefined,
+      bottom: spec.border.bottom ? BORDER : undefined,
+      left: spec.border.left ? BORDER : undefined,
+      right: spec.border.right ? BORDER : undefined,
+    }
+  }
+}
+
+function writeCategoriaCnu(ws, cat, startRow) {
+  const layout = layoutCnuBracket(cat.porRonda)
+  if (!layout) return startRow
+
+  ws.mergeCells(startRow, 1, startRow, Math.max(12, layout.cols))
+  const title = ws.getCell(startRow, 1)
+  title.value = `Categoría ${cat.nombre}`
+  title.fill = FILL.yellow
+  title.font = { bold: true, size: 12 }
+  title.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER }
+
+  let row = startRow + 1
+  for (let r = 0; r < layout.rows; r++) {
+    for (let c = 0; c < layout.cols; c++) {
+      const spec = layout.cells.get(`${r},${c}`)
+      if (spec) applyCell(ws, row + r, c + 1, spec)
+    }
+  }
+  return row + layout.rows + 2
 }
 
 function addResumenSheet(wb, camp, resumen) {
@@ -33,112 +68,44 @@ function addResumenSheet(wb, camp, resumen) {
     c.value = t
     c.fill = FILL.red
     c.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-    setBorder(c, { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN })
   })
 
   let row = 4
   for (const r of resumen || []) {
-    const vals = [r.categoria, r.division, r.genero, r.inscritos, r.combates, r.cancha, r.llave]
-    vals.forEach((v, i) => {
-      const c = ws.getCell(row, i + 1)
-      c.value = v ?? ''
-      if (i === 0) c.font = { bold: true }
-      if (r.llave === 'Sí' && i === 6) c.fill = FILL.green
-      setBorder(c, { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN })
-    })
+    ws.getCell(row, 1).value = r.categoria
+    ws.getCell(row, 2).value = r.division
+    ws.getCell(row, 3).value = r.genero
+    ws.getCell(row, 4).value = r.inscritos
+    ws.getCell(row, 5).value = r.combates
+    ws.getCell(row, 6).value = r.cancha
+    ws.getCell(row, 7).value = r.llave
+    if (r.llave === 'Sí') ws.getCell(row, 7).fill = FILL.green
     row++
   }
-
   ws.columns = [{ width: 36 }, { width: 14 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 }, { width: 8 }]
-}
-
-function writeBracketCategoria(ws, cat, startRow) {
-  const pairs = emparejamientosPrimeraRonda(cat.porRonda)
-  if (!pairs.length) return startRow
-
-  let row = startRow
-  ws.mergeCells(row, 1, row, 7)
-  const title = ws.getCell(row, 1)
-  title.value = `Categoría ${cat.nombre}`
-  title.fill = FILL.yellow
-  title.font = { bold: true, size: 12 }
-  setBorder(title, { top: BORDER_MED, bottom: BORDER_MED, left: BORDER_MED, right: BORDER_MED })
-  row++
-
-  pairs.forEach((pair, idx) => {
-    const seedA = idx * 2 + 1
-    const seedB = idx * 2 + 2
-    const chung = pair.chung || { nombre: 'POR DEFINIR', academia: '', vacio: true }
-    const hong = pair.hong || { nombre: 'POR DEFINIR', academia: '', vacio: true }
-
-    const r1 = row
-    ws.getCell(r1, 1).value = seedA
-    ws.getCell(r1, 1).fill = FILL.white
-    ws.getCell(r1, 2).value = chung.nombre
-    ws.getCell(r1, 2).font = { bold: !chung.vacio, italic: chung.vacio, color: chung.vacio ? { argb: 'FF888888' } : undefined }
-    ws.getCell(r1, 2).fill = FILL.gray
-    ws.getCell(r1, 3).value = chung.academia || ''
-    ws.getCell(r1, 3).fill = FILL.gray
-    ws.getCell(r1, 3).font = { size: 9, color: { argb: 'FF333333' } }
-    for (let col = 4; col <= 6; col++) {
-      ws.getCell(r1, col).fill = FILL.white
-      setBorder(ws.getCell(r1, col), { top: BORDER_THIN, right: col === 4 || col === 6 ? BORDER_THIN : undefined })
-    }
-    setBorder(ws.getCell(r1, 1), { top: BORDER_MED, left: BORDER_MED })
-    setBorder(ws.getCell(r1, 2), { top: BORDER_MED })
-    setBorder(ws.getCell(r1, 3), { top: BORDER_MED })
-
-    const r2 = row + 1
-    for (let col = 1; col <= 3; col++) ws.getCell(r2, col).fill = col === 1 ? FILL.white : FILL.gray
-    setBorder(ws.getCell(r2, 1), { left: BORDER_MED })
-    for (let col = 4; col <= 6; col++) {
-      setBorder(ws.getCell(r2, col), { right: BORDER_THIN })
-    }
-
-    const r3 = row + 2
-    ws.getCell(r3, 1).value = seedB
-    ws.getCell(r3, 1).fill = FILL.white
-    ws.getCell(r3, 2).value = hong.nombre
-    ws.getCell(r3, 2).font = { bold: !hong.vacio, italic: hong.vacio, color: hong.vacio ? { argb: 'FF888888' } : undefined }
-    ws.getCell(r3, 2).fill = FILL.gray
-    ws.getCell(r3, 3).value = hong.academia || ''
-    ws.getCell(r3, 3).fill = FILL.gray
-    ws.getCell(r3, 3).font = { size: 9, color: { argb: 'FF333333' } }
-    for (let col = 4; col <= 6; col++) {
-      ws.getCell(r3, col).fill = FILL.white
-      setBorder(ws.getCell(r3, col), { bottom: BORDER_THIN, right: col === 4 || col === 6 ? BORDER_THIN : undefined })
-    }
-    setBorder(ws.getCell(r3, 1), { bottom: BORDER_MED, left: BORDER_MED })
-    setBorder(ws.getCell(r3, 2), { bottom: BORDER_MED })
-    setBorder(ws.getCell(r3, 3), { bottom: BORDER_MED })
-
-    row += 3
-    if (idx < pairs.length - 1) row++
-  })
-
-  return row + 2
 }
 
 function addAreaSheet(wb, camp, areaNum, categorias) {
   const ws = wb.addWorksheet(`AREA ${areaNum}`)
-  ws.mergeCells(1, 1, 1, 7)
+  ws.mergeCells(1, 1, 1, 14)
   const h = ws.getCell(1, 1)
-  h.value = `LLAVES KYORUGI · ${camp} · ÁREA ${areaNum}`
-  h.fill = FILL.red
-  h.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
+  h.value = `ÁREA # ${areaNum} · ${camp}`
+  h.fill = FILL.yellow
+  h.font = { bold: true, size: 14 }
 
-  ws.getCell(2, 1).value = `${categorias.length} categoría(s) en esta área`
+  ws.getCell(2, 1).value = `${categorias.length} categoría(s)`
   ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF555555' } }
 
   let row = 4
   for (const cat of categorias) {
-    row = writeBracketCategoria(ws, cat, row)
+    row = writeCategoriaCnu(ws, cat, row)
   }
 
-  ws.columns = [{ width: 6 }, { width: 34 }, { width: 28 }, { width: 8 }, { width: 8 }, { width: 8 }, { width: 6 }]
+  ws.columns = [{ width: 5 }, { width: 38 }, { width: 30 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }]
 }
 
-export async function descargarLlavesExcelXlsx(data) {
+/** Genera buffer xlsx en servidor (ExcelJS no corre bien en browser) */
+export async function buildLlavesExcelBuffer(data) {
   const camp = data.campeonato?.nombre || 'Campeonato'
   const areas = agruparPorArea(data.categorias)
   const wb = new ExcelJS.Workbook()
@@ -150,14 +117,17 @@ export async function descargarLlavesExcelXlsx(data) {
     addAreaSheet(wb, camp, n, cats)
   }
 
-  const buffer = await wb.xlsx.writeBuffer()
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  return wb.xlsx.writeBuffer()
+}
+
+export async function buildLlavesExcelResponse(data) {
+  const buffer = await buildLlavesExcelBuffer(data)
+  const camp = data.campeonato?.nombre || 'Campeonato'
+  const filename = `llaves-kyorugi-${slugArchivo(camp)}.xlsx`
+  return new Response(buffer, {
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    },
   })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `llaves-kyorugi-${slugArchivo(camp)}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
 }

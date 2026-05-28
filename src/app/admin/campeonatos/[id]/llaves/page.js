@@ -105,11 +105,12 @@ export default function CampeonatoLlavesPage() {
         body: JSON.stringify({ todas: true }),
       })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
+      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : json.error?.message || 'Error al generar llaves')
 
       const cats = await cargarCats({ silent: true })
       await cargarCanchas()
-      alert(`${json.generadas} llaves generadas · canchas asignadas`)
+      const errs = json.errores?.length || 0
+      alert(`${json.generadas ?? 0} llaves generadas${errs ? ` · ${errs} categoría(s) con error` : ''} · canchas asignadas`)
 
       if (catPrev) {
         const actualizada = cats.find((c) => c.id_categoria === catPrev.id_categoria)
@@ -132,7 +133,7 @@ export default function CampeonatoLlavesPage() {
         body: JSON.stringify({ idCategoria: cat.id_categoria }),
       })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
+      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : json.error?.message || 'Error al generar llave')
       await cargarCats({ silent: true })
       setPorCancha(null)
       await verLlave({ ...cat, tiene_llave: true })
@@ -172,7 +173,7 @@ export default function CampeonatoLlavesPage() {
     setExportando(formato)
     try {
       const data = await fetchExportLlaves(idCampeonato)
-      if (formato === 'xlsx') await descargarLlavesExcel(data)
+      if (formato === 'xlsx') await descargarLlavesExcel(idCampeonato, campeonato?.nombre)
       else await descargarLlavesPdf(data)
     } catch (e) {
       alert(e.message)

@@ -118,6 +118,13 @@ async function crearLineaPoomsae(sb, ac, idCampeonato, cat, perfil) {
   return linea
 }
 
+function apiError(json, fallback = 'Error') {
+  const e = json?.error
+  if (typeof e === 'string') return e
+  if (e?.message) return e.message
+  return fallback
+}
+
 async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
   const seleccionadas = catsKy.slice(0, 24)
   let globalSeq = 9000
@@ -132,16 +139,20 @@ async function llenarKyorugi(sb, idCampeonato, academias, catsKy) {
 
     for (let n = 0; n < needed; n++) {
       const ac = academias[n % academias.length]
+      if (!ac?.academia?.id_academia) continue
       const seq = globalSeq++
       const sexo = cat.genero === 'F' ? 'F' : cat.genero === 'M' ? 'M' : null
       const p = perfilDemo(academias.indexOf(ac), seq, sexo)
-      p.apellidos = `${ac.academia.codigo_prefijo} Demo`
+      p.apellidos = `${ac.academia.codigo_prefijo || 'AC'} Demo`
+      p.documento_numero = `8${idCampeonato}${String(seq).padStart(6, '0')}`
 
-      const { data: perfil } = await sb
+      const { data: perfil, error: errP } = await sb
         .from('competidor_perfil')
         .insert({ ...p, id_academia: ac.academia.id_academia })
         .select()
         .single()
+      if (errP || !perfil?.id_perfil) throw new Error(errP?.message || 'No se pudo crear perfil de competidor')
+
       await crearLineaKyorugi(sb, ac, idCampeonato, cat, perfil, pesoPara(cat))
       added++
     }
@@ -166,15 +177,19 @@ async function llenarPoomsae(sb, idCampeonato, academias, catsPm) {
 
     for (let n = 0; n < needed; n++) {
       const ac = academias[(globalSeq + n) % academias.length]
+      if (!ac?.academia?.id_academia) continue
       const seq = globalSeq++
       const p = perfilDemo(academias.indexOf(ac), seq)
-      p.apellidos = `${ac.academia.codigo_prefijo} Poomsae`
+      p.apellidos = `${ac.academia.codigo_prefijo || 'AC'} Poomsae`
+      p.documento_numero = `9${idCampeonato}${String(seq).padStart(6, '0')}`
 
-      const { data: perfil } = await sb
+      const { data: perfil, error: errP } = await sb
         .from('competidor_perfil')
         .insert({ ...p, id_academia: ac.academia.id_academia })
         .select()
         .single()
+      if (errP || !perfil?.id_perfil) throw new Error(errP?.message || 'No se pudo crear perfil poomsae')
+
       await crearLineaPoomsae(sb, ac, idCampeonato, cat, perfil)
       added++
     }

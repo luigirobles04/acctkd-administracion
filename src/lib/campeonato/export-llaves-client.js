@@ -1,10 +1,28 @@
 'use client'
 
 import { descargarLlavesBracketPdf, descargarCategoriaBracketPdf } from '@/lib/campeonato/export-bracket-pdf'
-import { descargarLlavesExcelXlsx } from '@/lib/campeonato/export-llaves-excel'
+import { slugArchivo } from '@/lib/campeonato/export-excel-html'
 
-export async function descargarLlavesExcel(data) {
-  return descargarLlavesExcelXlsx(data)
+function apiError(json, fallback) {
+  const e = json?.error
+  if (typeof e === 'string') return e
+  if (e?.message) return e.message
+  return fallback
+}
+
+export async function descargarLlavesExcel(idCampeonato, nombreCamp) {
+  const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/export/xlsx`, { cache: 'no-store' })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(apiError(json, 'Error al exportar Excel'))
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `llaves-kyorugi-${slugArchivo(nombreCamp || 'campeonato')}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function descargarLlavesPdf(data) {
@@ -18,6 +36,6 @@ export async function fetchExportLlaves(idCampeonato) {
     cache: 'no-store',
   })
   const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Error al exportar')
+  if (!res.ok) throw new Error(apiError(json, 'Error al exportar'))
   return json
 }

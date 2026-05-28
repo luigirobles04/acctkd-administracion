@@ -48,7 +48,6 @@ export default function CampeonatoDetallePage() {
   const [editLinea, setEditLinea] = useState(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [guardandoLinea, setGuardandoLinea] = useState(false)
-  const [enriqueciendoDemo, setEnriqueciendoDemo] = useState(false)
   const [expandidasIns, setExpandidasIns] = useState({})
   const [filtrosIns, setFiltrosIns] = useState({})
 
@@ -173,40 +172,6 @@ export default function CampeonatoDetallePage() {
       router.push('/admin/campeonatos')
     } catch (e) {
       alert(e.message)
-    }
-  }
-
-  async function enriquecerDemo() {
-    if (
-      !confirm(
-        '¿Cargar escenario ideal?\n\nSe agregarán academias e inscripciones (kyorugi 5/7/9/11, poomsae mín. 5), pesaje, llaves y combates finalizados.\n\nPuede tardar 1–2 minutos.'
-      )
-    )
-      return
-    setEnriqueciendoDemo(true)
-    try {
-      const fases = ['inscripciones', 'llaves', 'combates']
-      const resumen = []
-      for (const fase of fases) {
-        const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/enriquecer-demo`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fase }),
-        })
-        const json = await readJsonResponse(res)
-        if (!res.ok) throw new Error(json.error || `Error en fase ${fase}`)
-        resumen.push(json)
-      }
-      const last = resumen[resumen.length - 1]
-      const ins = resumen[0]
-      alert(
-        `Escenario listo:\n• +${ins.kyorugi_agregados || 0} kyorugi, +${ins.poomsae_agregados || 0} poomsae\n• ${resumen[1]?.llaves_generadas || 0} llaves\n• ${last.combates_finalizados || 0} combates cerrados`
-      )
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    } finally {
-      setEnriqueciendoDemo(false)
     }
   }
 
@@ -401,16 +366,6 @@ export default function CampeonatoDetallePage() {
                 <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
                 <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
-                {campeonato.slug === 'simulacion-10x40-2026' && (
-                  <button
-                    type="button"
-                    className="ios-btn ios-btn-secondary"
-                    disabled={enriqueciendoDemo}
-                    onClick={enriquecerDemo}
-                  >
-                    {enriqueciendoDemo ? 'Generando demo…' : 'Escenario ideal demo'}
-                  </button>
-                )}
                 {campeonato.slug && (
                   <>
                     <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
