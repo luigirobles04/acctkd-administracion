@@ -186,6 +186,18 @@ export default function CampeonatoDetallePage() {
     }
   }
 
+  async function eliminarCampeonato() {
+    if (!confirm(`¿Eliminar "${campeonato?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      router.push('/admin/campeonatos')
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
   if (loading && !campeonato) {
     return (
       <AdminLayout title="Campeonato">
@@ -286,6 +298,9 @@ export default function CampeonatoDetallePage() {
                 {campeonato.slug && (
                   <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
                 )}
+                <button type="button" className="ios-btn ios-btn-ghost" style={{ color: 'var(--red)' }} onClick={eliminarCampeonato}>
+                  Eliminar campeonato
+                </button>
               </div>
             </div>
           </>

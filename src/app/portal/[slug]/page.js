@@ -77,13 +77,17 @@ export default function PortalCampeonatoPage() {
   const [voucher, setVoucher] = useState({ monto: '', operacion: '', file: null })
   const [submitting, setSubmitting] = useState(false)
   const [showGrupoForm, setShowGrupoForm] = useState(false)
+  const [editPerfilId, setEditPerfilId] = useState(null)
 
   const cargar = useCallback(async () => {
+    if (!slug) return
     const user = getCurrentUser()
     if (!user || !isRepresentante(user)) {
       router.replace('/login')
       return
     }
+    setLoading(true)
+    setError(null)
     try {
       const res = await portalFetch(`/api/portal/campeonato/${slug}`)
       const json = await res.json()
@@ -91,6 +95,7 @@ export default function PortalCampeonatoPage() {
       setData(json)
     } catch (e) {
       setError(e.message)
+      setData(null)
     } finally {
       setLoading(false)
     }
@@ -221,7 +226,10 @@ export default function PortalCampeonatoPage() {
     setSubmitting(true)
     setError(null)
     try {
-      const fotoUrl = await subirFoto()
+      let fotoUrl = perfil.foto_url || ''
+      if (perfil._fotoFile) {
+        fotoUrl = await subirFoto()
+      }
       const p = await guardarPerfil(fotoUrl)
       const lineas = modalidadesActivas.map((key) => ({
         modalidad: key,
@@ -240,6 +248,7 @@ export default function PortalCampeonatoPage() {
       setPerfil(FORM)
       setModalidadesSel({})
       setStep(0)
+      setEditPerfilId(null)
       setTab('plantel')
       await cargar()
     } catch (e) {
@@ -269,11 +278,32 @@ export default function PortalCampeonatoPage() {
 
   async function anularLinea(idLinea) {
     if (!confirm('¿Anular esta inscripción?')) return
-    await portalFetch(`/api/portal/campeonato/${slug}`, {
+    const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
       method: 'POST',
       body: JSON.stringify({ accion: 'anular_linea', idLinea }),
     })
-    cargar()
+    const json = await res.json()
+    if (!res.ok) alert(json.error)
+    else cargar()
+  }
+
+  function editarCompetidor(p) {
+    setPerfil({ ...FORM, ...p, foto_url: p.foto_url || '' })
+    setModalidadesSel({})
+    setStep(1)
+    setEditPerfilId(p.id_perfil)
+    setTab('inscribir')
+  }
+
+  async function eliminarCompetidor(idPerfil) {
+    if (!confirm('¿Eliminar este competidor del plantel?')) return
+    const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
+      method: 'POST',
+      body: JSON.stringify({ accion: 'eliminar_perfil', idPerfil }),
+    })
+    const json = await res.json()
+    if (!res.ok) alert(json.error)
+    else cargar()
   }
 
   async function subirVoucher(e) {
@@ -303,7 +333,20 @@ export default function PortalCampeonatoPage() {
   if (error && !data) {
     return (
       <PortalLayout titulo="Error">
-        <div className="portal-card"><p className="portal-error">{error}</p></div>
+        <div className="portal-card">
+          <p className="portal-error">{error}</p>
+          <button type="button" className="ios-btn ios-btn-secondary portal-btn-block" onClick={() => router.push('/portal')}>
+            ← Mis campeonatos
+          </button>
+        </div>
+      </PortalLayout>
+    )
+  }
+
+  if (!data?.academiaCampeonato || !data?.campeonato) {
+    return (
+      <PortalLayout titulo="Error">
+        <div className="portal-card"><p className="portal-error">No se pudo cargar el campeonato.</p></div>
       </PortalLayout>
     )
   }
@@ -345,6 +388,11 @@ export default function PortalCampeonatoPage() {
 
       {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && (
         <div className="portal-card">
+          {editPerfilId && (
+            <p className="portal-field-hint portal-field-hint--info" style={{ marginBottom: 12 }}>
+              Editando competidor — completa modalidades y confirma para agregar nuevas inscripciones, o solo actualiza datos en paso 2.
+            </p>
+          )}
           <PortalWizardSteps steps={STEPS} current={step} />
 
           {step === 0 && (
@@ -553,6 +601,32 @@ export default function PortalCampeonatoPage() {
 
       {tab === 'plantel' && (
         <>
+          <div className="portal-card">
+            <h3 className="portal-section-title">Competidores · {(data.perfiles || []).length}</h3>
+            {(data.perfiles || []).length === 0 ? (
+              <p className="portal-empty">Sin competidores registrados.</p>
+            ) : (
+              (data.perfiles || []).map((p) => (
+                <div key={p.id_perfil} className="portal-line-item">
+                  <div className="portal-line-top">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="portal-line-name">{p.nombres} {p.apellidos}</div>
+                      <div className="portal-line-meta">{p.documento_tipo} {p.documento_numero} · {p.grado} · {p.sexo}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => editarCompetidor(p)}>
+                        Editar
+                      </button>
+                      <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 12, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
           {ac.aceptacion_bases_at && !rechazada && !data.inscripcion?.soloPago && (
             <div className="portal-card">
               {!showGrupoForm ? (
@@ -627,7 +701,7 @@ export default function PortalCampeonatoPage() {
                       </div>
                       {l.estado !== 'aprobado' && (
                         <button type="button" onClick={() => anularLinea(l.id_linea)} className="ios-btn ios-btn-ghost" style={{ fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>
-                          Anular
+                          {l.estado === 'pagado' ? 'Anular (pagado)' : 'Anular'}
                         </button>
                       )}
                     </div>

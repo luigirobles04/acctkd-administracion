@@ -337,7 +337,12 @@ export async function recalcularMontosAcademia(sb, idAcademiaCampeonato) {
 
   await sb
     .from('academia_campeonato')
-    .update({ monto_total: montoTotal, monto_asignado: montoAsignado, ultimo_cambio_at: new Date().toISOString() })
+    .update({
+      monto_total: montoTotal,
+      monto_asignado: montoAsignado,
+      estado_pago: estadoPago,
+      ultimo_cambio_at: new Date().toISOString(),
+    })
     .eq('id', idAcademiaCampeonato)
 
   return { montoTotal, montoAsignado, saldo: montoTotal - montoAsignado, estadoPago }
@@ -361,6 +366,7 @@ export async function aprobarLinea(sb, idLinea) {
     .eq('id_linea', idLinea)
     .single()
   if (error) throw error
+  if (linea.estado === 'aprobado' && linea.dorsal_display) return linea
   if (linea.estado !== 'pagado' && linea.estado !== 'aprobado') {
     throw new Error('La línea debe estar pagada antes de aprobar')
   }
@@ -431,6 +437,10 @@ export async function aplicarFifoPagos(sb, idComprobante, idAcademiaCampeonato) 
     const nuevoPagado = pagadoLinea + aplicar
     const nuevoEstado = nuevoPagado >= precio ? 'pagado' : 'pendiente_pago'
     await sb.from('linea_inscripcion').update({ estado: nuevoEstado }).eq('id_linea', linea.id_linea)
+
+    if (nuevoEstado === 'pagado') {
+      await aprobarLinea(sb, linea.id_linea)
+    }
   }
 
   await recalcularMontosAcademia(sb, idAcademiaCampeonato)

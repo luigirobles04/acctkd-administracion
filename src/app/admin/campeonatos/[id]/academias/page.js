@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, Fragment } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
@@ -19,21 +19,35 @@ export default function CampeonatoAcademiasPage() {
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [academias, setAcademias] = useState([])
+  const [lineas, setLineas] = useState([])
   const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
   const [procesando, setProcesando] = useState(null)
+  const [expandida, setExpandida] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
-      const { data } = await getSupabase()
+      const sb = getSupabase()
+      const { data } = await sb
         .from('academia_campeonato')
         .select('*, academia:id_academia(*)')
         .eq('id_campeonato', idCampeonato)
         .order('created_at', { ascending: false })
       setAcademias(data || [])
+
+      const { data: lins } = await sb
+        .from('linea_inscripcion')
+        .select(`
+          *,
+          categoria:categoria_campeonato(nombre),
+          miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
+        `)
+        .eq('id_campeonato', idCampeonato)
+        .neq('estado', 'anulado')
+      setLineas(lins || [])
     } finally {
       setLoading(false)
     }
@@ -79,6 +93,17 @@ export default function CampeonatoAcademiasPage() {
   const pendientes = academias.filter((a) => a.estado_aprobacion === 'pendiente')
   const listado = filtro === 'pendiente' ? pendientes : academias
 
+  function lineasAcademia(acId) {
+    return lineas.filter((l) => l.id_academia_campeonato === acId)
+  }
+
+  function nombreLinea(l) {
+    return (l.miembros || [])
+      .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
+      .filter(Boolean)
+      .join(' · ') || l.modalidad
+  }
+
   return (
     <AdminLayout title="Academias" subtitle={campeonato?.nombre}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px 24px' }}>
@@ -123,6 +148,7 @@ export default function CampeonatoAcademiasPage() {
                   <th>Ciudad</th>
                   <th>Estado</th>
                   <th>Lista / Pago</th>
+                  <th>Líneas</th>
                   <th>Total</th>
                   <th></th>
                 </tr>
@@ -130,8 +156,10 @@ export default function CampeonatoAcademiasPage() {
               <tbody>
                 {listado.map((ac) => {
                   const est = ESTADO_APRO[ac.estado_aprobacion] || ESTADO_APRO.pendiente
+                  const lineasAc = lineasAcademia(ac.id)
                   return (
-                    <tr key={ac.id} style={{ borderBottom: '1px solid var(--separator)' }}>
+                    <Fragment key={ac.id}>
+                    <tr style={{ borderBottom: '1px solid var(--separator)' }}>
                       <td style={{ padding: 10 }}>
                         <strong>{ac.academia?.nombre}</strong>
                         <div style={{ fontSize: 12, color: 'var(--label3)' }}>{ac.academia?.codigo_prefijo}</div>
@@ -143,6 +171,11 @@ export default function CampeonatoAcademiasPage() {
                       <td>{ac.academia?.ciudad || '—'}</td>
                       <td><span className={`badge ${est.cls}`}>{est.label}</span></td>
                       <td style={{ fontSize: 12 }}>{ac.estado_lista} / {ac.estado_pago}</td>
+                      <td>
+                        <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setExpandida(expandida === ac.id ? null : ac.id)}>
+                          {lineasAc.length} ver
+                        </button>
+                      </td>
                       <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         {ac.estado_aprobacion === 'pendiente' && (
@@ -160,6 +193,26 @@ export default function CampeonatoAcademiasPage() {
                         )}
                       </td>
                     </tr>
+                    {expandida === ac.id && (
+                      <tr key={`${ac.id}-det`}>
+                        <td colSpan={8} style={{ padding: '12px 16px', background: 'var(--fill)' }}>
+                          {lineasAc.length === 0 ? (
+                            <span style={{ fontSize: 13, color: 'var(--label3)' }}>Sin inscripciones</span>
+                          ) : (
+                            lineasAc.map((l) => (
+                              <div key={l.id_linea} style={{ fontSize: 13, padding: '4px 0' }}>
+                                <strong>{nombreLinea(l)}</strong>
+                                {' · '}{l.modalidad.replace(/_/g, ' ')}
+                                {' · '}<span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : 'badge-yellow'}`}>{l.estado}</span>
+                                {l.dorsal_display && ` · ${l.dorsal_display}`}
+                                {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
+                              </div>
+                            ))
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   )
                 })}
               </tbody>

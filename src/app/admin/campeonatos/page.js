@@ -55,6 +55,19 @@ export default function CampeonatosPage() {
     cargar()
   }, [])
 
+  async function eliminarCampeonato(e, id, nombre) {
+    e.stopPropagation()
+    if (!confirm(`¿Eliminar "${nombre}" y todos sus datos?`)) return
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      cargar()
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
@@ -146,10 +159,20 @@ export default function CampeonatosPage() {
                   <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 8 }}>
                     {formatFecha(c.fecha_inicio)} — {formatFecha(c.fecha_fin)}
                   </p>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--separator)', fontSize: 12, color: 'var(--label3)' }}>
-                    <span>{nCat} cat.</span>
-                    <span>{nIns} insc.</span>
-                    <span>{nComp} comp.</span>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--separator)', fontSize: 12, color: 'var(--label3)', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <span>{nCat} cat.</span>
+                      <span>{nIns} insc.</span>
+                      <span>{nComp} comp.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-ghost"
+                      style={{ fontSize: 11, color: 'var(--red)', padding: '2px 8px' }}
+                      onClick={(e) => eliminarCampeonato(e, c.id_campeonato, c.nombre)}
+                    >
+                      Eliminar
+                    </button>
                   </div>
                 </button>
               )
