@@ -10,7 +10,7 @@ export async function GET(_request, { params }) {
     const sb = getSupabaseAdmin()
     const { data, error } = await sb
       .from('categoria_campeonato')
-      .select('id_categoria, nombre, modalidad, genero, edad_min, edad_max, peso_min, peso_max, orden')
+      .select('id_categoria, nombre, modalidad, genero, edad_min, edad_max, peso_min, peso_max, division, grado_rango, orden')
       .eq('id_campeonato', idCampeonato)
       .order('orden', { ascending: true })
       .order('nombre', { ascending: true })

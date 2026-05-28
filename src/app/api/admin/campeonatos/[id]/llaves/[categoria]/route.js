@@ -40,11 +40,16 @@ export async function GET(_request, { params }) {
       lineaMap = Object.fromEntries((lineas || []).map((l) => [l.id_linea, l]))
     }
 
-    const enriched = (llaves || []).map((l) => ({
-      ...l,
-      nombre1: nombreLinea(lineaMap[l.id_linea1]),
-      nombre2: l.es_bye && !l.id_linea2 ? 'BYE' : l.id_linea2 ? nombreLinea(lineaMap[l.id_linea2]) : '—',
-    }))
+    const enriched = (llaves || []).map((l) => {
+      const vacio = l.estado === 'vacío'
+      const bye1 = l.es_bye && l.id_linea1 && !l.id_linea2
+      const bye2 = l.es_bye && l.id_linea2 && !l.id_linea1
+      return {
+        ...l,
+        nombre1: vacio ? '—' : l.id_linea1 ? nombreLinea(lineaMap[l.id_linea1]) : (bye2 ? 'BYE' : 'Por definir'),
+        nombre2: vacio ? '—' : l.id_linea2 ? nombreLinea(lineaMap[l.id_linea2]) : (bye1 ? 'BYE' : 'Por definir'),
+      }
+    })
 
     const porRonda = enriched.reduce((acc, l) => {
       if (!acc[l.ronda]) acc[l.ronda] = []

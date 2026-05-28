@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { generarLlaveCategoria } from '@/lib/campeonato/llaves-kyorugi'
+import { generarLlaveCategoria, generarTodasLasLlaves } from '@/lib/campeonato/llaves-kyorugi'
 
 export async function GET(_request, { params }) {
   try {
@@ -56,10 +56,17 @@ export async function POST(request, { params }) {
     const idCampeonato = Number(id)
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
-    const { idCategoria } = await request.json()
+    const body = await request.json()
+    const sb = getSupabaseAdmin()
+
+    if (body.todas) {
+      const result = await generarTodasLasLlaves(sb, idCampeonato)
+      return NextResponse.json({ ok: true, ...result })
+    }
+
+    const { idCategoria } = body
     if (!idCategoria) return NextResponse.json({ error: 'idCategoria requerido' }, { status: 400 })
 
-    const sb = getSupabaseAdmin()
     const result = await generarLlaveCategoria(sb, idCampeonato, Number(idCategoria))
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {

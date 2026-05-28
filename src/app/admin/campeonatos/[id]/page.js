@@ -222,15 +222,28 @@ export default function CampeonatoDetallePage() {
   function abrirEditarLinea(l) {
     const p = l.miembros?.[0]?.perfil
     if (!p) return
+    const catActual = categorias.find((c) => c.id_categoria === l.id_categoria)
     setEditPerfil(null)
     setEditLinea({
       id_linea: l.id_linea,
       modalidad: l.modalidad,
+      division: catActual?.division || '',
       id_categoria: l.id_categoria ? String(l.id_categoria) : '',
       peso_declarado: l.peso_declarado ?? '',
       perfil: p,
       categoria_nombre: l.categoria?.nombre,
     })
+  }
+
+  function divisionesParaLinea(linea, perfil) {
+    const cats = categoriasParaLinea(linea, perfil)
+    return [...new Set(cats.map((c) => c.division).filter(Boolean))].sort()
+  }
+
+  function categoriasPorDivision(linea, perfil, division) {
+    const cats = categoriasParaLinea(linea, perfil)
+    if (!division) return cats
+    return cats.filter((c) => c.division === division)
   }
 
   async function guardarLineaAdmin(e) {
@@ -534,6 +547,29 @@ export default function CampeonatoDetallePage() {
                       />
                     </>
                   )}
+                  {editLinea.modalidad === 'kyorugi_individual' && (
+                    <>
+                      <label className="ios-label">División (A, B, C…)</label>
+                      <select
+                        className="ios-input"
+                        value={editLinea.division || ''}
+                        onChange={(e) => {
+                          const division = e.target.value
+                          const opts = categoriasPorDivision(editLinea, editLinea.perfil, division)
+                          setEditLinea((l) => ({
+                            ...l,
+                            division,
+                            id_categoria: opts[0]?.id_categoria ? String(opts[0].id_categoria) : '',
+                          }))
+                        }}
+                      >
+                        <option value="">Seleccionar…</option>
+                        {divisionesParaLinea(editLinea, editLinea.perfil).map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                   <label className="ios-label">Categoría</label>
                   <select
                     className="ios-input"
@@ -542,7 +578,10 @@ export default function CampeonatoDetallePage() {
                     required
                   >
                     <option value="">Seleccionar…</option>
-                    {categoriasParaLinea(editLinea, editLinea.perfil).map((c) => (
+                    {(editLinea.modalidad === 'kyorugi_individual'
+                      ? categoriasPorDivision(editLinea, editLinea.perfil, editLinea.division)
+                      : categoriasParaLinea(editLinea, editLinea.perfil)
+                    ).map((c) => (
                       <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
                     ))}
                   </select>
