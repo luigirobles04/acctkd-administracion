@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { resolverPortalCampeonato } from '@/lib/campeonato/portal-server'
 import { puedeInscribir } from '@/lib/campeonato/inscripcion-server'
+import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 
 export async function GET(request, { params }) {
   try {
@@ -22,7 +23,11 @@ export async function GET(request, { params }) {
       .eq('documento_numero', doc.trim())
       .maybeSingle()
 
-    return NextResponse.json({ perfil })
+    return NextResponse.json({
+      perfil: perfil
+        ? { ...perfil, foto_url: fotoCompetidorProxyUrl(perfil.foto_url) || perfil.foto_url || null }
+        : null,
+    })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

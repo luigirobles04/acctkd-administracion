@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 
 function modalidadLabel(modalidad) {
@@ -12,20 +12,49 @@ function formatCategoria(nombre) {
   return (nombre || '').toUpperCase().replace(/\s+/g, '_')
 }
 
+function formatNombre(nombre) {
+  if (!nombre) return ''
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      const lower = part.toLowerCase()
+      if (['de', 'del', 'la', 'los', 'las', 'y'].includes(lower)) return lower
+      if (part.length <= 3) return part.toUpperCase()
+      return lower.charAt(0).toUpperCase() + lower.slice(1)
+    })
+    .join(' ')
+}
+
+function iniciales(nombre) {
+  const parts = (nombre || '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('')
+}
+
 function ubicacionEvento(campeonato) {
   const ciudad = (campeonato?.ciudad || '').trim()
   const lugar = (campeonato?.lugar || '').trim()
   if (ciudad && lugar) return `${lugar} · ${ciudad}`.toUpperCase()
-  return (ciudad || lugar || 'EVENTO OFICIAL').toUpperCase()
+  return (ciudad || lugar || campeonato?.nombre || 'EVENTO OFICIAL').toUpperCase()
 }
 
 export default function CredencialCard({ competidor: c, campeonato, dia = 1 }) {
   const [qrSrc, setQrSrc] = useState('')
+  const [fotoOk, setFotoOk] = useState(Boolean(c.foto_url))
+  const nombreBonito = useMemo(() => formatNombre(c.nombres), [c.nombres])
+
+  useEffect(() => {
+    setFotoOk(Boolean(c.foto_url))
+  }, [c.foto_url])
 
   useEffect(() => {
     let cancelled = false
     QRCode.toDataURL(c.qr_data || String(c.dorsal || c.id_linea), {
-      width: 128,
+      width: 140,
       margin: 0,
       color: { dark: '#111111', light: '#ffffff' },
     })
@@ -39,6 +68,7 @@ export default function CredencialCard({ competidor: c, campeonato, dia = 1 }) {
   }, [c.qr_data, c.dorsal, c.id_linea])
 
   const cancha = c.cancha || null
+  const tituloCampeonato = (campeonato?.nombre || 'CAMPEONATO ACCTKD').toUpperCase()
 
   return (
     <article className="credencial-sheet" data-academia={c.id_academia_campeonato}>
@@ -48,8 +78,8 @@ export default function CredencialCard({ competidor: c, campeonato, dia = 1 }) {
           <div className="credencial-header-row">
             <div className="credencial-header-left">
               <span className="credencial-peru">PERÚ</span>
-              <strong>CAMPEONATO</strong>
-              <strong>NACIONAL</strong>
+              <strong className="credencial-titulo-linea">CAMPEONATO</strong>
+              <strong className="credencial-titulo-linea">NACIONAL</strong>
             </div>
             <div className="credencial-header-center">
               <div className="credencial-helmets" aria-hidden>
@@ -63,24 +93,34 @@ export default function CredencialCard({ competidor: c, campeonato, dia = 1 }) {
               <span className="credencial-dia">DÍA {String(dia).padStart(2, '0')}</span>
             </div>
           </div>
+          <p className="credencial-evento-nombre">{tituloCampeonato}</p>
         </header>
 
         <div className="credencial-body">
           <div className="credencial-photo-wrap">
-            {c.foto_url ? (
-              <img src={c.foto_url} alt="" className="credencial-photo" />
+            {c.foto_url && fotoOk ? (
+              <img
+                src={c.foto_url}
+                alt=""
+                className="credencial-photo"
+                onError={() => setFotoOk(false)}
+              />
             ) : (
-              <div className="credencial-photo credencial-photo-empty">SIN FOTO</div>
+              <div className="credencial-photo credencial-photo-empty">
+                <span className="credencial-iniciales">{iniciales(c.nombres)}</span>
+                <span className="credencial-sin-foto">Sin foto</span>
+              </div>
             )}
           </div>
 
           <div className="credencial-info">
-            <h2 className="credencial-nombre">{c.nombres}</h2>
+            <h2 className="credencial-nombre">{nombreBonito}</h2>
             <p className="credencial-rol">COMPETITOR</p>
             <p className="credencial-academia">
               {c.codigo_academia ? `${c.codigo_academia}. ` : ''}
               {c.academia}
             </p>
+            <p className="credencial-dorsal-tag">{c.dorsal}</p>
           </div>
 
           <div className="credencial-qr-wrap">

@@ -80,7 +80,8 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .credencial-header {
@@ -117,7 +118,22 @@
 
 .credencial-header-left strong {
   font-size: 9px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+}
+
+.credencial-titulo-linea {
+  display: block;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.credencial-evento-nombre {
+  margin: 2mm 0 0;
+  text-align: center;
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.92;
 }
 
 .credencial-peru {
@@ -204,13 +220,27 @@
 }
 
 .credencial-photo-empty {
-  background: #f3f4f6;
-  color: #999;
-  font-size: 7px;
+  background: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #64748b;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
+  gap: 1.5mm;
+}
+
+.credencial-iniciales {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: 0.04em;
+}
+
+.credencial-sin-foto {
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .credencial-info {
@@ -223,25 +253,39 @@
 
 .credencial-nombre {
   margin: 0;
-  font-size: 9px;
-  line-height: 1.15;
+  font-size: 10.5px;
+  line-height: 1.2;
   font-weight: 800;
   color: #1e3a8a;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .credencial-rol {
   margin: 2mm 0 0;
-  font-size: 8px;
-  font-weight: 800;
+  font-size: 8.5px;
+  font-weight: 900;
   color: #111;
+  letter-spacing: 0.12em;
 }
 
 .credencial-academia {
-  margin: 1.5mm 0 0;
-  font-size: 6.5px;
-  line-height: 1.25;
-  color: #333;
+  margin: 1.8mm 0 0;
+  font-size: 7px;
+  line-height: 1.3;
+  color: #334155;
+  font-weight: 600;
+}
+
+.credencial-dorsal-tag {
+  margin: 2.5mm 0 0;
+  display: inline-block;
+  padding: 1mm 2mm;
+  border-radius: 2mm;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
 }
 
 .credencial-qr-wrap {
@@ -272,13 +316,14 @@
 .credencial-categoria {
   grid-column: 1 / -1;
   margin: 0;
-  padding-top: 1mm;
-  font-size: 13px;
+  padding-top: 2mm;
+  font-size: 14px;
   font-weight: 900;
   line-height: 1.05;
-  color: #111;
+  color: #0f172a;
   text-transform: uppercase;
-  border-top: 1px solid #eee;
+  letter-spacing: 0.03em;
+  border-top: 1px solid #e2e8f0;
 }
 
 .credencial-footer {

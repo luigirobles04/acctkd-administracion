@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
     if (error) throw error
 
     const { data: { publicUrl } } = sb.storage.from('competidores-fotos').getPublicUrl(fileName)
-    return NextResponse.json({ url: publicUrl })
+    return NextResponse.json({ url: fileName, publicUrl })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

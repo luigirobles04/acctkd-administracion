@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 
 function mapCanchaPorLinea(llaves) {
   const canchaPorLinea = {}
@@ -72,7 +73,7 @@ export async function GET(_request, { params }) {
         dorsal: l.dorsal_display,
         dorsal_numero: l.dorsal_numero,
         nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim().toUpperCase() : '',
-        foto_url: p?.foto_url || null,
+        foto_url: fotoCompetidorProxyUrl(p?.foto_url) || null,
         documento: p?.documento_numero || '',
         categoria: l.categoria?.nombre || '',
         academia: ac?.nombre || '',

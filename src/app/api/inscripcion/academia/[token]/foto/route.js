@@ -36,7 +36,7 @@ export async function POST(request, { params }) {
       .from('competidores-fotos')
       .getPublicUrl(fileName)
 
-    return NextResponse.json({ url: publicUrl })
+    return NextResponse.json({ url: fileName, publicUrl })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
