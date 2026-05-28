@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import {
   aplicarFifoPagos,
-  aprobarLinea,
+  asignarDorsalLinea,
+  registrarPagoManualLinea,
   recalcularMontosAcademia,
 } from '@/lib/campeonato/inscripcion-server'
 
@@ -46,6 +47,25 @@ export async function GET(_request, { params }) {
       .order('created_at', { ascending: true })
     if (errLi) throw errLi
 
+    const lineaIds = (lineas || []).map((l) => l.id_linea)
+    let pagosPorLinea = {}
+    if (lineaIds.length) {
+      const { data: asignaciones } = await sb
+        .from('asignacion_pago')
+        .select('id_linea, monto')
+        .in('id_linea', lineaIds)
+      pagosPorLinea = (asignaciones || []).reduce((acc, a) => {
+        acc[a.id_linea] = (acc[a.id_linea] || 0) + Number(a.monto || 0)
+        return acc
+      }, {})
+    }
+
+    const lineasConPago = (lineas || []).map((l) => ({
+      ...l,
+      monto_pagado: pagosPorLinea[l.id_linea] || 0,
+      pago_completo: Number(pagosPorLinea[l.id_linea] || 0) >= Number(l.precio_aplicado || 0),
+    }))
+
     const recaudacion = (acs || []).reduce(
       (acc, ac) => {
         acc.totalEsperado += Number(ac.monto_total || 0)
@@ -57,15 +77,15 @@ export async function GET(_request, { params }) {
     recaudacion.pendiente = Math.max(0, recaudacion.totalEsperado - recaudacion.recaudado)
 
     const resumen = {
-      aprobadas: (lineas || []).filter((l) => l.estado === 'aprobado').length,
-      pagadas: (lineas || []).filter((l) => ['pagado', 'aprobado'].includes(l.estado)).length,
-      pendientes: (lineas || []).filter((l) => l.estado === 'pendiente_pago').length,
+      aprobadas: lineasConPago.filter((l) => l.dorsal_display).length,
+      pagadas: lineasConPago.filter((l) => l.pago_completo).length,
+      pendientes: lineasConPago.filter((l) => !l.pago_completo && Number(l.precio_aplicado) > 0).length,
       comprobantesPendientes: comprobantes.filter((c) => c.estado === 'pendiente').length,
     }
 
     return NextResponse.json({
       comprobantes,
-      lineas: lineas || [],
+      lineas: lineasConPago,
       recaudacion,
       resumen,
     })
@@ -115,23 +135,20 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ ok: true })
     }
 
-    if (body.accion === 'aprobar_linea') {
+    if (body.accion === 'asignar_dorsal' || body.accion === 'aprobar_linea') {
       const { idLinea } = body
       if (!idLinea) return NextResponse.json({ error: 'idLinea requerido' }, { status: 400 })
 
       const { data: linea } = await sb
         .from('linea_inscripcion')
-        .select('estado, id_campeonato')
+        .select('id_campeonato')
         .eq('id_linea', idLinea)
         .single()
       if (!linea || linea.id_campeonato !== idCampeonato) {
         return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
       }
 
-      if (linea.estado === 'pendiente_pago' || linea.estado === 'borrador') {
-        await sb.from('linea_inscripcion').update({ estado: 'pagado' }).eq('id_linea', idLinea)
-      }
-      const updated = await aprobarLinea(sb, idLinea)
+      const updated = await asignarDorsalLinea(sb, idLinea)
       return NextResponse.json({ linea: updated })
     }
 
@@ -139,15 +156,17 @@ export async function PATCH(request, { params }) {
       const { idLinea } = body
       if (!idLinea) return NextResponse.json({ error: 'idLinea requerido' }, { status: 400 })
 
-      const { data: updated, error } = await sb
+      const { data: linea } = await sb
         .from('linea_inscripcion')
-        .update({ estado: 'pagado', updated_at: new Date().toISOString() })
+        .select('id_academia_campeonato, id_campeonato')
         .eq('id_linea', idLinea)
-        .eq('id_campeonato', idCampeonato)
-        .select()
         .single()
-      if (error) throw error
-      return NextResponse.json({ linea: updated })
+      if (!linea || linea.id_campeonato !== idCampeonato) {
+        return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
+      }
+
+      const montos = await registrarPagoManualLinea(sb, idLinea, linea.id_academia_campeonato)
+      return NextResponse.json({ ok: true, montos })
     }
 
     return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 })

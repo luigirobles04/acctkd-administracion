@@ -90,6 +90,25 @@ export default function CampeonatoDetallePage() {
       .finally(() => setLoadingCats(false))
   }, [tab, categorias.length, idCampeonato])
 
+  const lineasOrdenadas = useMemo(() => {
+    return [...lineasInscripcion].sort((a, b) => {
+      const acA = academiasCamp.find((ac) => ac.id === a.id_academia_campeonato)?.academia?.nombre || ''
+      const acB = academiasCamp.find((ac) => ac.id === b.id_academia_campeonato)?.academia?.nombre || ''
+      if (acA !== acB) return acA.localeCompare(acB)
+      const na = a.miembros?.[0]?.perfil?.apellidos || ''
+      const nb = b.miembros?.[0]?.perfil?.apellidos || ''
+      if (na !== nb) return na.localeCompare(nb)
+      return (a.dorsal_numero || 9999) - (b.dorsal_numero || 9999)
+    })
+  }, [lineasInscripcion, academiasCamp])
+
+  function nombreParticipante(l) {
+    return (l.miembros || [])
+      .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
+      .filter(Boolean)
+      .join(' · ') || '—'
+  }
+
   const perfilesPortal = useMemo(() => {
     const map = new Map()
     for (const l of lineasInscripcion) {
@@ -349,29 +368,46 @@ export default function CampeonatoDetallePage() {
         {tab === 'inscripciones' && (
           <div style={{ display: 'grid', gap: 20 }}>
             <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-              <p className="ios-headline">{academiasCamp.length} academias · {lineasInscripcion.length} líneas</p>
+              <p className="ios-headline">{academiasCamp.length} academias · {lineasInscripcion.length} inscripciones</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
-                <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos y dorsales</Link>
+                <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
               </div>
             </div>
-            <div className="ios-group">
-              {academiasCamp.map((ac) => {
-                const lineasAc = lineasInscripcion.filter((l) => l.id_academia_campeonato === ac.id)
-                const pagadas = lineasAc.filter((l) => ['pagado', 'aprobado'].includes(l.estado)).length
-                return (
-                  <div key={ac.id} className="ios-group-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
-                    <span className="ios-headline">{ac.academia?.nombre || `Academia #${ac.id}`}</span>
-                    <span className="ios-caption" style={{ color: 'var(--label3)' }}>
-                      {lineasAc.length} líneas · {pagadas} pagadas · S/ {Number(ac.monto_asignado || 0).toFixed(0)}/{Number(ac.monto_total || 0).toFixed(0)}
-                    </span>
-                  </div>
-                )
-              })}
+            <div className="ios-card" style={{ padding: 0, overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left', background: 'var(--fill2, rgba(0,0,0,0.03))' }}>
+                    <th style={{ padding: '10px 12px' }}>Dorsal</th>
+                    <th style={{ padding: '10px 12px' }}>Participante</th>
+                    <th style={{ padding: '10px 12px' }}>Academia</th>
+                    <th style={{ padding: '10px 12px' }}>Modalidad</th>
+                    <th style={{ padding: '10px 12px' }}>Categoría</th>
+                    <th style={{ padding: '10px 12px' }}>Peso</th>
+                    <th style={{ padding: '10px 12px' }}>Tarifa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineasOrdenadas.map((l) => {
+                    const acNom = academiasCamp.find((ac) => ac.id === l.id_academia_campeonato)?.academia?.nombre || '—'
+                    return (
+                      <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>{nombreParticipante(l)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--label2)' }}>{acNom}</td>
+                        <td style={{ padding: '10px 12px' }}>{l.modalidad?.replace(/_/g, ' ')}</td>
+                        <td style={{ padding: '10px 12px' }}>{l.categoria?.nombre || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>S/ {l.precio_aplicado}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {lineasOrdenadas.length === 0 && (
+                <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
+              )}
             </div>
-            {inscripcionesCount > 0 && (
-              <p className="ios-caption" style={{ color: 'var(--label3)' }}>{inscripcionesCount} solicitud(es) legacy.</p>
-            )}
           </div>
         )}
 

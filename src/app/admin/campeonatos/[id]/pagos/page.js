@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
-import { ESTADOS_LINEA } from '@/lib/campeonato/constants'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 function nombreLinea(l) {
@@ -64,9 +63,9 @@ export default function CampeonatoPagosPage() {
   }, [cargar])
 
   const lineasFiltradas = useMemo(() => {
-    if (filtro === 'pagadas') return lineas.filter((l) => ['pagado', 'aprobado'].includes(l.estado))
-    if (filtro === 'pendientes') return lineas.filter((l) => l.estado === 'pendiente_pago')
-    if (filtro === 'aprobadas') return lineas.filter((l) => l.estado === 'aprobado')
+    if (filtro === 'pagadas') return lineas.filter((l) => l.pago_completo)
+    if (filtro === 'pendientes') return lineas.filter((l) => !l.pago_completo && Number(l.precio_aplicado) > 0)
+    if (filtro === 'aprobadas') return lineas.filter((l) => l.dorsal_display)
     return lineas
   }, [lineas, filtro])
 
@@ -227,7 +226,6 @@ export default function CampeonatoPagosPage() {
 
             <div className="ios-card" style={{ padding: 16 }}>
               {lineasFiltradas.map((l) => {
-                const st = ESTADOS_LINEA[l.estado] || { label: l.estado, cls: 'badge-gray' }
                 return (
                   <div key={l.id_linea} style={{ padding: '12px 0', borderBottom: '1px solid var(--separator)', fontSize: 13 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -238,51 +236,46 @@ export default function CampeonatoPagosPage() {
                           {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <span className={`badge ${st.cls}`}>{st.label}</span>
-                        {l.dorsal_display && (
-                          <div style={{ marginTop: 4, fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display}</div>
-                        )}
-                        <div style={{ marginTop: 4, color: 'var(--label3)' }}>S/ {l.precio_aplicado}</div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      {l.dorsal_display ? (
+                        <div style={{ fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display}</div>
+                      ) : (
+                        <span className="badge badge-gray" style={{ fontSize: 11 }}>Sin dorsal</span>
+                      )}
+                      <div style={{ marginTop: 4 }}>
+                        <span className={`badge ${l.pago_completo ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 11 }}>
+                          {l.pago_completo ? 'Pagado' : 'Pend. pago'}
+                        </span>
+                      </div>
+                      <div style={{ marginTop: 4, color: 'var(--label3)', fontSize: 12 }}>
+                        S/ {Number(l.monto_pagado || 0).toFixed(0)}/{Number(l.precio_aplicado || 0).toFixed(0)}
                       </div>
                     </div>
-                    {(l.estado === 'pendiente_pago' || l.estado === 'pagado') && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                        {l.estado === 'pendiente_pago' && (
-                          <>
-                            <button
-                              type="button"
-                              className="ios-btn ios-btn-secondary"
-                              style={{ fontSize: 11, padding: '4px 10px' }}
-                              disabled={procesando === `pag-${l.id_linea}`}
-                              onClick={() => accionPagos({ key: `pag-${l.id_linea}`, accion: 'marcar_pagada', idLinea: l.id_linea })}
-                            >
-                              Marcar pagada
-                            </button>
-                            <button
-                              type="button"
-                              className="ios-btn ios-btn-primary"
-                              style={{ fontSize: 11, padding: '4px 10px' }}
-                              disabled={procesando === `apr-${l.id_linea}`}
-                              onClick={() => accionPagos({ key: `apr-${l.id_linea}`, accion: 'aprobar_linea', idLinea: l.id_linea })}
-                            >
-                              Aprobar + dorsal
-                            </button>
-                          </>
-                        )}
-                        {l.estado === 'pagado' && (
-                          <button
-                            type="button"
-                            className="ios-btn ios-btn-primary"
-                            style={{ fontSize: 11, padding: '4px 10px' }}
-                            disabled={procesando === `apr-${l.id_linea}`}
-                            onClick={() => accionPagos({ key: `apr-${l.id_linea}`, accion: 'aprobar_linea', idLinea: l.id_linea })}
-                          >
-                            Asignar dorsal
-                          </button>
-                        )}
-                      </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    {!l.dorsal_display && (
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-secondary"
+                        style={{ fontSize: 11, padding: '4px 10px' }}
+                        disabled={procesando === `dor-${l.id_linea}`}
+                        onClick={() => accionPagos({ key: `dor-${l.id_linea}`, accion: 'asignar_dorsal', idLinea: l.id_linea })}
+                      >
+                        Asignar dorsal
+                      </button>
                     )}
+                    {!l.pago_completo && Number(l.precio_aplicado) > 0 && (
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-primary"
+                        style={{ fontSize: 11, padding: '4px 10px' }}
+                        disabled={procesando === `pag-${l.id_linea}`}
+                        onClick={() => accionPagos({ key: `pag-${l.id_linea}`, accion: 'marcar_pagada', idLinea: l.id_linea })}
+                      >
+                        Marcar pagada
+                      </button>
+                    )}
+                  </div>
                   </div>
                 )
               })}

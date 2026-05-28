@@ -359,16 +359,19 @@ export async function siguienteDorsalGlobal(sb, idCampeonato) {
   return (data?.[0]?.dorsal_numero ? Number(data[0].dorsal_numero) : 0) + 1
 }
 
-export async function aprobarLinea(sb, idLinea) {
+export async function asignarDorsalLinea(sb, idLinea) {
   const { data: linea, error } = await sb
     .from('linea_inscripcion')
     .select('*, academia_campeonato(*, academia(*))')
     .eq('id_linea', idLinea)
     .single()
   if (error) throw error
-  if (linea.estado === 'aprobado' && linea.dorsal_display) return linea
-  if (linea.estado !== 'pagado' && linea.estado !== 'aprobado') {
-    throw new Error('La línea debe estar pagada antes de aprobar')
+  if (linea.estado === 'anulado') throw new Error('Línea anulada')
+  if (linea.dorsal_display && linea.dorsal_numero) {
+    if (linea.estado !== 'aprobado') {
+      await sb.from('linea_inscripcion').update({ estado: 'aprobado', updated_at: new Date().toISOString() }).eq('id_linea', idLinea)
+    }
+    return linea
   }
 
   const prefijo = linea.academia_campeonato?.academia?.codigo_prefijo || 'AC'
@@ -392,12 +395,71 @@ export async function aprobarLinea(sb, idLinea) {
   await sb.from('bitacora_inscripcion').insert({
     id_academia_campeonato: linea.id_academia_campeonato,
     id_linea: idLinea,
-    accion: 'linea_aprobada',
+    accion: 'dorsal_asignado',
     detalle: { dorsal: display },
     actor: 'admin',
   })
 
   return updated
+}
+
+/** @deprecated alias — dorsal ya no depende del pago */
+export async function aprobarLinea(sb, idLinea) {
+  return asignarDorsalLinea(sb, idLinea)
+}
+
+export async function registrarPagoManualLinea(sb, idLinea, idAcademiaCampeonato) {
+  const { data: linea, error } = await sb
+    .from('linea_inscripcion')
+    .select('*')
+    .eq('id_linea', idLinea)
+    .single()
+  if (error || !linea) throw new Error('Línea no encontrada')
+
+  const precio = Number(linea.precio_aplicado || 0)
+  if (precio <= 0) return { ok: true, monto: 0 }
+
+  const { data: asigs } = await sb.from('asignacion_pago').select('monto').eq('id_linea', idLinea)
+  const pagado = (asigs || []).reduce((s, a) => s + Number(a.monto || 0), 0)
+  const falta = precio - pagado
+  if (falta <= 0) return { ok: true, yaPagado: true }
+
+  const { data: comp, error: errC } = await sb
+    .from('comprobante_pago')
+    .insert({
+      id_academia_campeonato: idAcademiaCampeonato,
+      monto_declarado: falta,
+      monto_validado: falta,
+      estado: 'validado',
+      observaciones: `Pago manual admin · línea ${idLinea}`,
+      numero_operacion: `ADM-${idLinea}`,
+    })
+    .select()
+    .single()
+  if (errC) throw errC
+
+  await sb.from('asignacion_pago').insert({
+    id_comprobante: comp.id_comprobante,
+    id_linea: idLinea,
+    monto: pagado + falta,
+  })
+
+  return recalcularMontosAcademia(sb, idAcademiaCampeonato)
+}
+
+export async function asignarDorsalesPendientes(sb, idAcademiaCampeonato) {
+  const { data: lineas } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea')
+    .eq('id_academia_campeonato', idAcademiaCampeonato)
+    .neq('estado', 'anulado')
+    .is('dorsal_numero', null)
+
+  const asignados = []
+  for (const l of lineas || []) {
+    asignados.push(await asignarDorsalLinea(sb, l.id_linea))
+  }
+  return asignados
 }
 
 export async function aplicarFifoPagos(sb, idComprobante, idAcademiaCampeonato) {
@@ -433,14 +495,6 @@ export async function aplicarFifoPagos(sb, idComprobante, idAcademiaCampeonato) 
       { onConflict: 'id_comprobante,id_linea' }
     )
     restante -= aplicar
-
-    const nuevoPagado = pagadoLinea + aplicar
-    const nuevoEstado = nuevoPagado >= precio ? 'pagado' : 'pendiente_pago'
-    await sb.from('linea_inscripcion').update({ estado: nuevoEstado }).eq('id_linea', linea.id_linea)
-
-    if (nuevoEstado === 'pagado') {
-      await aprobarLinea(sb, linea.id_linea)
-    }
   }
 
   await recalcularMontosAcademia(sb, idAcademiaCampeonato)

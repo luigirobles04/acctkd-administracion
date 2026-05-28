@@ -78,6 +78,7 @@ export default function PortalCampeonatoPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showGrupoForm, setShowGrupoForm] = useState(false)
   const [editPerfilId, setEditPerfilId] = useState(null)
+  const [colaInscripcion, setColaInscripcion] = useState([])
 
   const cargar = useCallback(async () => {
     if (!slug) return
@@ -250,6 +251,81 @@ export default function PortalCampeonatoPage() {
     }
   }
 
+  function iniciarOtroAlumno() {
+    setPerfil(FORM)
+    setModalidadesSel({})
+    setStep(0)
+    setEditPerfilId(null)
+    setError(null)
+  }
+
+  function agregarACola() {
+    if (!step2Valid) return
+    const item = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      perfil: { ...perfil },
+      modalidadesSel: JSON.parse(JSON.stringify(modalidadesSel)),
+      fotoFile: perfil._fotoFile || null,
+    }
+    setColaInscripcion((prev) => [...prev, item])
+    iniciarOtroAlumno()
+  }
+
+  function quitarDeCola(id) {
+    setColaInscripcion((prev) => prev.filter((x) => x.id !== id))
+  }
+
+  async function confirmarColaInscripcion() {
+    if (!colaInscripcion.length) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      for (const item of colaInscripcion) {
+        let fotoUrl = item.perfil.foto_url || ''
+        if (item.fotoFile) {
+          const fd = new FormData()
+          fd.append('file', item.fotoFile, item.fotoFile.name || 'foto.jpg')
+          const res = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
+          const json = await res.json()
+          if (!res.ok) throw new Error(json.error)
+          fotoUrl = json.url
+        }
+        const payload = { ...item.perfil, foto_url: fotoUrl }
+        delete payload._fotoFile
+        const resP = await portalFetch(`/api/portal/campeonato/${slug}/perfil`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+        const jsonP = await resP.json()
+        if (!resP.ok) throw new Error(jsonP.error)
+        const p = jsonP.perfil
+        const keys = Object.keys(item.modalidadesSel)
+        const lineas = keys.map((key) => ({
+          modalidad: key,
+          idCategoria: item.modalidadesSel[key]?.idCategoria ? Number(item.modalidadesSel[key].idCategoria) : null,
+          pesoDeclarado: key === 'kyorugi_individual' ? Number(item.modalidadesSel[key].peso) : null,
+          tipoOficial: key === 'oficial' ? item.modalidadesSel[key].tipoOficial : null,
+        }))
+        const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'crear_lineas', idPerfil: p.id_perfil, lineas }),
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error)
+      }
+      const total = colaInscripcion.length
+      setColaInscripcion([])
+      iniciarOtroAlumno()
+      setTab('plantel')
+      await cargar()
+      alert(`${total} competidor(es) inscrito(s). Revisa el plantel y envía la lista cuando estés listo.`)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function confirmarInscripcion() {
     setSubmitting(true)
     setError(null)
@@ -273,10 +349,7 @@ export default function PortalCampeonatoPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
 
-      setPerfil(FORM)
-      setModalidadesSel({})
-      setStep(0)
-      setEditPerfilId(null)
+      iniciarOtroAlumno()
       setTab('plantel')
       await cargar()
     } catch (e) {
@@ -416,6 +489,38 @@ export default function PortalCampeonatoPage() {
 
       {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && (
         <div className="portal-card">
+          {colaInscripcion.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <h3 className="portal-section-title">Lista pendiente de confirmar ({colaInscripcion.length})</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 6px' }}>Competidor</th>
+                      <th style={{ padding: '8px 6px' }}>Modalidades</th>
+                      <th style={{ padding: '8px 6px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {colaInscripcion.map((item) => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid var(--separator)' }}>
+                        <td style={{ padding: '8px 6px' }}>{item.perfil.nombres} {item.perfil.apellidos}</td>
+                        <td style={{ padding: '8px 6px', color: 'var(--label2)' }}>
+                          {Object.keys(item.modalidadesSel).map((k) => modalidadLabel(k)).join(', ')}
+                        </td>
+                        <td style={{ padding: '8px 6px' }}>
+                          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => quitarDeCola(item.id)}>Quitar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" className="ios-btn ios-btn-primary portal-btn-block" style={{ marginTop: 12 }} disabled={submitting} onClick={confirmarColaInscripcion}>
+                {submitting ? 'Inscribiendo…' : `Confirmar e inscribir todos (${colaInscripcion.length})`}
+              </button>
+            </div>
+          )}
           {editPerfilId && (
             <p className="portal-field-hint portal-field-hint--info" style={{ marginBottom: 12 }}>
               Editando competidor — completa modalidades y confirma para agregar nuevas inscripciones, o solo actualiza datos en paso 2.
@@ -631,8 +736,11 @@ export default function PortalCampeonatoPage() {
               {error && <p className="portal-error">{error}</p>}
               <div className="portal-actions">
                 <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setStep(2)}>Atrás</button>
+                <button type="button" className="ios-btn ios-btn-secondary" disabled={submitting} onClick={agregarACola}>
+                  Agregar otro y seguir
+                </button>
                 <button type="button" className="ios-btn ios-btn-primary" disabled={submitting} onClick={confirmarInscripcion}>
-                  {submitting ? 'Inscribiendo…' : `Confirmar ${modalidadesActivas.length} inscripción(es)`}
+                  {submitting ? 'Inscribiendo…' : colaInscripcion.length ? 'Inscribir este también' : `Inscribir ${modalidadesActivas.length} modalidad(es)`}
                 </button>
               </div>
             </>
@@ -643,28 +751,89 @@ export default function PortalCampeonatoPage() {
       {tab === 'plantel' && (
         <>
           <div className="portal-card">
-            <h3 className="portal-section-title">Competidores · {(data.perfiles || []).length}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <h3 className="portal-section-title" style={{ margin: 0 }}>Plantel · {data.lineas?.length || 0} inscripciones</h3>
+              {ac.aceptacion_bases_at && !rechazada && !data.inscripcion?.soloPago && (
+                <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 13 }} onClick={() => { setTab('inscribir'); iniciarOtroAlumno() }}>
+                  + Inscribir alumno
+                </button>
+              )}
+            </div>
+            {(data.lineas || []).length === 0 ? (
+              <p className="portal-empty">Sin inscripciones aún. Ve a la pestaña Inscribir.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 6px' }}>Dorsal</th>
+                      <th style={{ padding: '8px 6px' }}>Competidor</th>
+                      <th style={{ padding: '8px 6px' }}>Modalidad</th>
+                      <th style={{ padding: '8px 6px' }}>Categoría</th>
+                      <th style={{ padding: '8px 6px' }}>Peso</th>
+                      <th style={{ padding: '8px 6px' }}>Tarifa</th>
+                      <th style={{ padding: '8px 6px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...(data.lineas || [])].sort((a, b) => {
+                      const na = `${a.miembros?.[0]?.perfil?.apellidos || ''} ${a.miembros?.[0]?.perfil?.nombres || ''}`
+                      const nb = `${b.miembros?.[0]?.perfil?.apellidos || ''} ${b.miembros?.[0]?.perfil?.nombres || ''}`
+                      return na.localeCompare(nb)
+                    }).map((l) => {
+                      const est = ESTADOS_LINEA[l.estado] || { label: l.estado }
+                      return (
+                        <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                          <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.miembros?.map((m) => `${m.perfil?.nombres} ${m.perfil?.apellidos}`).join(' · ')}</td>
+                          <td style={{ padding: '8px 6px' }}>{modalidadLabel(l.modalidad)}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado} <span style={{ fontSize: 11, color: 'var(--label3)' }}>({est.label})</span></td>
+                          <td style={{ padding: '8px 6px' }}>
+                            {!l.dorsal_display && (
+                              <button type="button" onClick={() => anularLinea(l.id_linea)} className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }}>Anular</button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="portal-card">
+            <h3 className="portal-section-title">Competidores registrados · {(data.perfiles || []).length}</h3>
             {(data.perfiles || []).length === 0 ? (
               <p className="portal-empty">Sin competidores registrados.</p>
             ) : (
-              (data.perfiles || []).map((p) => (
-                <div key={p.id_perfil} className="portal-line-item">
-                  <div className="portal-line-top">
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div className="portal-line-name">{p.nombres} {p.apellidos}</div>
-                      <div className="portal-line-meta">{p.documento_tipo} {p.documento_numero} · {p.grado} · {p.sexo}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => editarCompetidor(p)}>
-                        Editar
-                      </button>
-                      <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 12, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 6px' }}>Nombre</th>
+                      <th style={{ padding: '8px 6px' }}>Documento</th>
+                      <th style={{ padding: '8px 6px' }}>Grado</th>
+                      <th style={{ padding: '8px 6px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...(data.perfiles || [])].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || '')).map((p) => (
+                      <tr key={p.id_perfil} style={{ borderBottom: '1px solid var(--separator)' }}>
+                        <td style={{ padding: '8px 6px' }}>{p.nombres} {p.apellidos}</td>
+                        <td style={{ padding: '8px 6px' }}>{p.documento_tipo} {p.documento_numero}</td>
+                        <td style={{ padding: '8px 6px' }}>{p.grado} · {p.sexo}</td>
+                        <td style={{ padding: '8px 6px' }}>
+                          <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, marginRight: 4 }} onClick={() => editarCompetidor(p)}>Editar</button>
+                          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>Eliminar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -710,47 +879,6 @@ export default function PortalCampeonatoPage() {
             </div>
           )}
 
-          <div className="portal-card">
-            <h3 className="portal-section-title">Plantel · {data.lineas?.length || 0}</h3>
-            {(data.lineas || []).length === 0 ? (
-              <p className="portal-empty">Sin inscripciones aún. Ve a la pestaña Inscribir.</p>
-            ) : (
-              data.lineas.map((l) => {
-                const est = ESTADOS_LINEA[l.estado] || { label: l.estado, cls: 'badge-gray' }
-                const catNombre = l.categoria?.nombre
-                const miembrosCount = l.miembros?.length || 0
-                return (
-                  <div key={l.id_linea} className="portal-line-item">
-                    <div className="portal-line-top">
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div className="portal-line-name">
-                          {modalidadLabel(l.modalidad)}
-                          {esModalidadGrupo(l.modalidad) && miembrosCount > 0 && (
-                            <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--label3)' }}>
-                              ({miembrosCount} integrantes)
-                            </span>
-                          )}
-                          <span className={`badge ${est.cls}`} style={{ marginLeft: 8, fontSize: 11 }}>{est.label}</span>
-                          {l.dorsal_display && <span style={{ marginLeft: 8, color: 'var(--red)', fontWeight: 700 }}>{l.dorsal_display}</span>}
-                        </div>
-                        {catNombre && <div className="portal-line-meta"><strong>{catNombre}</strong></div>}
-                        <div className="portal-line-meta">
-                          {l.miembros?.map((m) => `${m.perfil?.nombres} ${m.perfil?.apellidos}`).join(' · ')}
-                        </div>
-                        {l.peso_declarado && <div className="portal-line-meta">{l.peso_declarado} kg</div>}
-                        <div className="portal-line-meta">S/ {l.precio_aplicado}</div>
-                      </div>
-                      {l.estado !== 'aprobado' && (
-                        <button type="button" onClick={() => anularLinea(l.id_linea)} className="ios-btn ios-btn-ghost" style={{ fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>
-                          {l.estado === 'pagado' ? 'Anular (pagado)' : 'Anular'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
         </>
       )}
 
@@ -788,7 +916,10 @@ export default function PortalCampeonatoPage() {
                   <h4 className="portal-section-title" style={{ marginTop: 24, fontSize: 15 }}>Historial</h4>
                   {data.comprobantes.map((c) => (
                     <div key={c.id_comprobante} className="portal-line-meta" style={{ padding: '10px 0', borderBottom: '1px solid var(--separator)' }}>
-                      S/ {c.monto_declarado} · {c.estado}
+                      S/ {c.monto_declarado} · <strong>{c.estado}</strong>
+                      {c.estado === 'rechazado' && c.observaciones && (
+                        <div style={{ color: '#C0000A', marginTop: 4, fontSize: 12 }}>{c.observaciones}</div>
+                      )}
                     </div>
                   ))}
                 </>
@@ -798,9 +929,9 @@ export default function PortalCampeonatoPage() {
         </div>
       )}
 
-      {aprobada && ac.estado_lista !== 'enviada' && (
+      {aprobada && (
         <button type="button" className="ios-btn ios-btn-primary portal-btn-block" onClick={enviarLista}>
-          Enviar lista a ACCTKD
+          {ac.estado_lista === 'enviada' ? 'Reenviar lista (asigna dorsales nuevos)' : 'Enviar lista y obtener dorsales'}
         </button>
       )}
 

@@ -8,6 +8,7 @@ import {
   tipoTarifaActual,
   precioModalidad,
   puedeEnviarLista,
+  asignarDorsalesPendientes,
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
@@ -176,11 +177,14 @@ export async function POST(request, { params }) {
       const envio = puedeEnviarLista(ac)
       if (!envio.ok) return NextResponse.json({ error: envio.reason }, { status: 403 })
 
+      const dorsales = await asignarDorsalesPendientes(sb, ac.id)
+
       const ultima = ac.ultima_notificacion_at ? new Date(ac.ultima_notificacion_at).getTime() : 0
       const cambio = ac.ultimo_cambio_at ? new Date(ac.ultimo_cambio_at).getTime() : 0
-      if (cambio <= ultima) {
-        return NextResponse.json({ ok: false, message: 'Sin cambios desde el último envío' })
+      if (cambio <= ultima && dorsales.length === 0) {
+        return NextResponse.json({ ok: false, message: 'Sin cambios ni dorsales pendientes de asignar' })
       }
+
       await sb
         .from('academia_campeonato')
         .update({
@@ -191,9 +195,14 @@ export async function POST(request, { params }) {
       await sb.from('bitacora_inscripcion').insert({
         id_academia_campeonato: ac.id,
         accion: 'lista_enviada',
+        detalle: { dorsales_asignados: dorsales.length },
         actor: 'portal',
       })
-      return NextResponse.json({ ok: true, message: 'Lista enviada a ACCTKD' })
+      return NextResponse.json({
+        ok: true,
+        message: `Lista enviada. ${dorsales.length} dorsal(es) asignado(s). El pago se gestiona por separado.`,
+        dorsales: dorsales.length,
+      })
     }
 
     if (accion === 'anular_linea') {

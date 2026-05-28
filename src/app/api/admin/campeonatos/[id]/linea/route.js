@@ -5,7 +5,7 @@ import {
   categoriasValidas,
   modalidadRequiereCategoriaPoomsae,
 } from '@/lib/campeonato/validar-categoria'
-import { aprobarLinea } from '@/lib/campeonato/inscripcion-server'
+import { asignarDorsalLinea } from '@/lib/campeonato/inscripcion-server'
 
 export async function PATCH(request, { params }) {
   try {
@@ -33,10 +33,7 @@ export async function PATCH(request, { params }) {
     if (linea.estado === 'anulado') return NextResponse.json({ error: 'Línea anulada' }, { status: 403 })
 
     if (accion === 'aprobar_dorsal') {
-      if (linea.estado === 'pendiente_pago' || linea.estado === 'borrador') {
-        await sb.from('linea_inscripcion').update({ estado: 'pagado', updated_at: new Date().toISOString() }).eq('id_linea', idLinea)
-      }
-      const updated = await aprobarLinea(sb, idLinea)
+      const updated = await asignarDorsalLinea(sb, idLinea)
       return NextResponse.json({ linea: updated })
     }
 

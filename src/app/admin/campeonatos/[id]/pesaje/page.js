@@ -32,6 +32,7 @@ export default function CampeonatoPesajePage() {
   const [guardando, setGuardando] = useState(false)
   const [ultimoResultado, setUltimoResultado] = useState(null)
   const [categoriaSugerida, setCategoriaSugerida] = useState(null)
+  const [modoCorregir, setModoCorregir] = useState(false)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -64,7 +65,7 @@ export default function CampeonatoPesajePage() {
     return evaluarPesoEnCategoria(form.peso, lineaSeleccionada.categoria)
   }, [lineaSeleccionada, form.peso])
 
-  async function registrarPesaje(e, recategorizar = false) {
+  async function registrarPesaje(e, recategorizar = false, forzar = false) {
     e.preventDefault()
     const peso = Number(form.peso)
     const idLinea = Number(form.id_linea)
@@ -77,7 +78,7 @@ export default function CampeonatoPesajePage() {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idLinea, peso, recategorizar }),
+        body: JSON.stringify({ idLinea, peso, recategorizar, forzar: forzar || modoCorregir }),
       })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
@@ -97,6 +98,25 @@ export default function CampeonatoPesajePage() {
     }
   }
 
+  async function reiniciarPesaje(idLinea) {
+    if (!confirm('¿Reiniciar oportunidades de pesaje para este competidor?')) return
+    setGuardando(true)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLinea, reiniciar: true }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+      alert(json.mensaje)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setGuardando(false)
+    }
+  }
   async function recategorizarYaprobar() {
     if (!form.id_linea || !form.peso) return
     setGuardando(true)
@@ -104,7 +124,7 @@ export default function CampeonatoPesajePage() {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idLinea: Number(form.id_linea), peso: Number(form.peso), recategorizar: true }),
+        body: JSON.stringify({ idLinea: Number(form.id_linea), peso: Number(form.peso), recategorizar: true, forzar: true }),
       })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
@@ -199,8 +219,13 @@ export default function CampeonatoPesajePage() {
                 </div>
               )}
 
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13 }}>
+                <input type="checkbox" checked={modoCorregir} onChange={(e) => setModoCorregir(e.target.checked)} />
+                Consolidación / corrección manual (ignora límite de intentos)
+              </label>
+
               <button type="submit" className="ios-btn ios-btn-primary" style={{ width: '100%', marginTop: 16 }} disabled={guardando}>
-                {guardando ? 'Registrando…' : 'Registrar pesaje'}
+                {guardando ? 'Registrando…' : modoCorregir ? 'Corregir pesaje' : 'Registrar pesaje'}
               </button>
             </form>
 
@@ -237,6 +262,16 @@ export default function CampeonatoPesajePage() {
                     <span className={`badge ${badgePesaje(l.pesaje_estado)}`}>
                       {etiquetaPesaje(l.pesaje_estado, l.pesaje_intentos)}
                     </span>
+                    {(l.pesaje_estado === 'descalificado' || l.pesaje_intentos >= MAX_INTENTOS_PESAJE) && (
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-ghost"
+                        style={{ fontSize: 11, marginTop: 6, padding: '2px 8px' }}
+                        onClick={() => reiniciarPesaje(l.id_linea)}
+                      >
+                        Reiniciar oportunidades
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

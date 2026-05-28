@@ -39,6 +39,7 @@ export async function GET(_request, { params }) {
           id_categoria,
           peso_declarado,
           dorsal_display,
+          dorsal_numero,
           precio_aplicado,
           categoria:categoria_campeonato(nombre),
           miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento, documento_tipo))
