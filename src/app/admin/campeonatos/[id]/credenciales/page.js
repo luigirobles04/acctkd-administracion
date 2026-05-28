@@ -81,7 +81,7 @@ export default function CredencialesPage() {
           </div>
 
           <p className="credenciales-hint">
-            Usa la plantilla oficial del evento. Solo se imprime el frente: foto en el círculo y tus datos donde decía JUEZ. Una credencial por hoja.
+            Plantilla oficial FESTCUP: foto en el círculo y datos del participante. Al imprimir elige <strong>márgenes: Ninguno</strong> y activa gráficos de fondo. Una credencial centrada por hoja A4.
           </p>
         </div>
 

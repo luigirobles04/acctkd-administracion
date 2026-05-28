@@ -6,6 +6,11 @@ import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { whatsappUrl } from '@/lib/campeonato/constants'
+import {
+  descargarFichaNominalExcel,
+  descargarFichaNominalPdf,
+  fetchExportFichaNominal,
+} from '@/lib/campeonato/export-ficha-nominal-client'
 
 const ESTADO_APRO = {
   pendiente: { label: 'Pendiente', cls: 'badge-yellow' },
@@ -45,6 +50,7 @@ export default function CampeonatoAcademiasPage() {
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(null)
   const [expandida, setExpandida] = useState(null)
+  const [exportando, setExportando] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -127,6 +133,25 @@ export default function CampeonatoAcademiasPage() {
       .join(' · ') || l.modalidad
   }
 
+  async function exportarFicha(formato, idAcademia = null) {
+    const key = idAcademia ? `${formato}-${idAcademia}` : formato
+    setExportando(key)
+    try {
+      const data = await fetchExportFichaNominal(idCampeonato)
+      if (!data.academias?.length) {
+        alert('No hay fichas nominales — academias aprobadas sin inscripciones pagadas/aprobadas')
+        return
+      }
+      const opts = idAcademia ? { idAcademia } : {}
+      if (formato === 'xlsx') await descargarFichaNominalExcel(data, opts)
+      else await descargarFichaNominalPdf(data, opts)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setExportando(null)
+    }
+  }
+
   return (
     <AdminLayout title="Academias" subtitle={campeonato?.nombre}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px 24px' }}>
@@ -139,6 +164,31 @@ export default function CampeonatoAcademiasPage() {
         )}
 
         <RecaudacionCards recaudacion={recaudacion} />
+
+        <div className="ios-card" style={{ padding: 16, marginBottom: 16 }}>
+          <p className="ios-headline" style={{ marginBottom: 8 }}>Ficha nominal</p>
+          <p style={{ fontSize: 13, color: 'var(--label2)', lineHeight: 1.5, marginBottom: 12 }}>
+            Exporta por academia todos los competidores (kyorugi, poomsae) y coaches/oficiales aprobados.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="ios-btn ios-btn-primary"
+              disabled={exportando}
+              onClick={() => exportarFicha('xlsx')}
+            >
+              {exportando === 'xlsx' ? 'Exportando…' : 'Excel todas las academias'}
+            </button>
+            <button
+              type="button"
+              className="ios-btn ios-btn-secondary"
+              disabled={exportando}
+              onClick={() => exportarFicha('pdf')}
+            >
+              {exportando === 'pdf' ? 'Exportando…' : 'PDF todas las academias'}
+            </button>
+          </div>
+        </div>
 
         <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
           <p className="ios-headline" style={{ marginBottom: 8 }}>Portal de inscripción</p>
@@ -209,6 +259,28 @@ export default function CampeonatoAcademiasPage() {
                       </td>
                       <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
+                        {ac.estado_aprobacion === 'aprobada' && lineasAc.length > 0 && (
+                          <>
+                            <button
+                              type="button"
+                              className="ios-btn ios-btn-secondary"
+                              style={{ fontSize: 11, padding: '4px 8px', marginRight: 4 }}
+                              disabled={Boolean(exportando)}
+                              onClick={() => exportarFicha('xlsx', ac.id)}
+                            >
+                              {exportando === `xlsx-${ac.id}` ? '…' : 'Excel'}
+                            </button>
+                            <button
+                              type="button"
+                              className="ios-btn ios-btn-secondary"
+                              style={{ fontSize: 11, padding: '4px 8px', marginRight: 6 }}
+                              disabled={Boolean(exportando)}
+                              onClick={() => exportarFicha('pdf', ac.id)}
+                            >
+                              {exportando === `pdf-${ac.id}` ? '…' : 'PDF'}
+                            </button>
+                          </>
+                        )}
                         {ac.estado_aprobacion === 'pendiente' && (
                           <>
                             <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12, padding: '4px 10px', marginRight: 6 }} disabled={procesando === ac.id} onClick={() => aprobar(ac.id)}>

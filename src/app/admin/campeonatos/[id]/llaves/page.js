@@ -180,6 +180,18 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
+  function abrirBracketPdf({ todas = false } = {}) {
+    if (todas) {
+      window.open(`/admin/campeonatos/${id}/llaves/imprimir?todas=1`, '_blank')
+      return
+    }
+    if (!selCat) {
+      alert('Selecciona una categoría y abre la vista Bracket')
+      return
+    }
+    window.open(`/admin/campeonatos/${id}/llaves/imprimir?categoria=${selCat.id_categoria}`, '_blank')
+  }
+
   const bloqueado = generandoTodas || Boolean(generando)
 
   const combatesFiltrados = selCat && porRonda
@@ -231,7 +243,15 @@ export default function CampeonatoLlavesPage() {
               disabled={bloqueado || exportando}
               onClick={() => exportar('pdf')}
             >
-              {exportando === 'pdf' ? 'Exportando…' : 'PDF llaves'}
+              {exportando === 'pdf' ? 'Exportando…' : 'PDF llaves (tabla)'}
+            </button>
+            <button
+              type="button"
+              className="ios-btn ios-btn-secondary"
+              disabled={bloqueado}
+              onClick={() => abrirBracketPdf({ todas: true })}
+            >
+              PDF brackets (árbol)
             </button>
           </div>
         )}
@@ -357,17 +377,29 @@ export default function CampeonatoLlavesPage() {
               <div className="ios-card" style={{ padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
                   <h3 style={{ margin: 0 }}>{selCat.nombre}</h3>
-                  <div className="ios-segment" style={{ display: 'flex', gap: 4 }}>
-                    {VISTAS.filter((v) => v.id !== 'canchas').map((v) => (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div className="ios-segment" style={{ display: 'flex', gap: 4 }}>
+                      {VISTAS.filter((v) => v.id !== 'canchas').map((v) => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          className={`ios-segment-item ${vista === v.id ? 'active' : ''}`}
+                          onClick={() => setVista(v.id)}
+                        >
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                    {vista === 'bracket' && (
                       <button
-                        key={v.id}
                         type="button"
-                        className={`ios-segment-item ${vista === v.id ? 'active' : ''}`}
-                        onClick={() => setVista(v.id)}
+                        className="ios-btn ios-btn-secondary"
+                        style={{ fontSize: 12 }}
+                        onClick={() => abrirBracketPdf()}
                       >
-                        {v.label}
+                        PDF bracket
                       </button>
-                    ))}
+                    )}
                   </div>
                 </div>
 

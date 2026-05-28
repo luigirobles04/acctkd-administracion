@@ -1,0 +1,88 @@
+/* Impresión de brackets kyorugi — landscape, solo el árbol */
+
+.bracket-print-page {
+  min-height: 100vh;
+  background: #fff;
+  padding: 16px;
+}
+
+.bracket-print-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bracket-print-sheet {
+  page-break-after: always;
+  break-after: page;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin-bottom: 24px;
+}
+
+.bracket-print-sheet:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.bracket-print-head {
+  margin-bottom: 12px;
+}
+
+.bracket-print-head h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #c0000a;
+}
+
+.bracket-print-head h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bracket-print-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .no-print,
+  .bracket-print-toolbar {
+    display: none !important;
+  }
+
+  .bracket-print-page {
+    padding: 0;
+    min-height: auto;
+  }
+
+  .bracket-print-sheet {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - 16mm);
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

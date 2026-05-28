@@ -1,72 +1,90 @@
 'use client'
 
-import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { descargarExcelHtml, tdCell, thCell, XL, slugArchivo } from '@/lib/campeonato/export-excel-html'
 import { nombreHojaExcel } from '@/lib/campeonato/export-llaves'
 
-function slugArchivo(nombre) {
-  return (nombre || 'campeonato')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase()
-    .slice(0, 40)
+function hojaCategoriaHtml(cat) {
+  let html = `<table style="width:100%;margin-bottom:6px;"><tr>${thCell(cat.nombre, XL.red, '#fff', 6)}</tr></table>`
+  html += `<p style="font-size:10pt;margin:0 0 8px;">${cat.inscritos} inscritos · Cancha ${cat.cancha ? `Área ${cat.cancha}` : '—'} · ${cat.division || ''} ${cat.genero || ''}</p>`
+
+  const porRonda = {}
+  for (const f of cat.filasCombates || []) {
+    if (!porRonda[f.rondaLabel]) porRonda[f.rondaLabel] = []
+    porRonda[f.rondaLabel].push(f)
+  }
+
+  for (const [ronda, filas] of Object.entries(porRonda)) {
+    html += `<p style="font-weight:bold;font-size:11pt;margin:10px 0 4px;background:${XL.dark};color:#fff;padding:4px 8px;">${ronda}</p>`
+    html += '<table style="width:100%;"><thead><tr>'
+    html += ['#', 'Chung (Azul)', 'Academia Chung', 'Hong (Rojo)', 'Academia Hong', 'Ganador', 'Estado'].map((c) => thCell(c, XL.dark)).join('')
+    html += '</tr></thead><tbody>'
+
+    filas.forEach((f, i) => {
+      const bg = i % 2 === 0 ? '#fff' : XL.gray
+      html += '<tr>'
+      html += tdCell(f.match_numero, { bg, align: 'center', bold: true })
+      html += tdCell(f.chung, { bg: XL.chungBg, color: XL.chung, bold: true })
+      html += tdCell(f.academia_chung, { bg })
+      html += tdCell(f.hong, { bg: XL.hongBg, color: XL.hong, bold: true })
+      html += tdCell(f.academia_hong, { bg })
+      html += tdCell(f.ganador || '—', { bg: f.ganador ? XL.goldBg : bg, bold: Boolean(f.ganador) })
+      html += tdCell(f.estado, { bg, align: 'center' })
+      html += '</tr>'
+    })
+    html += '</tbody></table>'
+  }
+  return html
 }
 
 export async function descargarLlavesExcel(data) {
-  const wb = XLSX.utils.book_new()
   const camp = data.campeonato?.nombre || 'Campeonato'
+  const sheets = []
 
-  const rowsResumen = [
-    ['Campeonato', camp],
-    ['Ciudad', data.campeonato?.ciudad || ''],
-    ['Total categorías', data.totales?.categorias || 0],
-    ['Total competidores', data.totales?.competidores || 0],
-    ['Total combates', data.totales?.combates || 0],
-    ['Categorías con llave', data.totales?.con_llave || 0],
-    [],
-    ['Categoría', 'División', 'Género', 'Inscritos', 'Combates', 'Cancha', 'Llave'],
-    ...(data.resumen || []).map((r) => [
-      r.categoria,
-      r.division,
-      r.genero,
-      r.inscritos,
-      r.combates,
-      r.cancha,
-      r.llave,
-    ]),
-  ]
-  const wsResumen = XLSX.utils.aoa_to_sheet(rowsResumen)
-  wsResumen['!cols'] = [{ wch: 36 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }]
-  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
+  let resHtml = `<table><tr>${thCell('LLAVES KYORUGI · RESUMEN', XL.red, '#fff', 7)}</tr></table>`
+  resHtml += `<p style="font-size:11pt;margin:8px 0;">${camp} · ${data.totales?.competidores || 0} competidores · ${data.totales?.categorias || 0} categorías · ${data.totales?.combates || 0} combates</p>`
+  resHtml += '<table><thead><tr>'
+  resHtml += ['Categoría', 'División', 'Género', 'Inscritos', 'Combates', 'Cancha', 'Llave'].map((c) => thCell(c, XL.dark)).join('')
+  resHtml += '</tr></thead><tbody>'
+  ;(data.resumen || []).forEach((r, i) => {
+    const bg = i % 2 === 0 ? '#fff' : XL.gray
+    resHtml += '<tr>'
+    resHtml += tdCell(r.categoria, { bg, bold: true })
+    resHtml += tdCell(r.division, { bg, align: 'center' })
+    resHtml += tdCell(r.genero, { bg, align: 'center' })
+    resHtml += tdCell(r.inscritos, { bg, align: 'center' })
+    resHtml += tdCell(r.combates, { bg, align: 'center' })
+    resHtml += tdCell(r.cancha, { bg, align: 'center' })
+    resHtml += tdCell(r.llave, { bg: r.llave === 'Sí' ? XL.greenBg : XL.redBg, align: 'center', bold: true })
+    resHtml += '</tr>'
+  })
+  resHtml += '</tbody></table>'
+  sheets.push({ name: 'Resumen', html: resHtml })
 
-  const filasTodos = []
+  let todosHtml = `<table><tr>${thCell('TODOS LOS COMBATES', XL.dark, '#fff', 8)}</tr></table>`
+  todosHtml += '<table><thead><tr>'
+  todosHtml += ['Categoría', 'Ronda', '#', 'Chung', 'Acad. Chung', 'Hong', 'Acad. Hong', 'Ganador'].map((c) => thCell(c, XL.red)).join('')
+  todosHtml += '</tr></thead><tbody>'
   for (const cat of data.categorias || []) {
     if (!cat.tiene_llave) continue
-    for (const f of cat.filasCombates) {
-      filasTodos.push({
-        Categoría: cat.nombre,
-        Inscritos: cat.inscritos,
-        Cancha: cat.cancha ? `Área ${cat.cancha}` : '',
-        Ronda: f.rondaLabel,
-        Pelea: f.match_numero,
-        Chung: f.chung,
-        'Acad. Chung': f.academia_chung,
-        Hong: f.hong,
-        'Acad. Hong': f.academia_hong,
-        Estado: f.estado,
-        Ganador: f.ganador,
-      })
+    for (const f of cat.filasCombates || []) {
+      todosHtml += '<tr>'
+      todosHtml += tdCell(cat.nombre, { bold: true })
+      todosHtml += tdCell(f.rondaLabel, { bg: XL.gray })
+      todosHtml += tdCell(f.match_numero, { align: 'center', bold: true })
+      todosHtml += tdCell(f.chung, { bg: XL.chungBg, color: XL.chung })
+      todosHtml += tdCell(f.academia_chung)
+      todosHtml += tdCell(f.hong, { bg: XL.hongBg, color: XL.hong })
+      todosHtml += tdCell(f.academia_hong)
+      todosHtml += tdCell(f.ganador || '—', { bg: f.ganador ? XL.goldBg : '#fff', bold: Boolean(f.ganador) })
+      todosHtml += '</tr>'
     }
   }
-  if (filasTodos.length) {
-    const wsCombates = XLSX.utils.json_to_sheet(filasTodos)
-    XLSX.utils.book_append_sheet(wb, wsCombates, 'Todos los combates')
-  }
+  todosHtml += '</tbody></table>'
+  sheets.push({ name: 'Todos combates', html: todosHtml })
 
-  const usados = new Set(['Resumen', 'Todos los combates'])
+  const usados = new Set(['Resumen', 'Todos combates'])
   for (const cat of data.categorias || []) {
     if (!cat.tiene_llave) continue
     let base = nombreHojaExcel(cat.nombre)
@@ -77,36 +95,10 @@ export async function descargarLlavesExcel(data) {
       n++
     }
     usados.add(nombre)
-
-    const rows = [
-      ['Categoría', cat.nombre],
-      ['Inscritos', cat.inscritos],
-      ['Cancha', cat.cancha ? `Área ${cat.cancha}` : '—'],
-      ['División', cat.division || ''],
-      ['Género', cat.genero || ''],
-      [],
-      ['Ronda', 'Pelea', 'Chung (Azul)', 'Hong (Rojo)', 'Ganador', 'Estado'],
-    ]
-
-    for (const f of cat.filasCombates) {
-      rows.push([f.rondaLabel, f.match_numero, f.chung, f.hong, f.ganador, f.estado])
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet(rows)
-    ws['!cols'] = [{ wch: 18 }, { wch: 8 }, { wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 12 }]
-    XLSX.utils.book_append_sheet(wb, ws, nombre)
+    sheets.push({ name: nombre, html: hojaCategoriaHtml(cat) })
   }
 
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const blob = new Blob([buf], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `llaves-${slugArchivo(camp)}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
+  descargarExcelHtml(`llaves-${slugArchivo(camp)}`, sheets)
 }
 
 export async function descargarLlavesPdf(data) {
