@@ -62,4 +62,44 @@ describe('export-bracket-pdf (smoke)', () => {
       dibujarBracketCategoriaPdf(doc, { nombre: 'Test' }, { nombre: 'Vacía', porRonda: {} }, { pageW: 297, pageH: 210 })
     ).not.toThrow()
   })
+
+  it('no lanza con llave compacta 3 competidores (feeder único)', async () => {
+    const { jsPDF } = await import('jspdf')
+    const { dibujarBracketCategoriaPdf } = await import('@/lib/campeonato/export-bracket-pdf')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const porRonda = {
+      2: [
+        {
+          ronda: 2,
+          match_numero: 1,
+          orden_pista: 1,
+          estado: 'pendiente',
+          competidor1: { id_linea: 1, nombres: 'ATLETA 1', academia: 'Club' },
+          competidor2: { id_linea: 2, nombres: 'ATLETA 2', academia: 'Club' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+      1: [
+        {
+          ronda: 1,
+          match_numero: 1,
+          orden_pista: 2,
+          estado: 'pendiente',
+          competidor1: null,
+          competidor2: null,
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+    }
+    expect(() =>
+      dibujarBracketCategoriaPdf(
+        doc,
+        { nombre: 'Test Cup' },
+        { nombre: 'Compacta 3', cancha: 1, inscritos: 3, porRonda },
+        { pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight() }
+      )
+    ).not.toThrow()
+  })
 })

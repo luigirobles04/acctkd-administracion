@@ -76,22 +76,32 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
     const colBase = 3 + roundIdx * 2
     const gapCol = colBase - 1
     const prevCol = colBase - 2
+    const prevCount = cols[roundIdx - 1].combates.length
 
     col.combates.forEach((m, mi) => {
-      const vTop = outRow(roundIdx - 1, mi * 2)
-      const vBot = outRow(roundIdx - 1, mi * 2 + 1)
+      const feedA = mi * 2
+      const feedB = mi * 2 + 1
+      const vTop = outRow(roundIdx - 1, feedA)
+      const vBot = feedB < prevCount ? outRow(roundIdx - 1, feedB) : vTop
       const mid = outRow(roundIdx, mi)
 
-      // Brazos horizontales: desde la vertical anterior hasta esta ronda
+      // Brazos horizontales desde la vertical anterior
       for (const r of [vTop, vBot]) {
         addBorder(r, prevCol, { bottom: true })
         addBorder(r, gapCol, { bottom: true })
       }
 
-      // Vertical completa de vTop a vBot
-      for (let r = vTop; r <= vBot; r++) addBorder(r, colBase, { right: true })
-      addBorder(vTop, colBase, { top: true })
-      addBorder(vBot, colBase, { bottom: true })
+      // Vertical de vTop a vBot (si hay un solo feeder, tramo mínimo)
+      const rStart = Math.min(vTop, vBot)
+      const rEnd = Math.max(vTop, vBot)
+      for (let r = rStart; r <= rEnd; r++) addBorder(r, colBase, { right: true })
+      addBorder(rStart, colBase, { top: true })
+      addBorder(rEnd, colBase, { bottom: true })
+
+      // Línea horizontal de salida hacia la siguiente ronda (si existe)
+      if (roundIdx < cols.length - 1) {
+        addBorder(mid, colBase, { bottom: true })
+      }
 
       const label = m.chung?.vacio && m.hong?.vacio ? 'POR DEFINIR' : m.chung?.nombre || m.hong?.nombre || 'POR DEFINIR'
       if (roundIdx === cols.length - 1) {

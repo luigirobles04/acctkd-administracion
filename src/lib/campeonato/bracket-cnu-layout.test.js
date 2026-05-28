@@ -75,4 +75,36 @@ describe('layoutCnuBracket', () => {
     expect(spec?.v).toBe('1/01')
     expect(spec?.border?.right).toBe(true)
   })
+
+  it('árbol con un solo feeder (bye) no rompe conectores', () => {
+    const porRonda = {
+      2: [
+        {
+          ronda: 2,
+          match_numero: 1,
+          orden_pista: 1,
+          estado: 'pendiente',
+          competidor1: { id_linea: 1, nombres: 'A', academia: 'X' },
+          competidor2: { id_linea: 2, nombres: 'B', academia: 'Y' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+      1: [
+        {
+          ronda: 1,
+          match_numero: 1,
+          orden_pista: 2,
+          estado: 'pendiente',
+          competidor1: null,
+          competidor2: null,
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+    }
+    const layout = layoutCnuBracket(porRonda, { cancha: 1 })
+    expect(layout).toBeTruthy()
+    expect(layout.cells.get('1,5')?.border?.right).toBe(true)
+  })
 })

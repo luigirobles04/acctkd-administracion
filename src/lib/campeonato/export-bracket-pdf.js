@@ -196,10 +196,16 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
         const span = totalH / count
         yChung = marginT + i * span + (span - (boxH * 2 + gap)) / 2
       } else {
-        const feedA = matchPositions[colIdx - 1][i * 2]
-        const feedB = matchPositions[colIdx - 1][i * 2 + 1] || feedA
-        const centerY = (feedA.yBadge + feedB.yBadge) / 2
-        yChung = centerY - (boxH + gap / 2)
+        const prevCount = cols[colIdx - 1].combates.length
+        const feedA = matchPositions[colIdx - 1]?.[i * 2]
+        const feedB = i * 2 + 1 < prevCount ? matchPositions[colIdx - 1]?.[i * 2 + 1] : feedA
+        if (!feedA) {
+          const span = totalH / count
+          yChung = marginT + i * span + (span - (boxH * 2 + gap)) / 2
+        } else {
+          const centerY = (feedA.yBadge + (feedB?.yBadge ?? feedA.yBadge)) / 2
+          yChung = centerY - (boxH + gap / 2)
+        }
       }
       const yHong = yChung + boxH + gap
       const yBadge = yChung + boxH / 2 + (yHong - yChung) / 2
@@ -215,8 +221,8 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       if (colIdx < cols.length - 1) {
         const targetIdx = Math.floor(matchIdx / 2)
         const target = matchPositions[colIdx + 1]?.[targetIdx]
-        const yTarget = target ? target.yBadge : yBadge
-        drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, yTarget)
+        if (!target) return
+        drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, target.yBadge)
       }
     })
   })

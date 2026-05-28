@@ -66,10 +66,27 @@ export async function buildExportLlaves(sb, idCampeonato) {
     }
   }
 
+  // Número de combate local por área: 1, 2, 3… (no global 200+)
+  const ordenLocalPorLlave = {}
+  for (const cancha of [1, 2, 3]) {
+    const lista = (porCancha[cancha] || [])
+      .filter(combateBracketExport)
+      .sort((a, b) => (a.orden_pista || 9999) - (b.orden_pista || 9999))
+    lista.forEach((c, idx) => {
+      ordenLocalPorLlave[c.id_llave] = idx + 1
+    })
+  }
+
+  function conOrdenLocal(c) {
+    const local = ordenLocalPorLlave[c.id_llave]
+    return local != null ? { ...c, orden_pista: local } : c
+  }
+
   const categoriasExport = (categorias || []).map((cat) => {
-    const combates = (porCat[cat.id_categoria] || []).filter(combateExportable)
+    const combates = (porCat[cat.id_categoria] || []).filter(combateExportable).map(conOrdenLocal)
     const porRonda = (porCat[cat.id_categoria] || [])
       .filter(combateBracketExport)
+      .map(conOrdenLocal)
       .reduce((acc, c) => {
         if (!acc[c.ronda]) acc[c.ronda] = []
         acc[c.ronda].push(c)
