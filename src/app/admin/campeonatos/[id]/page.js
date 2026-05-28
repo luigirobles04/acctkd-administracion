@@ -363,6 +363,7 @@ export default function CampeonatoDetallePage() {
                 <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-primary">Academias inscritas</Link>
                 <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-secondary">Pagos y aprobación</Link>
                 <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
+                <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
                 <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
                 {campeonato.slug && (
@@ -428,6 +429,7 @@ export default function CampeonatoDetallePage() {
                   <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
                   <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
                   <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
+                <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
                 <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                   <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 </div>

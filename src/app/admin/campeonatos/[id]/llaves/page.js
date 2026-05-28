@@ -195,6 +195,9 @@ export default function CampeonatoLlavesPage() {
             >
               Ver por canchas
             </button>
+            <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">
+              Podios
+            </Link>
           </div>
         )}
 

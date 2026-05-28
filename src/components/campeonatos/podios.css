@@ -1,0 +1,248 @@
+.podios-root {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 8px 48px;
+}
+
+.podios-toolbar {
+  margin-bottom: 24px;
+}
+
+.podios-back {
+  display: inline-block;
+  color: var(--red);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.podios-resumen {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--label2, #555);
+}
+
+.podios-resumen strong {
+  color: var(--label, #111);
+}
+
+.podios-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.podios-actions .ios-input {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+
+.podios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.podio-card {
+  background: #fff;
+  border: 1px solid var(--separator, #e5e7eb);
+  border-radius: 14px;
+  padding: 16px;
+  break-inside: avoid;
+}
+
+.podio-card--completo {
+  border-color: #fbbf24;
+  box-shadow: 0 2px 12px rgba(251, 191, 36, 0.12);
+}
+
+.podio-card--en_curso {
+  opacity: 0.85;
+  border-style: dashed;
+}
+
+.podio-cat-nombre {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--red, #dc2626);
+  line-height: 1.25;
+}
+
+.podio-estado {
+  margin: 0;
+  font-size: 13px;
+  color: var(--label3, #888);
+}
+
+.podio-plataforma {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.podio-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.podio-col--centro {
+  gap: 10px;
+}
+
+.podio-puesto {
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 72px;
+  justify-content: center;
+}
+
+.podio-puesto--oro {
+  background: linear-gradient(160deg, #fef9c3 0%, #fde047 40%, #facc15 100%);
+  border: 2px solid #ca8a04;
+  min-height: 96px;
+  order: -1;
+}
+
+.podio-puesto--plata {
+  background: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  border: 2px solid #94a3b8;
+}
+
+.podio-puesto--bronce {
+  background: linear-gradient(160deg, #fff7ed 0%, #fed7aa 50%, #fdba74 100%);
+  border: 2px solid #ea580c;
+  min-height: 64px;
+}
+
+.podio-puesto--vacio {
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  opacity: 0.6;
+}
+
+.podio-medalla {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.podio-puesto--oro .podio-medalla {
+  font-size: 2rem;
+}
+
+.podio-dorsal {
+  font-size: 18px;
+  font-weight: 900;
+  color: #111;
+  line-height: 1.1;
+}
+
+.podio-puesto--oro .podio-dorsal {
+  font-size: 22px;
+}
+
+.podio-nombre {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1e293b;
+}
+
+.podio-academia {
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.podio-vacio-text {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Impresión lista */
+.podios-print-sheet {
+  display: none;
+}
+
+@media print {
+  .no-print,
+  nav,
+  aside,
+  header {
+    display: none !important;
+  }
+
+  .podios-grid {
+    display: none !important;
+  }
+
+  .podios-print-sheet {
+    display: block !important;
+  }
+
+  .podios-print-header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 3px solid #dc2626;
+  }
+
+  .podios-print-marca {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: #dc2626;
+  }
+
+  .podios-print-header h1 {
+    margin: 8px 0 4px;
+    font-size: 22px;
+  }
+
+  .podios-print-header p {
+    margin: 0;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .podios-print-row {
+    page-break-inside: avoid;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .podios-print-row h2 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: #dc2626;
+  }
+
+  .podios-print-medallas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .podios-print-medallas div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .podios-print-medallas small {
+    color: #666;
+    font-size: 10px;
+  }
+}
