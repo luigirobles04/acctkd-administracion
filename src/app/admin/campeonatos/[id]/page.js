@@ -366,7 +366,10 @@ export default function CampeonatoDetallePage() {
                 <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
                 {campeonato.slug && (
-                  <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
+                  <>
+                    <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
+                    <a href={`/campeonato/${campeonato.slug}/canchas`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Pantallas TV</a>
+                  </>
                 )}
                 <button type="button" className="ios-btn ios-btn-ghost" style={{ color: 'var(--red)' }} onClick={eliminarCampeonato}>
                   Eliminar campeonato

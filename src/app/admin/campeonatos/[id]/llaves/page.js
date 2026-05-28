@@ -252,7 +252,21 @@ export default function CampeonatoLlavesPage() {
 
             {vista === 'canchas' && porCancha && !generandoTodas && (
               <div className="ios-card" style={{ padding: 16 }}>
-                <h3 style={{ marginBottom: 16 }}>Programación por cancha</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                  <h3 style={{ margin: 0 }}>Programación por cancha</h3>
+                  {campeonato?.slug && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <a href={`/campeonato/${campeonato.slug}/canchas`} target="_blank" rel="noreferrer" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }}>
+                        Pantallas TV
+                      </a>
+                      {[1, 2, 3].map((n) => (
+                        <a key={n} href={`/campeonato/${campeonato.slug}/cancha/${n}`} target="_blank" rel="noreferrer" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }}>
+                          Área {n}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
                   {[1, 2, 3].map((n) => (
                     <div key={n}>
