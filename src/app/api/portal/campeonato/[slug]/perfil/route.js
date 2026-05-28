@@ -36,8 +36,8 @@ export async function POST(request, { params }) {
 
     const { sb, ac } = ctx
     const check = puedeInscribir(ac.campeonato)
-    if (!check.ok || check.soloPago) {
-      return NextResponse.json({ error: 'No se pueden editar perfiles' }, { status: 403 })
+    if (!check.ok) {
+      return NextResponse.json({ error: check.reason || 'No se pueden editar perfiles' }, { status: 403 })
     }
     if (ac.estado_aprobacion === 'rechazada') {
       return NextResponse.json({ error: 'Academia rechazada' }, { status: 403 })
@@ -79,6 +79,10 @@ export async function POST(request, { params }) {
       .eq('documento_tipo', payload.documento_tipo)
       .eq('documento_numero', payload.documento_numero)
       .maybeSingle()
+
+    if (check.soloPago && !existente) {
+      return NextResponse.json({ error: 'Plazo de inscripción cerrado — solo pagos' }, { status: 403 })
+    }
 
     let perfil
     if (existente) {

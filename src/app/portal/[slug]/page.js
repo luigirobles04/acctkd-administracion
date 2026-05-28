@@ -228,6 +228,28 @@ export default function PortalCampeonatoPage() {
     return json.perfil
   }
 
+  async function guardarSoloDatos() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      let fotoUrl = perfil.foto_url || ''
+      if (perfil._fotoFile) {
+        fotoUrl = await subirFoto()
+      }
+      await guardarPerfil(fotoUrl)
+      setPerfil(FORM)
+      setModalidadesSel({})
+      setStep(0)
+      setEditPerfilId(null)
+      setTab('plantel')
+      await cargar()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function confirmarInscripcion() {
     setSubmitting(true)
     setError(null)
@@ -476,10 +498,23 @@ export default function PortalCampeonatoPage() {
                   />
                 </div>
               </PortalField>
+              {error && <p className="portal-error">{error}</p>}
               <div className="portal-actions">
-                <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setStep(0)}>Atrás</button>
+                <button type="button" className="ios-btn ios-btn-secondary" onClick={() => { setStep(0); if (!editPerfilId) return; setEditPerfilId(null); setTab('plantel') }}>
+                  {editPerfilId ? 'Cancelar' : 'Atrás'}
+                </button>
+                {editPerfilId && (
+                  <button
+                    type="button"
+                    className="ios-btn ios-btn-primary"
+                    disabled={submitting || !perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento}
+                    onClick={guardarSoloDatos}
+                  >
+                    {submitting ? 'Guardando…' : 'Guardar cambios'}
+                  </button>
+                )}
                 <button type="button" className="ios-btn ios-btn-primary" disabled={!perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento} onClick={() => setStep(2)}>
-                  Continuar
+                  {editPerfilId ? 'Agregar modalidades' : 'Continuar'}
                 </button>
               </div>
             </>

@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
-import { getSupabase } from '@/lib/supabase'
 import { whatsappUrl } from '@/lib/campeonato/constants'
 
 const ESTADO_APRO = {
@@ -14,40 +13,57 @@ const ESTADO_APRO = {
   rechazada: { label: 'Rechazada', cls: 'badge-red' },
 }
 
+function RecaudacionCards({ recaudacion }) {
+  if (!recaudacion) return null
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 16 }}>
+      <div className="ios-card" style={{ padding: 14 }}>
+        <strong style={{ fontSize: 20 }}>S/ {Number(recaudacion.recaudado || 0).toFixed(0)}</strong>
+        <div className="ios-caption">Recaudado</div>
+      </div>
+      <div className="ios-card" style={{ padding: 14 }}>
+        <strong style={{ fontSize: 20 }}>S/ {Number(recaudacion.pendiente || 0).toFixed(0)}</strong>
+        <div className="ios-caption">Pendiente</div>
+      </div>
+      <div className="ios-card" style={{ padding: 14 }}>
+        <strong style={{ fontSize: 20 }}>S/ {Number(recaudacion.totalEsperado || 0).toFixed(0)}</strong>
+        <div className="ios-caption">Total esperado</div>
+      </div>
+    </div>
+  )
+}
+
 export default function CampeonatoAcademiasPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [academias, setAcademias] = useState([])
   const [lineas, setLineas] = useState([])
+  const [recaudacion, setRecaudacion] = useState(null)
   const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(null)
   const [expandida, setExpandida] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
-      const sb = getSupabase()
-      const { data } = await sb
-        .from('academia_campeonato')
-        .select('*, academia:id_academia(*)')
-        .eq('id_campeonato', idCampeonato)
-        .order('created_at', { ascending: false })
-      setAcademias(data || [])
 
-      const { data: lins } = await sb
-        .from('linea_inscripcion')
-        .select(`
-          *,
-          categoria:categoria_campeonato(nombre),
-          miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
-        `)
-        .eq('id_campeonato', idCampeonato)
-        .neq('estado', 'anulado')
-      setLineas(lins || [])
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'No se pudo cargar academias')
+
+      setAcademias(json.academias || [])
+      setLineas(json.lineas || [])
+      setRecaudacion(json.recaudacion || null)
+    } catch (e) {
+      setError(e.message)
+      setAcademias([])
+      setLineas([])
     } finally {
       setLoading(false)
     }
@@ -59,34 +75,41 @@ export default function CampeonatoAcademiasPage() {
 
   async function aprobar(acId) {
     setProcesando(acId)
-    await getSupabase()
-      .from('academia_campeonato')
-      .update({ estado_aprobacion: 'aprobada', motivo_rechazo: null })
-      .eq('id', acId)
-    await getSupabase().from('bitacora_inscripcion').insert({
-      id_academia_campeonato: acId,
-      accion: 'academia_aprobada',
-      actor: 'admin',
-    })
-    setProcesando(null)
-    cargar()
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acId, accion: 'aprobar' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setProcesando(null)
+    }
   }
 
   async function rechazar(acId) {
     const motivo = prompt('Motivo del rechazo (opcional):') || 'No cumple requisitos'
     setProcesando(acId)
-    await getSupabase()
-      .from('academia_campeonato')
-      .update({ estado_aprobacion: 'rechazada', motivo_rechazo: motivo })
-      .eq('id', acId)
-    await getSupabase().from('bitacora_inscripcion').insert({
-      id_academia_campeonato: acId,
-      accion: 'academia_rechazada',
-      detalle: { motivo },
-      actor: 'admin',
-    })
-    setProcesando(null)
-    cargar()
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acId, accion: 'rechazar', motivo }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setProcesando(null)
+    }
   }
 
   const slug = campeonato?.slug
@@ -108,6 +131,14 @@ export default function CampeonatoAcademiasPage() {
     <AdminLayout title="Academias" subtitle={campeonato?.nombre}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px 24px' }}>
         <Link href={`/admin/campeonatos/${id}`} className="ios-caption" style={{ color: 'var(--red)' }}>← Volver al campeonato</Link>
+
+        {error && (
+          <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A', fontSize: 14 }}>
+            {error}
+          </div>
+        )}
+
+        <RecaudacionCards recaudacion={recaudacion} />
 
         <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
           <p className="ios-headline" style={{ marginBottom: 8 }}>Portal de inscripción</p>
@@ -217,7 +248,7 @@ export default function CampeonatoAcademiasPage() {
                 })}
               </tbody>
             </table>
-            {listado.length === 0 && (
+            {listado.length === 0 && !error && (
               <p style={{ padding: 20, color: 'var(--label3)', lineHeight: 1.5 }}>
                 {filtro === 'pendiente'
                   ? 'No hay academias pendientes de aprobación en este campeonato.'

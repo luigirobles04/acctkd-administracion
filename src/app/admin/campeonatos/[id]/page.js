@@ -1,16 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
 import {
   actualizarCampeonato,
-  crearCompetidorDesdeAlumno,
   crearInscripcion,
-  eliminarCompetidor,
-  listarAlumnosParaCompetir,
   listarCategorias,
-  listarCompetidores,
   listarInscripciones,
   listarAcademiasCampeonato,
   listarLineasInscripcion,
@@ -18,6 +14,7 @@ import {
   actualizarInscripcion,
 } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
+import { GRADOS_KUP_DAN } from '@/lib/campeonato/constants'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -34,11 +31,6 @@ const TABS = [
   { id: 'competidores', label: 'Competidores', icon: 'sports_martial_arts' },
 ]
 
-const MODALIDADES = [
-  { id: 'kyorugi', label: 'Kyorugi' },
-  { id: 'poomsae_individual', label: 'Poomsae individual' },
-]
-
 export default function CampeonatoDetallePage() {
   const { id } = useParams()
   const router = useRouter()
@@ -50,35 +42,30 @@ export default function CampeonatoDetallePage() {
   const [inscripciones, setInscripciones] = useState([])
   const [academiasCamp, setAcademiasCamp] = useState([])
   const [lineasInscripcion, setLineasInscripcion] = useState([])
-  const [competidores, setCompetidores] = useState([])
-  const [alumnos, setAlumnos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activando, setActivando] = useState(false)
   const [autoReparado, setAutoReparado] = useState(false)
 
   const [formIns, setFormIns] = useState({ nombre_academia: 'Christopher Cabrera Taekwondo', coach_nombres: '', coach_apellidos: '', coach_telefono: '', cantidad_competidores: 1 })
-  const [formComp, setFormComp] = useState({ id_alumno: '', id_categoria: '', id_inscripcion: '', modalidad: 'kyorugi' })
+  const [editPerfil, setEditPerfil] = useState(null)
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
   const cargar = useCallback(async () => {
     if (!idCampeonato) return
     setLoading(true)
     setError(null)
     try {
-      const [camp, cats, ins, comps, alu, acs, lineas] = await Promise.all([
+      const [camp, cats, ins, acs, lineas] = await Promise.all([
         obtenerCampeonato(idCampeonato),
         listarCategorias(idCampeonato),
         listarInscripciones(idCampeonato),
-        listarCompetidores(idCampeonato),
-        listarAlumnosParaCompetir(),
         listarAcademiasCampeonato(idCampeonato),
         listarLineasInscripcion(idCampeonato),
       ])
       setCampeonato(camp)
       setCategorias(cats)
       setInscripciones(ins)
-      setCompetidores(comps)
-      setAlumnos(alu)
       setAcademiasCamp(acs)
       setLineasInscripcion(lineas)
     } catch (e) {
@@ -158,34 +145,6 @@ export default function CampeonatoDetallePage() {
     }
   }
 
-  async function guardarCompetidor(e) {
-    e.preventDefault()
-    if (!formComp.id_alumno) return alert('Selecciona un alumno')
-    try {
-      await crearCompetidorDesdeAlumno({
-        idCampeonato,
-        idAlumno: Number(formComp.id_alumno),
-        idCategoria: formComp.id_categoria ? Number(formComp.id_categoria) : null,
-        idInscripcion: formComp.id_inscripcion ? Number(formComp.id_inscripcion) : null,
-        modalidad: formComp.modalidad,
-      })
-      setFormComp({ id_alumno: '', id_categoria: '', id_inscripcion: '', modalidad: 'kyorugi' })
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
-  async function quitarCompetidor(idComp) {
-    if (!confirm('¿Eliminar competidor del evento?')) return
-    try {
-      await eliminarCompetidor(idComp)
-      await cargar()
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
   async function eliminarCampeonato() {
     if (!confirm(`¿Eliminar "${campeonato?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return
     try {
@@ -220,6 +179,53 @@ export default function CampeonatoDetallePage() {
   const st = ESTADOS[campeonato.estado] || { label: campeonato.estado, cls: 'badge-gray' }
   const catsKyorugi = categorias.filter((c) => c.modalidad === 'kyorugi')
   const catsPoomsae = categorias.filter((c) => c.modalidad === 'poomsae')
+
+  const recaudacion = useMemo(() => {
+    const base = academiasCamp.reduce(
+      (acc, ac) => {
+        acc.totalEsperado += Number(ac.monto_total || 0)
+        acc.recaudado += Number(ac.monto_asignado || 0)
+        return acc
+      },
+      { totalEsperado: 0, recaudado: 0 }
+    )
+    return { ...base, pendiente: Math.max(0, base.totalEsperado - base.recaudado) }
+  }, [academiasCamp])
+
+  const perfilesPortal = useMemo(() => {
+    const map = new Map()
+    for (const l of lineasInscripcion) {
+      for (const m of l.miembros || []) {
+        const p = m.perfil
+        if (!p?.id_perfil) continue
+        const prev = map.get(p.id_perfil) || { ...p, lineas: [] }
+        prev.lineas.push(l)
+        map.set(p.id_perfil, prev)
+      }
+    }
+    return [...map.values()].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || ''))
+  }, [lineasInscripcion])
+
+  async function guardarPerfilAdmin(e) {
+    e.preventDefault()
+    if (!editPerfil) return
+    setGuardandoPerfil(true)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/perfil`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editPerfil),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setEditPerfil(null)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setGuardandoPerfil(false)
+    }
+  }
 
   return (
     <AdminLayout title={campeonato.nombre} subtitle={`${formatFecha(campeonato.fecha_inicio)} — ${formatFecha(campeonato.fecha_fin)}`}>
@@ -276,7 +282,9 @@ export default function CampeonatoDetallePage() {
                 { label: 'Categorías', val: categorias.length, icon: 'category', color: '#007AFF' },
                 { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759' },
                 { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500' },
-                { label: 'Competidores (legacy)', val: competidores.length, icon: 'sports_martial_arts', color: 'var(--red)' },
+                { label: 'Recaudado', val: `S/ ${recaudacion.recaudado.toFixed(0)}`, icon: 'payments', color: '#34C759' },
+                { label: 'Pendiente', val: `S/ ${recaudacion.pendiente.toFixed(0)}`, icon: 'pending', color: '#FF9500' },
+                { label: 'Total esperado', val: `S/ ${recaudacion.totalEsperado.toFixed(0)}`, icon: 'account_balance', color: '#5856D6' },
                 { label: 'Slug portal', val: campeonato.slug || '—', icon: 'link', color: '#5856D6' },
               ].map((k) => (
                 <div key={k.label} className="ios-card" style={{ padding: 16 }}>
@@ -411,68 +419,83 @@ export default function CampeonatoDetallePage() {
         )}
 
         {tab === 'competidores' && (
-          <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 340px)' }}>
+          <div style={{ display: 'grid', gap: 20, gridTemplateColumns: editPerfil ? 'minmax(0, 1fr) minmax(280px, 340px)' : '1fr' }}>
             <div className="ios-group">
-              {competidores.length === 0 ? (
-                <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin competidores inscritos</p>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--separator)' }}>
+                <p className="ios-headline">{perfilesPortal.length} competidores (portal)</p>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>
+                  Inscripciones del portal por academia. Edita datos personales aquí o desde el plantel de cada academia.
+                </p>
+              </div>
+              {perfilesPortal.length === 0 ? (
+                <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin competidores inscritos vía portal</p>
               ) : (
-                competidores.map((c) => (
-                  <div key={c.id_competidor} className="ios-group-row">
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
-                      {c.dorsal ?? '—'}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p className="ios-headline">{c.nombre_completo || `${c.nombres} ${c.apellidos}`}</p>
+                perfilesPortal.map((p) => (
+                  <div key={p.id_perfil} className="ios-group-row" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="ios-headline">{p.nombres} {p.apellidos}</p>
                       <p className="ios-caption" style={{ color: 'var(--label3)' }}>
-                        {c.categoria_campeonato?.nombre || 'Sin categoría'} · {c.modalidad} · {c.grado || '—'}
+                        {p.documento_tipo} {p.documento_numero} · {p.grado || '—'} · {p.sexo}
+                      </p>
+                      <p className="ios-caption" style={{ color: 'var(--label2)', marginTop: 4 }}>
+                        {(p.lineas || []).length} inscripción(es)
+                        {(p.lineas || []).slice(0, 2).map((l) => (
+                          <span key={l.id_linea} style={{ display: 'block' }}>
+                            {l.dorsal_display || '—'} · {l.modalidad} · {l.estado}
+                          </span>
+                        ))}
                       </p>
                     </div>
-                    <button type="button" className="ios-btn ios-btn-ghost" style={{ height: 36, width: 36, padding: 0 }} onClick={() => quitarCompetidor(c.id_competidor)} aria-label="Quitar">
-                      <span className="material-symbols-rounded" style={{ color: 'var(--red)' }}>person_remove</span>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-secondary"
+                      style={{ fontSize: 12, flexShrink: 0 }}
+                      onClick={() => setEditPerfil({ ...p })}
+                    >
+                      Editar
                     </button>
                   </div>
                 ))
               )}
             </div>
-            <form className="ios-card" style={{ padding: 18 }} onSubmit={guardarCompetidor}>
-              <p className="ios-headline" style={{ marginBottom: 14 }}>Inscribir alumno ACCTKD</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <label>
-                  <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Alumno *</span>
-                  <select className="ios-input" required value={formComp.id_alumno} onChange={(e) => setFormComp((p) => ({ ...p, id_alumno: e.target.value }))}>
-                    <option value="">Seleccionar…</option>
-                    {alumnos.map((a) => (
-                      <option key={a.id_alumno} value={a.id_alumno}>{a.apellidos}, {a.nombres}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Categoría</span>
-                  <select className="ios-input" value={formComp.id_categoria} onChange={(e) => setFormComp((p) => ({ ...p, id_categoria: e.target.value }))}>
-                    <option value="">Sin asignar</option>
-                    {categorias.map((cat) => (
-                      <option key={cat.id_categoria} value={cat.id_categoria}>{cat.nombre}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Inscripción (opcional)</span>
-                  <select className="ios-input" value={formComp.id_inscripcion} onChange={(e) => setFormComp((p) => ({ ...p, id_inscripcion: e.target.value }))}>
-                    <option value="">—</option>
-                    {inscripciones.map((ins) => (
-                      <option key={ins.id_inscripcion} value={ins.id_inscripcion}>{ins.nombre_academia}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Modalidad</span>
-                  <select className="ios-input" value={formComp.modalidad} onChange={(e) => setFormComp((p) => ({ ...p, modalidad: e.target.value }))}>
-                    {MODALIDADES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                  </select>
-                </label>
-                <button type="submit" className="ios-btn ios-btn-primary">Asignar dorsal automático</button>
-              </div>
-            </form>
+            {editPerfil && (
+              <form className="ios-card" style={{ padding: 18, alignSelf: 'start' }} onSubmit={guardarPerfilAdmin}>
+                <p className="ios-headline" style={{ marginBottom: 14 }}>Editar competidor</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <label>
+                    <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Nombres</span>
+                    <input className="ios-input" required value={editPerfil.nombres || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, nombres: e.target.value }))} />
+                  </label>
+                  <label>
+                    <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Apellidos</span>
+                    <input className="ios-input" required value={editPerfil.apellidos || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, apellidos: e.target.value }))} />
+                  </label>
+                  <label>
+                    <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Sexo</span>
+                    <select className="ios-input" value={editPerfil.sexo || 'M'} onChange={(e) => setEditPerfil((p) => ({ ...p, sexo: e.target.value }))}>
+                      <option value="M">Masculino</option>
+                      <option value="F">Femenino</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Nacimiento</span>
+                    <input className="ios-input" type="date" value={editPerfil.fecha_nacimiento || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, fecha_nacimiento: e.target.value }))} />
+                  </label>
+                  <label>
+                    <span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Grado</span>
+                    <select className="ios-input" value={editPerfil.grado || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, grado: e.target.value }))}>
+                      {GRADOS_KUP_DAN.map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" className="ios-btn ios-btn-primary" disabled={guardandoPerfil}>
+                      {guardandoPerfil ? 'Guardando…' : 'Guardar'}
+                    </button>
+                    <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditPerfil(null)}>Cancelar</button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </div>
