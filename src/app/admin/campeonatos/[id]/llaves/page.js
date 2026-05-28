@@ -11,6 +11,7 @@ import { readJsonResponse } from '@/lib/public-app-url'
 import {
   descargarLlavesExcel,
   descargarLlavesPdf,
+  descargarCategoriaBracketPdf,
   fetchExportLlaves,
 } from '@/lib/campeonato/export-llaves-client'
 
@@ -180,6 +181,19 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
+  async function exportarCategoriaPdf() {
+    if (!selCat) return
+    setExportando('pdf-cat')
+    try {
+      const data = await fetchExportLlaves(idCampeonato)
+      await descargarCategoriaBracketPdf(data, selCat.id_categoria)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setExportando(null)
+    }
+  }
+
   function abrirBracketPdf({ todas = false } = {}) {
     if (todas) {
       window.open(`/admin/campeonatos/${id}/llaves/imprimir?todas=1`, '_blank')
@@ -235,7 +249,7 @@ export default function CampeonatoLlavesPage() {
               disabled={bloqueado || exportando}
               onClick={() => exportar('xlsx')}
             >
-              {exportando === 'xlsx' ? 'Exportando…' : 'Excel llaves'}
+              {exportando === 'xlsx' ? 'Exportando…' : 'Excel (Área 1·2·3)'}
             </button>
             <button
               type="button"
@@ -243,7 +257,7 @@ export default function CampeonatoLlavesPage() {
               disabled={bloqueado || exportando}
               onClick={() => exportar('pdf')}
             >
-              {exportando === 'pdf' ? 'Exportando…' : 'PDF llaves (tabla)'}
+              {exportando === 'pdf' ? 'Exportando…' : 'PDF gráficas (todas)'}
             </button>
             <button
               type="button"
@@ -251,7 +265,7 @@ export default function CampeonatoLlavesPage() {
               disabled={bloqueado}
               onClick={() => abrirBracketPdf({ todas: true })}
             >
-              PDF brackets (árbol)
+              Vista previa / imprimir
             </button>
           </div>
         )}
@@ -391,14 +405,25 @@ export default function CampeonatoLlavesPage() {
                       ))}
                     </div>
                     {vista === 'bracket' && (
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn-secondary"
-                        style={{ fontSize: 12 }}
-                        onClick={() => abrirBracketPdf()}
-                      >
-                        PDF bracket
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="ios-btn ios-btn-secondary"
+                          style={{ fontSize: 12 }}
+                          disabled={exportando === 'pdf-cat'}
+                          onClick={exportarCategoriaPdf}
+                        >
+                          {exportando === 'pdf-cat' ? '…' : 'PDF gráfica'}
+                        </button>
+                        <button
+                          type="button"
+                          className="ios-btn ios-btn-secondary"
+                          style={{ fontSize: 12 }}
+                          onClick={() => abrirBracketPdf()}
+                        >
+                          Imprimir
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

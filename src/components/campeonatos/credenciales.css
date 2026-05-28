@@ -172,10 +172,10 @@
   max-width: 100%;
 }
 
-/* ── Impresión: una credencial centrada por hoja A4 ── */
+/* ── Impresión: tamaño credencial real (54×86 mm), una por hoja ── */
 @media print {
   @page {
-    size: A4 portrait;
+    size: 54mm 86mm;
     margin: 0;
   }
 
@@ -183,7 +183,8 @@
   body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
+    width: 54mm !important;
+    height: auto !important;
     background: #fff !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -205,41 +206,32 @@
   .ios-main > main {
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
+    width: 54mm !important;
   }
 
-  .credenciales-root {
-    max-width: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .credenciales-academia {
-    margin: 0;
-  }
-
+  .credenciales-root,
+  .credenciales-academia,
   .credenciales-stack {
-    display: block;
     margin: 0;
     padding: 0;
+    max-width: none;
+    display: block;
   }
 
   .credencial-sheet {
-    width: 100%;
-    height: 297mm;
-    min-height: 297mm;
-    max-height: 297mm;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 54mm;
+    height: 86mm;
+    min-height: 86mm;
+    max-height: 86mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
     page-break-after: always;
     break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
     box-sizing: border-box;
+    display: block;
   }
 
   .credencial-sheet:last-child {
@@ -252,13 +244,13 @@
   }
 
   .credencial-frente {
-    box-shadow: none;
-    border-radius: 0;
     width: 54mm;
     height: 86mm;
     max-width: 54mm;
     max-height: 86mm;
-    flex-shrink: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
     page-break-inside: avoid;
     break-inside: avoid;
     overflow: hidden;
