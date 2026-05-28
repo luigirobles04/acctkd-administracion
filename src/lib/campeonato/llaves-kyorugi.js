@@ -96,11 +96,71 @@ function buildSlots(seeds, bracketSize) {
   return slots
 }
 
+const CANCHAS_DEFAULT = 3
+const COLOR_CHUNG = 'azul'
+const COLOR_HONG = 'rojo'
+
+function coloresCombate(id_linea1, id_linea2) {
+  let color1 = null
+  let color2 = null
+  if (id_linea1) color1 = COLOR_CHUNG
+  if (id_linea2) color2 = COLOR_HONG
+  return { color1, color2 }
+}
+
+function parseCompetidor(l, academiaNombre) {
+  if (!l) return null
+  const p = l.miembros?.[0]?.perfil
+  return {
+    id_linea: l.id_linea,
+    dorsal: l.dorsal_display || '',
+    nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : '',
+    academia: academiaNombre || l.academia_nombre || '',
+  }
+}
+
 function nombreLinea(l) {
   if (!l) return 'BYE'
   const m = l.miembros?.[0]?.perfil
   if (!m) return l.dorsal_display || `#${l.id_linea}`
   return `${l.dorsal_display || ''} ${m.nombres || ''} ${m.apellidos || ''}`.trim()
+}
+
+/** Reparte combates del campeonato en 3 canchas con orden de pista global */
+export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
+  const { data: llaves, error } = await sb
+    .from('llave_kyorugi')
+    .select(`
+      id_llave, ronda, match_numero, estado, id_categoria,
+      categoria:categoria_campeonato(orden, nombre)
+    `)
+    .eq('id_campeonato', idCampeonato)
+    .neq('estado', 'vacío')
+    .order('ronda', { ascending: false })
+  if (error) throw error
+
+  const combates = (llaves || [])
+    .filter((l) => l.estado !== 'vacío')
+    .sort((a, b) => {
+      if (b.ronda !== a.ronda) return b.ronda - a.ronda
+      const ordA = a.categoria?.orden ?? 9999
+      const ordB = b.categoria?.orden ?? 9999
+      if (ordA !== ordB) return ordA - ordB
+      return a.match_numero - b.match_numero
+    })
+
+  let orden = 1
+  for (let i = 0; i < combates.length; i++) {
+    const c = combates[i]
+    const cancha = ((orden - 1) % numCanchas) + 1
+    await sb
+      .from('llave_kyorugi')
+      .update({ cancha, orden_pista: orden })
+      .eq('id_llave', c.id_llave)
+    orden++
+  }
+
+  return { asignados: combates.length, canchas: numCanchas }
 }
 
 export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
@@ -176,6 +236,8 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
         }
       }
 
+      const { color1, color2 } = coloresCombate(id_linea1, id_linea2)
+
       const { data: ins, error: errI } = await sb
         .from('llave_kyorugi')
         .insert({
@@ -188,6 +250,8 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
           es_bye,
           ganador_id_linea,
           estado,
+          color1,
+          color2,
         })
         .select()
         .single()
@@ -206,14 +270,21 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
       if (match?.ganador_id_linea && idSiguiente) {
         const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', idSiguiente).single()
         const patch = {}
-        if (!sig.id_linea1) patch.id_linea1 = match.ganador_id_linea
-        else if (!sig.id_linea2) patch.id_linea2 = match.ganador_id_linea
+        if (!sig.id_linea1) {
+          patch.id_linea1 = match.ganador_id_linea
+          patch.color1 = match.ganador_id_linea === match.id_linea1 ? match.color1 : match.color2
+        } else if (!sig.id_linea2) {
+          patch.id_linea2 = match.ganador_id_linea
+          patch.color2 = match.ganador_id_linea === match.id_linea1 ? match.color1 : match.color2
+        }
         if (Object.keys(patch).length) {
           await sb.from('llave_kyorugi').update(patch).eq('id_llave', idSiguiente)
         }
       }
     }
   }
+
+  await asignarCanchasCampeonato(sb, idCampeonato)
 
   return {
     categoria: cat.nombre,
@@ -256,6 +327,8 @@ export async function generarTodasLasLlaves(sb, idCampeonato) {
     }
   }
 
+  await asignarCanchasCampeonato(sb, idCampeonato)
+
   return { generadas: resultados.length, resultados, errores }
 }
 
@@ -290,8 +363,13 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
     const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', match.siguiente_llave).single()
     if (sig) {
       const patch = {}
-      if (!sig.id_linea1) patch.id_linea1 = g
-      else if (!sig.id_linea2 && sig.id_linea1 !== g) patch.id_linea2 = g
+      if (!sig.id_linea1) {
+        patch.id_linea1 = g
+        patch.color1 = g === match.id_linea1 ? match.color1 : match.color2
+      } else if (!sig.id_linea2 && sig.id_linea1 !== g) {
+        patch.id_linea2 = g
+        patch.color2 = g === match.id_linea1 ? match.color1 : match.color2
+      }
       if (Object.keys(patch).length) {
         await sb.from('llave_kyorugi').update(patch).eq('id_llave', match.siguiente_llave)
       }
@@ -303,8 +381,10 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
 
 export {
   nombreLinea,
+  parseCompetidor,
   bracketSizeFor,
   getSeedOrder,
   assignSeeds,
   buildSlots,
+  CANCHAS_DEFAULT,
 }

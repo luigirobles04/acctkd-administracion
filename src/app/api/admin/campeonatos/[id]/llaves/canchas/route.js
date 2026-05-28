@@ -3,29 +3,22 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { parseCompetidor } from '@/lib/campeonato/llaves-kyorugi'
 
 function enrichCombate(l, lineaMap, catMap) {
-  const vacio = l.estado === 'vacío'
   const c1 = l.id_linea1 ? lineaMap[l.id_linea1] : null
   const c2 = l.id_linea2 ? lineaMap[l.id_linea2] : null
   const cat = catMap[l.id_categoria]
-
   return {
     ...l,
     categoria_nombre: cat?.nombre || '',
-    competidor1: vacio ? null : parseCompetidor(c1),
-    competidor2: vacio ? null : parseCompetidor(c2),
-    nombre1: vacio ? '—' : c1 ? parseCompetidor(c1)?.nombres || '—' : l.es_bye && !l.id_linea2 ? 'BYE' : 'Por definir',
-    nombre2: vacio ? '—' : c2 ? parseCompetidor(c2)?.nombres || '—' : l.es_bye && !l.id_linea1 ? 'BYE' : 'Por definir',
+    competidor1: parseCompetidor(c1),
+    competidor2: parseCompetidor(c2),
   }
 }
 
 export async function GET(_request, { params }) {
   try {
-    const { id, categoria } = await params
+    const { id } = await params
     const idCampeonato = Number(id)
-    const idCategoria = Number(categoria)
-    if (!idCampeonato || !idCategoria) {
-      return NextResponse.json({ error: 'Campeonato y categoría requeridos' }, { status: 400 })
-    }
+    if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
     const sb = getSupabaseAdmin()
 
@@ -33,15 +26,16 @@ export async function GET(_request, { params }) {
       .from('llave_kyorugi')
       .select('*')
       .eq('id_campeonato', idCampeonato)
-      .eq('id_categoria', idCategoria)
-      .order('ronda', { ascending: true })
-      .order('match_numero', { ascending: true })
+      .neq('estado', 'vacío')
+      .order('orden_pista', { ascending: true, nullsFirst: false })
     if (error) throw error
 
     const lineaIds = new Set()
+    const catIds = new Set()
     for (const l of llaves || []) {
       if (l.id_linea1) lineaIds.add(l.id_linea1)
       if (l.id_linea2) lineaIds.add(l.id_linea2)
+      if (l.id_categoria) catIds.add(l.id_categoria)
     }
 
     let lineaMap = {}
@@ -57,30 +51,32 @@ export async function GET(_request, { params }) {
       lineaMap = Object.fromEntries(
         (lineas || []).map((l) => [
           l.id_linea,
-          {
-            ...l,
-            academia_nombre: l.academia_campeonato?.academia?.nombre || '',
-          },
+          { ...l, academia_nombre: l.academia_campeonato?.academia?.nombre || '' },
         ])
       )
     }
 
-    const { data: cat } = await sb
-      .from('categoria_campeonato')
-      .select('id_categoria, nombre')
-      .eq('id_categoria', idCategoria)
-      .single()
-    const catMap = { [idCategoria]: cat }
+    let catMap = {}
+    if (catIds.size) {
+      const { data: cats } = await sb
+        .from('categoria_campeonato')
+        .select('id_categoria, nombre')
+        .in('id_categoria', [...catIds])
+      catMap = Object.fromEntries((cats || []).map((c) => [c.id_categoria, c]))
+    }
 
     const enriched = (llaves || []).map((l) => enrichCombate(l, lineaMap, catMap))
 
-    const porRonda = enriched.reduce((acc, l) => {
-      if (!acc[l.ronda]) acc[l.ronda] = []
-      acc[l.ronda].push(l)
-      return acc
-    }, {})
+    const porCancha = { 1: [], 2: [], 3: [] }
+    for (const c of enriched) {
+      if (c.cancha && porCancha[c.cancha]) porCancha[c.cancha].push(c)
+    }
 
-    return NextResponse.json({ llaves: enriched, porRonda })
+    for (const k of [1, 2, 3]) {
+      porCancha[k].sort((a, b) => (a.orden_pista || 9999) - (b.orden_pista || 9999))
+    }
+
+    return NextResponse.json({ porCancha, total: enriched.length })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
