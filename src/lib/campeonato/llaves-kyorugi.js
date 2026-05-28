@@ -548,9 +548,13 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
 export {
   nombreLinea,
   parseCompetidor,
+  nextPowerOf2,
   bracketSizeFor,
   getSeedOrder,
+  firstRoundOpponentSeed,
   assignSeeds,
   buildSlots,
+  buildCompactSlots,
+  usarLlaveCompacta,
   CANCHAS_DEFAULT,
 }

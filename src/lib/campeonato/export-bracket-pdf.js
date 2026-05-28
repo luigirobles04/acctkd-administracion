@@ -1,7 +1,7 @@
 'use client'
 
 import { jsPDF } from 'jspdf'
-import { columnasBracket, rondasOrdenadas, byePlayersEnLlave } from '@/lib/campeonato/bracket-export'
+import { columnasBracket, rondasOrdenadas } from '@/lib/campeonato/bracket-export'
 
 const GRAY = [100, 116, 139]
 const DARK = [17, 17, 17]
@@ -41,17 +41,18 @@ function drawHeader(doc, campeonato, cat, pageW) {
   doc.line(10, 23, pageW - 10, 23)
 }
 
-function drawFightBadge(doc, x, y, area, num, fontSize = 10) {
+function drawFightBadge(doc, x, y, area, num, fontSize = 10, maxW = 16) {
   if (!num) return
   const label = area ? `${area}/${String(num).padStart(2, '0')}` : String(num)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(fontSize)
-  const w = Math.max(16, doc.getTextWidth(label) + 8)
-  const h = fontSize + 4
+  // Ancho ajustado al texto, acotado para no solaparse con las cajas
+  const w = Math.min(maxW, doc.getTextWidth(label) + 2.5)
+  const h = fontSize * 0.35 + 2.4
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(17, 17, 17)
-  doc.setLineWidth(0.35)
-  doc.roundedRect(x - w / 2, y - h / 2, w, h, 1.5, 1.5, 'FD')
+  doc.setLineWidth(0.3)
+  doc.roundedRect(x - w / 2, y - h / 2, w, h, 1, 1, 'FD')
   doc.setTextColor(...DARK)
   doc.text(label, x, y + fontSize * 0.12, { align: 'center' })
 }
@@ -62,58 +63,48 @@ function colorSideFrom(slot) {
   return null
 }
 
-function drawCompetidorBox(doc, x, y, w, h, slot, { highlight = false, bye = false, colorSide = null, hideByeDuplicate = false } = {}) {
-  const vacio = hideByeDuplicate || bye || slot?.vacio || !slot?.nombre || slot.nombre === 'POR DEFINIR'
-  const label = hideByeDuplicate ? 'POR DEFINIR' : bye ? 'BYE' : (slot?.nombre || 'POR DEFINIR').toUpperCase()
+function drawCompetidorBox(doc, x, y, w, h, slot, { highlight = false, colorSide = null } = {}) {
+  const vacio = slot?.vacio || !slot?.nombre || slot.nombre === 'POR DEFINIR'
+  const label = (slot?.nombre || 'POR DEFINIR').toUpperCase()
   const side = colorSide || colorSideFrom(slot)
-  const fill = vacio ? [248, 250, 252] : highlight ? [255, 251, 235] : [255, 255, 255]
+  const barW = Math.min(3.2, w * 0.06)
+  const fill = vacio ? [250, 251, 252] : highlight ? [255, 251, 235] : [255, 255, 255]
 
+  // Caja con borde claro
   doc.setFillColor(...fill)
-  doc.setDrawColor(vacio ? 180 : highlight ? GOLD[0] : 160, vacio ? 180 : highlight ? GOLD[1] : 160, vacio ? 180 : highlight ? GOLD[2] : 160)
-  doc.setLineWidth(highlight ? 0.55 : 0.4)
-  if (vacio && doc.setLineDashPattern) doc.setLineDashPattern([1.2, 1.2], 0)
-  doc.roundedRect(x, y, w, h, 1.5, 1.5, vacio ? 'S' : highlight ? 'FD' : 'S')
+  doc.setDrawColor(highlight ? GOLD[0] : 150, highlight ? GOLD[1] : 150, highlight ? GOLD[2] : 150)
+  doc.setLineWidth(highlight ? 0.6 : 0.35)
+  if (vacio && doc.setLineDashPattern) doc.setLineDashPattern([1.1, 1.1], 0)
+  doc.roundedRect(x, y, w, h, 1.2, 1.2, vacio ? 'S' : 'FD')
   if (vacio && doc.setLineDashPattern) doc.setLineDashPattern([], 0)
 
-  if (side === 'azul') {
+  // Barra de color de peto (Chung/Hong)
+  if (!vacio && side === 'azul') {
     doc.setFillColor(...CHUNG)
-    doc.rect(x, y, 3.5, h, 'F')
-  } else if (side === 'rojo') {
+    doc.rect(x, y, barW, h, 'F')
+  } else if (!vacio && side === 'rojo') {
     doc.setFillColor(...HONG)
-    doc.rect(x, y, 3.5, h, 'F')
+    doc.rect(x, y, barW, h, 'F')
   }
 
-  if (!vacio && !bye && !hideByeDuplicate) {
-    doc.setFillColor(225, 225, 225)
-    doc.roundedRect(x + 5, y + 2, 9, 4.5, 1, 1, 'F')
-    doc.setFontSize(4.2)
-    doc.setTextColor(80, 80, 80)
-    doc.setFont('helvetica', 'bold')
-    doc.text('PER', x + 9.5, y + 4.8, { align: 'center' })
-  }
-
+  // Nombre
+  const nameX = x + barW + 2
   doc.setFont('helvetica', vacio ? 'italic' : 'bold')
-  doc.setFontSize(vacio ? Math.max(6, h * 0.42) : Math.max(6.5, h * 0.46))
-  if (side === 'azul' && !vacio) doc.setTextColor(...CHUNG)
-  else if (side === 'rojo' && !vacio) doc.setTextColor(...HONG)
-  else doc.setTextColor(...(vacio ? GRAY : DARK))
+  const hasAcademia = !vacio && slot?.academia && h >= 8.5
+  const nameSize = vacio ? Math.max(5.5, h * 0.4) : Math.max(6, h * (hasAcademia ? 0.42 : 0.48))
+  doc.setFontSize(nameSize)
+  if (vacio) doc.setTextColor(...GRAY)
+  else if (side === 'azul') doc.setTextColor(...CHUNG)
+  else if (side === 'rojo') doc.setTextColor(...HONG)
+  else doc.setTextColor(...DARK)
+  doc.text(trunc(doc, label, w - barW - 4), nameX, y + (hasAcademia ? h * 0.42 : h * 0.6))
 
-  const nameX = vacio ? x + 4 : x + 15
-  const lines = doc.splitTextToSize(label, w - (vacio ? 8 : 18))
-  doc.text(lines.slice(0, 1), nameX, y + h * 0.42)
-
-  if (!vacio && !bye && !hideByeDuplicate && slot?.academia) {
+  // Academia (segunda línea)
+  if (hasAcademia) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(Math.max(5, h * 0.34))
+    doc.setFontSize(Math.max(4.5, h * 0.3))
     doc.setTextColor(...GRAY)
-    doc.text(trunc(doc, slot.academia, w - 6), x + 5, y + h - 2)
-  }
-
-  if (bye) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5.5)
-    doc.setTextColor(...GOLD)
-    doc.text('BYE →', x + w - 14, y + 4)
+    doc.text(trunc(doc, slot.academia, w - barW - 4), nameX, y + h - 1.8)
   }
 }
 
@@ -127,33 +118,31 @@ function drawBracketConnector(doc, xFrom, yTop, yBot, xMid, xTo, yOut) {
   doc.line(xMid, yMid, xTo, yOut)
 }
 
-function calcLayout(cols, pageW, pageH, { byeCount = 0 } = {}) {
-  const marginT = 32           // header termina en y≈25, 7mm de buffer
-  const marginB = 8
-  // Reservar espacio para bye boxes al final (byeCount caja + separador)
-  const byeReserve = byeCount > 0 ? byeCount * 20 + 12 : 0
-  const availH = pageH - marginT - marginB - byeReserve
+function calcLayout(cols, pageW, pageH) {
+  const marginT = 32           // header termina en y≈23, ~9mm de buffer
+  const marginB = 10
+  const availH = pageH - marginT - marginB
   const availW = pageW - 20
   const firstCount = Math.max(1, cols[0]?.combates.length || 1)
   const numRoundCols = cols.length + 1  // +1 para caja winner
 
-  let boxH = 18
-  let gap = 5
+  let boxH = 16
+  let gap = 3                  // separación chung/hong (mismo combate, juntos)
   let boxW = 58
-  let colGap = 20
+  let colGap = 22
 
-  const interBlock = () => Math.max(0.5, boxH * 0.25)
-  // La altura total incluye un +boxH de seguridad para que el último box no se corte
-  const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock() + boxH
+  // Separación entre combates distintos — generosa para que se distingan
+  const interBlock = () => Math.max(3, boxH * 0.7)
+  const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
 
-  while (blockH() > availH && boxH > 4) {
-    boxH = Math.max(4, boxH * 0.9)
-    gap = Math.max(0.5, gap * 0.9)
+  // Escalar altura hasta que quepa (deja un boxH de margen de seguridad abajo)
+  while (blockH() + boxH > availH && boxH > 4) {
+    boxH = Math.max(4, boxH * 0.92)
+    gap = Math.max(0.8, gap * 0.92)
   }
 
-  // Escalar ancho; minimums más bajos para brackets de 5+ rondas
-  const minBoxW = cols.length >= 5 ? 22 : cols.length >= 4 ? 28 : 36
-  const minColGap = cols.length >= 5 ? 8 : 10
+  const minBoxW = cols.length >= 5 ? 24 : cols.length >= 4 ? 30 : 38
+  const minColGap = cols.length >= 5 ? 9 : 12
   let colW = boxW + colGap
   let totalW = numRoundCols * colW + boxW + 20
   if (totalW > availW) {
@@ -162,7 +151,6 @@ function calcLayout(cols, pageW, pageH, { byeCount = 0 } = {}) {
     colGap = Math.max(minColGap, colGap * scale)
     colW = boxW + colGap
     totalW = numRoundCols * colW + boxW + 20
-    // Segunda pasada si aún no cabe
     if (totalW > availW) {
       const scale2 = availW / totalW
       boxW = Math.max(minBoxW * 0.8, boxW * scale2)
@@ -171,7 +159,7 @@ function calcLayout(cols, pageW, pageH, { byeCount = 0 } = {}) {
     }
   }
 
-  const totalH = firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
+  const totalH = blockH()
   const marginL = Math.max(6, (pageW - (numRoundCols * colW + boxW + 20)) / 2)
   const fightFont = firstCount > 12 ? 6 : firstCount > 8 ? 7 : firstCount > 4 ? 8 : 9
   const connectorMid = Math.min(12, colGap * 0.5)
@@ -197,93 +185,63 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   if (!cols.length || !rondas.length) return
 
   drawHeader(doc, campeonato, cat, pageW)
-  const byes = byePlayersEnLlave(cat.porRonda)
-  const layout = calcLayout(cols, pageW, pageH, { byeCount: byes.length })
+  const layout = calcLayout(cols, pageW, pageH)
   const { marginL, marginT, boxW, boxH, gap, colW, totalH, fightFont, connectorMid } = layout
-  const byeNames = new Set(byes.map((b) => b.nombre))
 
-  drawColumnHeaders(doc, cols, layout, marginT - 4)
+  drawColumnHeaders(doc, cols, layout, marginT - 5)
 
-  const matchPositions = cols.map((col, colIdx) => {
+  // Posiciones: la 1ª columna se distribuye uniforme; cada ronda siguiente
+  // se centra entre sus dos combates alimentadores (árbol limpio, sin diagonales)
+  const matchPositions = []
+  cols.forEach((col, colIdx) => {
     const count = col.combates.length
-    return col.combates.map((m, i) => {
-      const span = totalH / count
-      const blockTop = marginT + i * span + (span - (boxH * 2 + gap)) / 2
-      const yChung = blockTop
-      const yHong = blockTop + boxH + gap
-      const yMid = blockTop + boxH + gap / 2
+    matchPositions[colIdx] = col.combates.map((m, i) => {
+      let yChung
+      if (colIdx === 0) {
+        const span = totalH / count
+        yChung = marginT + i * span + (span - (boxH * 2 + gap)) / 2
+      } else {
+        // centrar entre los dos feeders de la ronda anterior
+        const feedA = matchPositions[colIdx - 1][i * 2]
+        const feedB = matchPositions[colIdx - 1][i * 2 + 1] || feedA
+        const centerY = (feedA.yBadge + feedB.yBadge) / 2
+        yChung = centerY - (boxH + gap / 2)
+      }
+      const yHong = yChung + boxH + gap
+      const yMid = yChung + boxH + gap / 2
       const yBadge = yChung + boxH / 2 + (yHong - yChung) / 2
       const x = marginL + colIdx * colW
       return { m, yChung, yHong, yMid, yBadge, x, colIdx }
     })
   })
 
-  const hideIfBye = (m, slot) => m.es_bye && slot?.nombre && byeNames.has(slot.nombre.toUpperCase())
-
   matchPositions.forEach((colMatches, colIdx) => {
-    colMatches.forEach(({ m, yChung, yHong, yMid, yBadge, x }, matchIdx) => {
+    colMatches.forEach(({ m, yChung, yHong, yBadge, x }, matchIdx) => {
       const chung = m.chung || { nombre: 'POR DEFINIR', vacio: true }
       const hong = m.hong || { nombre: 'POR DEFINIR', vacio: true }
-      const hideChung = colIdx > 0 && hideIfBye(m, chung)
-      const hideHong = colIdx > 0 && hideIfBye(m, hong)
 
       drawCompetidorBox(doc, x, yChung, boxW, boxH, chung, {
         highlight: Boolean(m.ganador && chung.nombre === m.ganador.toUpperCase()),
         colorSide: chung.color || 'azul',
-        hideByeDuplicate: hideChung,
       })
       drawCompetidorBox(doc, x, yHong, boxW, boxH, hong, {
         highlight: Boolean(m.ganador && hong.nombre === m.ganador.toUpperCase()),
         colorSide: hong.color || 'rojo',
-        hideByeDuplicate: hideHong,
       })
 
       const badgeX = x + boxW + connectorMid
       if (m.numero_combate) {
-        drawFightBadge(doc, badgeX, yBadge, cat.cancha, m.numero_combate, fightFont)
+        drawFightBadge(doc, badgeX, yBadge, cat.cancha, m.numero_combate, fightFont, Math.max(7, connectorMid * 1.9))
       }
 
       if (colIdx < cols.length - 1) {
         const targetIdx = Math.floor(matchIdx / 2)
         const target = matchPositions[colIdx + 1]?.[targetIdx]
-        const yTarget = target ? target.yBadge : badgeY
+        const yTarget = target ? target.yBadge : yBadge
         drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, yTarget)
       }
     })
   })
-
-  // Bye(s) en extremo inferior — columna Name / Team
-  if (byes.length && matchPositions[0]?.length) {
-    const lastCol = matchPositions[0]
-    const lastMatch = lastCol[lastCol.length - 1]
-    let yBye = lastMatch.yHong + boxH + 10
-    for (const bye of byes) {
-      drawCompetidorBox(doc, marginL, yBye, boxW, boxH, bye, {
-        colorSide: bye.color || 'azul',
-        bye: false,
-      })
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(6)
-      doc.setTextColor(...GOLD)
-      doc.text('BYE', marginL + boxW + 4, yBye + boxH / 2)
-      if (lastMatch) {
-        const sfIdx = cols.length >= 2 ? matchPositions[1]?.length - 1 : 0
-        const sfPos = matchPositions[1]?.[sfIdx]
-        if (sfPos) {
-          drawBracketConnector(
-            doc,
-            marginL + boxW,
-            yBye + boxH / 2,
-            yBye + boxH / 2,
-            marginL + boxW + connectorMid,
-            sfPos.x,
-            sfPos.yMid + boxH / 2
-          )
-        }
-      }
-      yBye += boxH + 8
-    }
-  }
 
   const finalCol = cols[cols.length - 1]
   const finalMatch = finalCol?.combates[0]
