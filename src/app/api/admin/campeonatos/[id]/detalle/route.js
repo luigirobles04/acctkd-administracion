@@ -36,8 +36,11 @@ export async function GET(_request, { params }) {
           id_academia_campeonato,
           modalidad,
           estado,
+          id_categoria,
+          peso_declarado,
           dorsal_display,
           precio_aplicado,
+          categoria:categoria_campeonato(nombre),
           miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento, documento_tipo))
         `)
         .eq('id_campeonato', idCampeonato)

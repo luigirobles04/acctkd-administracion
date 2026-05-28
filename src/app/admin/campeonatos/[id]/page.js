@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { formatFecha } from '@/lib/utils/format'
-import { GRADOS_KUP_DAN } from '@/lib/campeonato/constants'
+import { GRADOS_KUP_DAN, MODALIDADES } from '@/lib/campeonato/constants'
+import { categoriasPoomsaeValidas, categoriasValidas } from '@/lib/campeonato/validar-categoria'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 const ESTADOS = {
@@ -42,7 +43,9 @@ export default function CampeonatoDetallePage() {
   const [error, setError] = useState(null)
   const [activando, setActivando] = useState(false)
   const [editPerfil, setEditPerfil] = useState(null)
+  const [editLinea, setEditLinea] = useState(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
+  const [guardandoLinea, setGuardandoLinea] = useState(false)
 
   const cargar = useCallback(async () => {
     if (!idCampeonato) {
@@ -76,7 +79,7 @@ export default function CampeonatoDetallePage() {
   }, [cargar])
 
   useEffect(() => {
-    if (tab !== 'categorias' || categorias.length || !idCampeonato) return
+    if ((tab !== 'categorias' && tab !== 'competidores') || categorias.length || !idCampeonato) return
     setLoadingCats(true)
     fetch(`/api/admin/campeonatos/${idCampeonato}/categorias`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -163,6 +166,45 @@ export default function CampeonatoDetallePage() {
       alert(e.message)
     } finally {
       setGuardandoPerfil(false)
+    }
+  }
+
+  function categoriasParaLinea(linea, perfil) {
+    if (!perfil || !campeonato) return []
+    const anio = new Date(campeonato.fecha_inicio).getFullYear()
+    if (linea.modalidad === 'kyorugi_individual') {
+      const kyorugi = categorias.filter((c) => c.modalidad === 'kyorugi')
+      return categoriasValidas(kyorugi, perfil, anio, editLinea?.peso_declarado ?? linea.peso_declarado)
+    }
+    if (linea.modalidad?.startsWith('poomsae')) {
+      const poom = categorias.filter((c) => c.modalidad === 'poomsae')
+      return categoriasPoomsaeValidas(poom, perfil, anio)
+    }
+    return []
+  }
+
+  async function guardarLineaAdmin(e) {
+    e.preventDefault()
+    if (!editLinea) return
+    setGuardandoLinea(true)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idLinea: editLinea.id_linea,
+          idCategoria: editLinea.id_categoria || null,
+          pesoDeclarado: editLinea.peso_declarado || null,
+        }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      setEditLinea(null)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setGuardandoLinea(false)
     }
   }
 
@@ -334,33 +376,75 @@ export default function CampeonatoDetallePage() {
         )}
 
         {tab === 'competidores' && (
-          <div style={{ display: 'grid', gap: 20, gridTemplateColumns: editPerfil ? 'minmax(0, 1fr) minmax(280px, 340px)' : '1fr' }}>
+          <div style={{ display: 'grid', gap: 20, gridTemplateColumns: (editPerfil || editLinea) ? 'minmax(0, 1fr) minmax(300px, 360px)' : '1fr' }}>
             <div className="ios-group">
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--separator)' }}>
                 <p className="ios-headline">{perfilesPortal.length} competidores (portal)</p>
+                {loadingCats && categorias.length === 0 && (
+                  <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>Cargando categorías…</p>
+                )}
               </div>
               {perfilesPortal.length === 0 ? (
                 <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin competidores inscritos vía portal</p>
               ) : (
                 perfilesPortal.map((p) => (
-                  <div key={p.id_perfil} className="ios-group-row" style={{ alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p className="ios-headline">{p.nombres} {p.apellidos}</p>
-                      <p className="ios-caption" style={{ color: 'var(--label3)' }}>{p.documento_tipo} {p.documento_numero}</p>
+                  <div key={p.id_perfil} className="ios-group-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', width: '100%', gap: 8, alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="ios-headline">{p.nombres} {p.apellidos}</p>
+                        <p className="ios-caption" style={{ color: 'var(--label3)' }}>{p.documento_tipo} {p.documento_numero} · {p.grado}</p>
+                      </div>
+                      <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => { setEditLinea(null); setEditPerfil({ ...p }) }}>
+                        Datos
+                      </button>
                     </div>
-                    <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12 }} onClick={() => setEditPerfil({ ...p })}>
-                      Editar
-                    </button>
+                    {(p.lineas || []).map((l) => (
+                      <div key={l.id_linea} style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--fill2, rgba(0,0,0,0.04))', fontSize: 13 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                          <div>
+                            <strong>{MODALIDADES[l.modalidad]?.label || l.modalidad.replace(/_/g, ' ')}</strong>
+                            <div style={{ color: 'var(--label3)', marginTop: 2 }}>
+                              {l.categoria?.nombre || 'Sin categoría'}
+                              {l.peso_declarado != null && ` · ${l.peso_declarado} kg`}
+                              {l.dorsal_display && ` · ${l.dorsal_display}`}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
+                              {l.estado.replace(/_/g, ' ')}
+                            </span>
+                            <button
+                              type="button"
+                              className="ios-btn ios-btn-ghost"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => {
+                                setEditPerfil(null)
+                                setEditLinea({
+                                  id_linea: l.id_linea,
+                                  modalidad: l.modalidad,
+                                  id_categoria: l.id_categoria ? String(l.id_categoria) : '',
+                                  peso_declarado: l.peso_declarado ?? '',
+                                  perfil: p,
+                                  categoria_nombre: l.categoria?.nombre,
+                                })
+                              }}
+                            >
+                              Editar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))
               )}
             </div>
             {editPerfil && (
               <form className="ios-card" style={{ padding: 18, alignSelf: 'start' }} onSubmit={guardarPerfilAdmin}>
-                <p className="ios-headline" style={{ marginBottom: 14 }}>Editar competidor</p>
+                <p className="ios-headline" style={{ marginBottom: 14 }}>Editar datos personales</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input className="ios-input" required value={editPerfil.nombres || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, nombres: e.target.value }))} />
-                  <input className="ios-input" required value={editPerfil.apellidos || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, apellidos: e.target.value }))} />
+                  <input className="ios-input" required value={editPerfil.nombres || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, nombres: e.target.value }))} placeholder="Nombres" />
+                  <input className="ios-input" required value={editPerfil.apellidos || ''} onChange={(e) => setEditPerfil((p) => ({ ...p, apellidos: e.target.value }))} placeholder="Apellidos" />
                   <select className="ios-input" value={editPerfil.sexo || 'M'} onChange={(e) => setEditPerfil((p) => ({ ...p, sexo: e.target.value }))}>
                     <option value="M">Masculino</option>
                     <option value="F">Femenino</option>
@@ -372,6 +456,50 @@ export default function CampeonatoDetallePage() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="submit" className="ios-btn ios-btn-primary" disabled={guardandoPerfil}>Guardar</button>
                     <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditPerfil(null)}>Cancelar</button>
+                  </div>
+                </div>
+              </form>
+            )}
+            {editLinea && (
+              <form className="ios-card" style={{ padding: 18, alignSelf: 'start' }} onSubmit={guardarLineaAdmin}>
+                <p className="ios-headline" style={{ marginBottom: 6 }}>Editar inscripción</p>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 14 }}>
+                  {MODALIDADES[editLinea.modalidad]?.label || editLinea.modalidad}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {editLinea.modalidad === 'kyorugi_individual' && (
+                    <>
+                      <label className="ios-label">Peso declarado (kg)</label>
+                      <input
+                        className="ios-input"
+                        type="number"
+                        step="0.1"
+                        value={editLinea.peso_declarado}
+                        onChange={(e) => setEditLinea((l) => ({ ...l, peso_declarado: e.target.value }))}
+                      />
+                    </>
+                  )}
+                  <label className="ios-label">Categoría</label>
+                  <select
+                    className="ios-input"
+                    value={editLinea.id_categoria}
+                    onChange={(e) => setEditLinea((l) => ({ ...l, id_categoria: e.target.value }))}
+                    required
+                  >
+                    <option value="">Seleccionar…</option>
+                    {categoriasParaLinea(editLinea, editLinea.perfil).map((c) => (
+                      <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                    ))}
+                  </select>
+                  {editLinea.categoria_nombre && (
+                    <p className="ios-caption" style={{ color: 'var(--label3)' }}>Actual: {editLinea.categoria_nombre}</p>
+                  )}
+                  {categorias.length === 0 && (
+                    <p className="ios-caption" style={{ color: '#C0000A' }}>Genera categorías WT primero (pestaña Categorías).</p>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" className="ios-btn ios-btn-primary" disabled={guardandoLinea || categorias.length === 0}>Guardar</button>
+                    <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditLinea(null)}>Cancelar</button>
                   </div>
                 </div>
               </form>

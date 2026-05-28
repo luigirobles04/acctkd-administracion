@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import {
+  aplicarFifoPagos,
+  aprobarLinea,
+  recalcularMontosAcademia,
+} from '@/lib/campeonato/inscripcion-server'
 
 export async function GET(_request, { params }) {
   try {
@@ -64,6 +69,88 @@ export async function GET(_request, { params }) {
       recaudacion,
       resumen,
     })
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const { id } = await params
+    const idCampeonato = Number(id)
+    if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+
+    const body = await request.json()
+    const sb = getSupabaseAdmin()
+
+    if (body.accion === 'validar_comprobante') {
+      const { idComprobante, montoValidado, idAcademiaCampeonato } = body
+      const monto = Number(montoValidado)
+      if (!idComprobante || !Number.isFinite(monto) || monto <= 0) {
+        return NextResponse.json({ error: 'Comprobante y monto válido requeridos' }, { status: 400 })
+      }
+
+      await sb
+        .from('comprobante_pago')
+        .update({ monto_validado: monto, estado: 'validado' })
+        .eq('id_comprobante', idComprobante)
+
+      await aplicarFifoPagos(sb, idComprobante, idAcademiaCampeonato)
+      const montos = await recalcularMontosAcademia(sb, idAcademiaCampeonato)
+      return NextResponse.json({ ok: true, montos })
+    }
+
+    if (body.accion === 'rechazar_comprobante') {
+      const { idComprobante, observaciones } = body
+      if (!idComprobante) return NextResponse.json({ error: 'idComprobante requerido' }, { status: 400 })
+
+      await sb
+        .from('comprobante_pago')
+        .update({
+          estado: 'rechazado',
+          observaciones: observaciones || 'Rechazado por admin',
+        })
+        .eq('id_comprobante', idComprobante)
+
+      return NextResponse.json({ ok: true })
+    }
+
+    if (body.accion === 'aprobar_linea') {
+      const { idLinea } = body
+      if (!idLinea) return NextResponse.json({ error: 'idLinea requerido' }, { status: 400 })
+
+      const { data: linea } = await sb
+        .from('linea_inscripcion')
+        .select('estado, id_campeonato')
+        .eq('id_linea', idLinea)
+        .single()
+      if (!linea || linea.id_campeonato !== idCampeonato) {
+        return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
+      }
+
+      if (linea.estado === 'pendiente_pago' || linea.estado === 'borrador') {
+        await sb.from('linea_inscripcion').update({ estado: 'pagado' }).eq('id_linea', idLinea)
+      }
+      const updated = await aprobarLinea(sb, idLinea)
+      return NextResponse.json({ linea: updated })
+    }
+
+    if (body.accion === 'marcar_pagada') {
+      const { idLinea } = body
+      if (!idLinea) return NextResponse.json({ error: 'idLinea requerido' }, { status: 400 })
+
+      const { data: updated, error } = await sb
+        .from('linea_inscripcion')
+        .update({ estado: 'pagado', updated_at: new Date().toISOString() })
+        .eq('id_linea', idLinea)
+        .eq('id_campeonato', idCampeonato)
+        .select()
+        .single()
+      if (error) throw error
+      return NextResponse.json({ linea: updated })
+    }
+
+    return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
+import { ESTADOS_LINEA } from '@/lib/campeonato/constants'
+import { readJsonResponse } from '@/lib/public-app-url'
 
 function nombreLinea(l) {
   const nombres = (l.miembros || [])
@@ -24,7 +26,8 @@ export default function CampeonatoPagosPage() {
   const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [validando, setValidando] = useState(null)
+  const [procesando, setProcesando] = useState(null)
+  const [montosEdit, setMontosEdit] = useState({})
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -33,14 +36,20 @@ export default function CampeonatoPagosPage() {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
 
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pagos`)
-      const json = await res.json()
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, { cache: 'no-store' })
+      const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar pagos')
 
       setComprobantes(json.comprobantes || [])
       setLineas(json.lineas || [])
       setRecaudacion(json.recaudacion || null)
       setResumen(json.resumen || { aprobadas: 0, pagadas: 0, pendientes: 0, comprobantesPendientes: 0 })
+
+      const montos = {}
+      for (const c of json.comprobantes || []) {
+        if (c.estado === 'pendiente') montos[c.id_comprobante] = String(c.monto_declarado ?? '')
+      }
+      setMontosEdit(montos)
     } catch (e) {
       setError(e.message)
       setComprobantes([])
@@ -61,29 +70,49 @@ export default function CampeonatoPagosPage() {
     return lineas
   }, [lineas, filtro])
 
-  async function validarComprobante(c) {
-    setValidando(c.id_comprobante)
+  async function accionPagos(payload) {
+    setProcesando(payload.key)
     setError(null)
     try {
-      const res = await fetch('/api/admin/inscripcion', {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idComprobante: c.id_comprobante,
-          montoValidado: c.monto_declarado,
-          estado: 'validado',
-          idAcademiaCampeonato: c.id_academia_campeonato,
-        }),
+        body: JSON.stringify(payload),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'No se pudo validar')
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error || 'No se pudo completar la acción')
       await cargar()
     } catch (e) {
       setError(e.message)
       alert(e.message)
     } finally {
-      setValidando(null)
+      setProcesando(null)
     }
+  }
+
+  function validarComprobante(c) {
+    const monto = Number(montosEdit[c.id_comprobante] ?? c.monto_declarado)
+    if (!Number.isFinite(monto) || monto <= 0) {
+      alert('Ingresa un monto válido')
+      return
+    }
+    accionPagos({
+      key: `val-${c.id_comprobante}`,
+      accion: 'validar_comprobante',
+      idComprobante: c.id_comprobante,
+      montoValidado: monto,
+      idAcademiaCampeonato: c.id_academia_campeonato,
+    })
+  }
+
+  function rechazarComprobante(c) {
+    const obs = prompt('Motivo del rechazo (opcional):') ?? ''
+    accionPagos({
+      key: `rej-${c.id_comprobante}`,
+      accion: 'rechazar_comprobante',
+      idComprobante: c.id_comprobante,
+      observaciones: obs,
+    })
   }
 
   const comprobantesPendientes = comprobantes.filter((c) => c.estado === 'pendiente')
@@ -129,19 +158,47 @@ export default function CampeonatoPagosPage() {
             </h3>
             <div className="ios-card" style={{ padding: 16, marginBottom: 24 }}>
               {comprobantesPendientes.map((c) => (
-                <div key={c.id_comprobante} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--separator)', gap: 12, flexWrap: 'wrap' }}>
-                  <div>
-                    <strong>{c.academia_campeonato?.academia?.nombre}</strong>
-                    <div style={{ fontSize: 13 }}>S/ {c.monto_declarado} · Op. {c.numero_operacion || '—'}</div>
+                <div key={c.id_comprobante} style={{ padding: '14px 0', borderBottom: '1px solid var(--separator)', gap: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <strong>{c.academia_campeonato?.academia?.nombre}</strong>
+                      <div style={{ fontSize: 13, marginTop: 4 }}>Op. {c.numero_operacion || '—'}</div>
+                      {c.archivo_url && (
+                        <a href={c.archivo_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: 'var(--red)', display: 'inline-block', marginTop: 6 }}>
+                          Ver voucher →
+                        </a>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: 12, color: 'var(--label2)' }}>Monto S/</label>
+                      <input
+                        className="ios-input"
+                        type="number"
+                        step="0.01"
+                        style={{ width: 100, padding: '6px 10px' }}
+                        value={montosEdit[c.id_comprobante] ?? ''}
+                        onChange={(e) => setMontosEdit((m) => ({ ...m, [c.id_comprobante]: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-primary"
+                        style={{ fontSize: 12 }}
+                        disabled={procesando === `val-${c.id_comprobante}`}
+                        onClick={() => validarComprobante(c)}
+                      >
+                        {procesando === `val-${c.id_comprobante}` ? 'Validando…' : 'Aprobar pago'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-secondary"
+                        style={{ fontSize: 12, color: 'var(--red)' }}
+                        disabled={procesando === `rej-${c.id_comprobante}`}
+                        onClick={() => rechazarComprobante(c)}
+                      >
+                        Rechazar
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="ios-btn ios-btn-primary"
-                    disabled={validando === c.id_comprobante}
-                    onClick={() => validarComprobante(c)}
-                  >
-                    {validando === c.id_comprobante ? 'Validando…' : 'Validar (dorsal automático)'}
-                  </button>
                 </div>
               ))}
               {comprobantesPendientes.length === 0 && (
@@ -169,28 +226,66 @@ export default function CampeonatoPagosPage() {
             </div>
 
             <div className="ios-card" style={{ padding: 16 }}>
-              {lineasFiltradas.map((l) => (
-                <div key={l.id_linea} style={{ padding: '10px 0', borderBottom: '1px solid var(--separator)', fontSize: 13 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <strong>{nombreLinea(l)}</strong>
-                      <div style={{ color: 'var(--label2)', marginTop: 4 }}>
-                        {l.academia_campeonato?.academia?.nombre} · {l.modalidad.replace(/_/g, ' ')}
-                        {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
+              {lineasFiltradas.map((l) => {
+                const st = ESTADOS_LINEA[l.estado] || { label: l.estado, cls: 'badge-gray' }
+                return (
+                  <div key={l.id_linea} style={{ padding: '12px 0', borderBottom: '1px solid var(--separator)', fontSize: 13 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <strong>{nombreLinea(l)}</strong>
+                        <div style={{ color: 'var(--label2)', marginTop: 4 }}>
+                          {l.academia_campeonato?.academia?.nombre} · {l.modalidad.replace(/_/g, ' ')}
+                          {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span className={`badge ${st.cls}`}>{st.label}</span>
+                        {l.dorsal_display && (
+                          <div style={{ marginTop: 4, fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display}</div>
+                        )}
+                        <div style={{ marginTop: 4, color: 'var(--label3)' }}>S/ {l.precio_aplicado}</div>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`}>
-                        {l.estado === 'aprobado' ? 'Pagado + dorsal' : l.estado === 'pagado' ? 'Pagado' : 'Pendiente'}
-                      </span>
-                      {l.dorsal_display && (
-                        <div style={{ marginTop: 4, fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display}</div>
-                      )}
-                      <div style={{ marginTop: 4, color: 'var(--label3)' }}>S/ {l.precio_aplicado}</div>
-                    </div>
+                    {(l.estado === 'pendiente_pago' || l.estado === 'pagado') && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                        {l.estado === 'pendiente_pago' && (
+                          <>
+                            <button
+                              type="button"
+                              className="ios-btn ios-btn-secondary"
+                              style={{ fontSize: 11, padding: '4px 10px' }}
+                              disabled={procesando === `pag-${l.id_linea}`}
+                              onClick={() => accionPagos({ key: `pag-${l.id_linea}`, accion: 'marcar_pagada', idLinea: l.id_linea })}
+                            >
+                              Marcar pagada
+                            </button>
+                            <button
+                              type="button"
+                              className="ios-btn ios-btn-primary"
+                              style={{ fontSize: 11, padding: '4px 10px' }}
+                              disabled={procesando === `apr-${l.id_linea}`}
+                              onClick={() => accionPagos({ key: `apr-${l.id_linea}`, accion: 'aprobar_linea', idLinea: l.id_linea })}
+                            >
+                              Aprobar + dorsal
+                            </button>
+                          </>
+                        )}
+                        {l.estado === 'pagado' && (
+                          <button
+                            type="button"
+                            className="ios-btn ios-btn-primary"
+                            style={{ fontSize: 11, padding: '4px 10px' }}
+                            disabled={procesando === `apr-${l.id_linea}`}
+                            onClick={() => accionPagos({ key: `apr-${l.id_linea}`, accion: 'aprobar_linea', idLinea: l.id_linea })}
+                          >
+                            Asignar dorsal
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
               {lineasFiltradas.length === 0 && <p style={{ color: 'var(--label3)' }}>Sin líneas en este filtro</p>}
             </div>
           </>
