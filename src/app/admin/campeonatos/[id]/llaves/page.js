@@ -136,18 +136,18 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
-  async function marcarGanador(idLlave, ganadorIdLinea, combate) {
+  async function marcarGanador(idLlave, ganadorIdLinea) {
+    if (!idLlave || !ganadorIdLinea) {
+      alert('Combate no válido — recarga la página')
+      return
+    }
     if (!confirm('¿Registrar ganador y avanzarlo?')) return
-    const p1 = prompt(`Puntos AZUL (Chung) — ${combate?.competidor1?.nombres || 'lado izquierdo'}:`, '0')
-    if (p1 === null) return
-    const p2 = prompt(`Puntos ROJO (Hong) — ${combate?.competidor2?.nombres || 'lado derecho'}:`, '0')
-    if (p2 === null) return
     setMarcando(idLlave)
     try {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idLlave, ganadorIdLinea, puntaje1: Number(p1), puntaje2: Number(p2) }),
+        body: JSON.stringify({ idLlave: Number(idLlave), ganadorIdLinea: Number(ganadorIdLinea) }),
       })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
@@ -262,23 +262,38 @@ export default function CampeonatoLlavesPage() {
                           {(porCancha[n] || []).length} combates
                         </span>
                       </div>
-                      <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'grid', gap: 14 }}>
                         {(porCancha[n] || []).length === 0 && (
                           <p style={{ color: 'var(--label3)', fontSize: 13 }}>Sin combates asignados</p>
                         )}
-                        {(porCancha[n] || []).map((m) => (
-                          <div key={m.id_llave}>
-                            <p style={{ fontSize: 11, color: 'var(--label3)', marginBottom: 4 }}>
-                              #{m.orden_pista} · {m.categoria_nombre}
-                            </p>
-                            <CombateCard
-                              combate={m}
-                              compact
-                              marcando={marcando === m.id_llave}
-                              onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea, m)}
-                            />
-                          </div>
-                        ))}
+                        {(() => {
+                          const groups = []
+                          let cur = null
+                          for (const m of porCancha[n] || []) {
+                            if (!cur || cur.nombre !== m.categoria_nombre) {
+                              cur = { nombre: m.categoria_nombre, items: [] }
+                              groups.push(cur)
+                            }
+                            cur.items.push(m)
+                          }
+                          return groups.map((g) => (
+                            <div key={g.nombre}>
+                              <p style={{ fontSize: 12, fontWeight: 800, color: 'var(--red)', marginBottom: 8, paddingBottom: 4, borderBottom: '2px solid var(--separator)' }}>
+                                {g.nombre} · Cancha {n}
+                              </p>
+                              {g.items.map((m) => (
+                                <div key={m.id_llave} style={{ marginBottom: 8 }}>
+                                  <CombateCard
+                                    combate={m}
+                                    compact
+                                    marcando={marcando === m.id_llave}
+                                    onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ))
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -319,7 +334,7 @@ export default function CampeonatoLlavesPage() {
                       <CombateCard
                         combate={m}
                         marcando={marcando === m.id_llave}
-                        onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea, m)}
+                        onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
                       />
                     </div>
                   ))
