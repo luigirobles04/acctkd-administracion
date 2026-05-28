@@ -157,29 +157,6 @@ export default function CampeonatoDetallePage() {
     }
   }
 
-  if (loading && !campeonato) {
-    return (
-      <AdminLayout title="Campeonato">
-        <div style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>Cargando…</div>
-      </AdminLayout>
-    )
-  }
-
-  if (error || !campeonato) {
-    return (
-      <AdminLayout title="Campeonato">
-        <div style={{ padding: 16, margin: 24, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A' }}>{error || 'No encontrado'}</div>
-        <button type="button" className="ios-btn ios-btn-secondary" style={{ marginLeft: 24 }} onClick={() => router.push('/admin/campeonatos')}>
-          Volver
-        </button>
-      </AdminLayout>
-    )
-  }
-
-  const st = ESTADOS[campeonato.estado] || { label: campeonato.estado, cls: 'badge-gray' }
-  const catsKyorugi = categorias.filter((c) => c.modalidad === 'kyorugi')
-  const catsPoomsae = categorias.filter((c) => c.modalidad === 'poomsae')
-
   const recaudacion = useMemo(() => {
     const base = academiasCamp.reduce(
       (acc, ac) => {
@@ -226,6 +203,29 @@ export default function CampeonatoDetallePage() {
       setGuardandoPerfil(false)
     }
   }
+
+  if (loading && !campeonato) {
+    return (
+      <AdminLayout title="Campeonato">
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>Cargando…</div>
+      </AdminLayout>
+    )
+  }
+
+  if (error || !campeonato) {
+    return (
+      <AdminLayout title="Campeonato">
+        <div style={{ padding: 16, margin: 24, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A' }}>{error || 'No encontrado'}</div>
+        <button type="button" className="ios-btn ios-btn-secondary" style={{ marginLeft: 24 }} onClick={() => router.push('/admin/campeonatos')}>
+          Volver
+        </button>
+      </AdminLayout>
+    )
+  }
+
+  const st = ESTADOS[campeonato.estado] || { label: campeonato.estado, cls: 'badge-gray' }
+  const catsKyorugi = categorias.filter((c) => c.modalidad === 'kyorugi')
+  const catsPoomsae = categorias.filter((c) => c.modalidad === 'poomsae')
 
   return (
     <AdminLayout title={campeonato.nombre} subtitle={`${formatFecha(campeonato.fecha_inicio)} — ${formatFecha(campeonato.fecha_fin)}`}>
