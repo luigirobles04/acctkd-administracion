@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
@@ -31,7 +31,6 @@ function conteo(rel) {
 }
 
 export default function CampeonatosPage() {
-  const router = useRouter()
   const [campeonatos, setCampeonatos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -85,7 +84,7 @@ export default function CampeonatosPage() {
       if (!res.ok) throw new Error(json.error)
       setShowModal(false)
       setForm(FORM_INICIAL)
-      router.push(`/admin/campeonatos/${json.campeonato.id_campeonato}`)
+      window.location.href = `/admin/campeonatos/${json.campeonato.id_campeonato}`
     } catch (err) {
       alert('Error: ' + err.message)
     } finally {
@@ -136,12 +135,11 @@ export default function CampeonatosPage() {
               const nComp = conteo(c.competidor)
               const nIns = conteo(c.inscripcion_campeonato)
               return (
-                <button
+                <Link
                   key={c.id_campeonato}
-                  type="button"
+                  href={`/admin/campeonatos/${c.id_campeonato}`}
                   className="ios-card anim-fade-up"
-                  style={{ padding: 18, textAlign: 'left', cursor: 'pointer', border: '0.5px solid var(--separator)' }}
-                  onClick={() => router.push(`/admin/campeonatos/${c.id_campeonato}`)}
+                  style={{ padding: 18, textAlign: 'left', cursor: 'pointer', border: '0.5px solid var(--separator)', textDecoration: 'none', color: 'inherit', display: 'block' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(192,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -174,7 +172,7 @@ export default function CampeonatosPage() {
                       Eliminar
                     </button>
                   </div>
-                </button>
+                </Link>
               )
             })}
           </div>

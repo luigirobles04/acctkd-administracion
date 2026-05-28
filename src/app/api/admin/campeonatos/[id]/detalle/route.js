@@ -17,22 +17,13 @@ export async function GET(_request, { params }) {
     if (errCamp) throw errCamp
 
     const [
-      { data: categorias, error: errCats },
-      { data: inscripciones, error: errIns },
+      { count: categoriasCount, error: errCats },
+      { count: inscripcionesCount, error: errIns },
       { data: academiasCamp, error: errAc },
       { data: lineasInscripcion, error: errLi },
     ] = await Promise.all([
-      sb
-        .from('categoria_campeonato')
-        .select('id_categoria, nombre, modalidad, genero, edad_min, edad_max, peso_min, peso_max, orden')
-        .eq('id_campeonato', idCampeonato)
-        .order('orden', { ascending: true })
-        .order('nombre', { ascending: true }),
-      sb
-        .from('inscripcion_campeonato')
-        .select('*')
-        .eq('id_campeonato', idCampeonato)
-        .order('created_at', { ascending: false }),
+      sb.from('categoria_campeonato').select('*', { count: 'exact', head: true }).eq('id_campeonato', idCampeonato),
+      sb.from('inscripcion_campeonato').select('*', { count: 'exact', head: true }).eq('id_campeonato', idCampeonato),
       sb
         .from('academia_campeonato')
         .select('*, academia:id_academia(nombre, codigo_prefijo)')
@@ -41,10 +32,13 @@ export async function GET(_request, { params }) {
       sb
         .from('linea_inscripcion')
         .select(`
-          *,
-          categoria:categoria_campeonato(nombre),
-          academia_campeonato(academia:academia(nombre, codigo_prefijo)),
-          miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento, documento_tipo))
+          id_linea,
+          id_academia_campeonato,
+          modalidad,
+          estado,
+          dorsal_display,
+          precio_aplicado,
+          miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento, documento_tipo))
         `)
         .eq('id_campeonato', idCampeonato)
         .neq('estado', 'anulado')
@@ -66,13 +60,29 @@ export async function GET(_request, { params }) {
     )
     recaudacion.pendiente = Math.max(0, recaudacion.totalEsperado - recaudacion.recaudado)
 
+    const { data: catNombres } = await sb
+      .from('categoria_campeonato')
+      .select('nombre')
+      .eq('id_campeonato', idCampeonato)
+      .limit(600)
+
+    const nombres = (catNombres || []).map((c) => String(c.nombre || ''))
+    const catalogoViejo =
+      (categoriasCount || 0) < 480
+      || !nombres.some((n) => n.includes('Infantil A'))
+      || nombres.some((n) => n.includes('Poomsae Cadete B'))
+      || !nombres.some((n) => n.includes('Poomsae Il Jang · Cadete'))
+    const necesitaActivacion = !campeonato.slug || !campeonato.publicado || catalogoViejo
+
     return NextResponse.json({
       campeonato,
-      categorias: categorias || [],
-      inscripciones: inscripciones || [],
+      categoriasCount: categoriasCount || 0,
+      inscripcionesCount: inscripcionesCount || 0,
       academiasCamp: academiasCamp || [],
       lineasInscripcion: lineasInscripcion || [],
       recaudacion,
+      catalogoViejo,
+      necesitaActivacion,
     })
   } catch (e) {
     return NextResponse.json({ error: e.message || 'Error al cargar campeonato' }, { status: 500 })
