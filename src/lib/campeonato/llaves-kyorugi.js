@@ -259,6 +259,48 @@ export async function generarTodasLasLlaves(sb, idCampeonato) {
   return { generadas: resultados.length, resultados, errores }
 }
 
+export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { puntaje1, puntaje2 } = {}) {
+  const { data: match, error } = await sb.from('llave_kyorugi').select('*').eq('id_llave', idLlave).single()
+  if (error || !match) throw new Error('Combate no encontrado')
+  if (match.estado === 'vacío') throw new Error('Combate vacío')
+  if (match.estado === 'bye') throw new Error('Este combate ya tiene pase directo')
+
+  const g = Number(ganadorIdLinea)
+  if (g !== match.id_linea1 && g !== match.id_linea2) {
+    throw new Error('El ganador debe ser uno de los competidores del combate')
+  }
+  if (!match.id_linea1 || !match.id_linea2) {
+    throw new Error('Espera a que ambos competidores estén definidos')
+  }
+
+  const p1 = puntaje1 != null ? Number(puntaje1) : match.puntaje1
+  const p2 = puntaje2 != null ? Number(puntaje2) : match.puntaje2
+
+  await sb
+    .from('llave_kyorugi')
+    .update({
+      ganador_id_linea: g,
+      estado: 'finalizado',
+      puntaje1: p1,
+      puntaje2: p2,
+    })
+    .eq('id_llave', idLlave)
+
+  if (match.siguiente_llave) {
+    const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', match.siguiente_llave).single()
+    if (sig) {
+      const patch = {}
+      if (!sig.id_linea1) patch.id_linea1 = g
+      else if (!sig.id_linea2 && sig.id_linea1 !== g) patch.id_linea2 = g
+      if (Object.keys(patch).length) {
+        await sb.from('llave_kyorugi').update(patch).eq('id_llave', match.siguiente_llave)
+      }
+    }
+  }
+
+  return { ok: true, id_llave: idLlave, ganador_id_linea: g }
+}
+
 export {
   nombreLinea,
   bracketSizeFor,
