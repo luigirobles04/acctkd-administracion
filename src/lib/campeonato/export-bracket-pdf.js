@@ -41,20 +41,19 @@ function drawHeader(doc, campeonato, cat, pageW) {
   doc.line(10, 23, pageW - 10, 23)
 }
 
-function drawFightBadge(doc, x, y, area, num, fontSize = 10, maxW = 16) {
+function drawFightBadge(doc, x, y, area, num, fontSize = 10, maxW = 18) {
   if (!num) return
   const label = area ? `${area}/${String(num).padStart(2, '0')}` : String(num)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(fontSize)
-  // Ancho ajustado al texto, acotado para no solaparse con las cajas
-  const w = Math.min(maxW, doc.getTextWidth(label) + 2.5)
-  const h = fontSize * 0.35 + 2.4
+  const w = Math.min(maxW, Math.max(12, doc.getTextWidth(label) + 4))
+  const h = fontSize * 0.55 + 3
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(17, 17, 17)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(x - w / 2, y - h / 2, w, h, 1, 1, 'FD')
+  doc.setLineWidth(0.45)
+  doc.roundedRect(x - w / 2, y - h / 2, w, h, 1.2, 1.2, 'FD')
   doc.setTextColor(...DARK)
-  doc.text(label, x, y + fontSize * 0.12, { align: 'center' })
+  doc.text(label, x, y + fontSize * 0.1, { align: 'center' })
 }
 
 function colorSideFrom(slot) {
@@ -109,8 +108,8 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { highlight = false, colorSide
 }
 
 function drawBracketConnector(doc, xFrom, yTop, yBot, xMid, xTo, yOut) {
-  doc.setDrawColor(60, 60, 60)
-  doc.setLineWidth(0.55)
+  doc.setDrawColor(40, 40, 40)
+  doc.setLineWidth(0.65)
   const yMid = (yTop + yBot) / 2
   doc.line(xFrom, yTop, xMid, yTop)
   doc.line(xFrom, yBot, xMid, yBot)
@@ -119,50 +118,48 @@ function drawBracketConnector(doc, xFrom, yTop, yBot, xMid, xTo, yOut) {
 }
 
 function calcLayout(cols, pageW, pageH) {
-  const marginT = 32           // header termina en y≈23, ~9mm de buffer
-  const marginB = 10
+  const marginT = 30
+  const marginB = 12
   const availH = pageH - marginT - marginB
-  const availW = pageW - 20
+  const availW = pageW - 24
   const firstCount = Math.max(1, cols[0]?.combates.length || 1)
-  const numRoundCols = cols.length + 1  // +1 para caja winner
+  const numRoundCols = cols.length + 1
 
-  let boxH = 16
-  let gap = 3                  // separación chung/hong (mismo combate, juntos)
-  let boxW = 58
-  let colGap = 22
+  let boxH = 15
+  let gap = 2.5
+  let boxW = 56
+  let colGap = 24
 
-  // Separación entre combates distintos — generosa para que se distingan
-  const interBlock = () => Math.max(3, boxH * 0.7)
+  const interBlock = () => Math.max(4, boxH * 0.85)
   const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
 
-  // Escalar altura hasta que quepa (deja un boxH de margen de seguridad abajo)
-  while (blockH() + boxH > availH && boxH > 4) {
-    boxH = Math.max(4, boxH * 0.92)
-    gap = Math.max(0.8, gap * 0.92)
+  while (blockH() + boxH * 0.5 > availH && boxH > 5) {
+    boxH = Math.max(5, boxH * 0.91)
+    gap = Math.max(1.2, gap * 0.91)
   }
 
-  const minBoxW = cols.length >= 5 ? 24 : cols.length >= 4 ? 30 : 38
-  const minColGap = cols.length >= 5 ? 9 : 12
+  const minBoxW = cols.length >= 5 ? 26 : cols.length >= 4 ? 32 : 40
+  const minColGap = cols.length >= 5 ? 11 : 14
   let colW = boxW + colGap
-  let totalW = numRoundCols * colW + boxW + 20
+  let totalW = numRoundCols * colW + boxW + 24
   if (totalW > availW) {
     const scale = availW / totalW
     boxW = Math.max(minBoxW, boxW * scale)
     colGap = Math.max(minColGap, colGap * scale)
     colW = boxW + colGap
-    totalW = numRoundCols * colW + boxW + 20
+    totalW = numRoundCols * colW + boxW + 24
     if (totalW > availW) {
       const scale2 = availW / totalW
-      boxW = Math.max(minBoxW * 0.8, boxW * scale2)
-      colGap = Math.max(minColGap * 0.8, colGap * scale2)
+      boxW = Math.max(minBoxW * 0.85, boxW * scale2)
+      colGap = Math.max(minColGap * 0.85, colGap * scale2)
       colW = boxW + colGap
     }
   }
 
   const totalH = blockH()
-  const marginL = Math.max(6, (pageW - (numRoundCols * colW + boxW + 20)) / 2)
-  const fightFont = firstCount > 12 ? 6 : firstCount > 8 ? 7 : firstCount > 4 ? 8 : 9
-  const connectorMid = Math.min(12, colGap * 0.5)
+  const marginL = Math.max(8, (pageW - (numRoundCols * colW + boxW + 24)) / 2)
+  const fightFont = firstCount > 12 ? 7 : firstCount > 8 ? 8 : firstCount > 4 ? 9 : 10
+  const connectorMid = Math.min(14, colGap * 0.55)
 
   return { marginL, marginT, boxW, boxH, gap, colW, colGap, totalH, firstCount, fightFont, connectorMid }
 }
@@ -188,10 +185,8 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   const layout = calcLayout(cols, pageW, pageH)
   const { marginL, marginT, boxW, boxH, gap, colW, totalH, fightFont, connectorMid } = layout
 
-  drawColumnHeaders(doc, cols, layout, marginT - 5)
+  drawColumnHeaders(doc, cols, layout, marginT - 4)
 
-  // Posiciones: la 1ª columna se distribuye uniforme; cada ronda siguiente
-  // se centra entre sus dos combates alimentadores (árbol limpio, sin diagonales)
   const matchPositions = []
   cols.forEach((col, colIdx) => {
     const count = col.combates.length
@@ -201,20 +196,46 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
         const span = totalH / count
         yChung = marginT + i * span + (span - (boxH * 2 + gap)) / 2
       } else {
-        // centrar entre los dos feeders de la ronda anterior
         const feedA = matchPositions[colIdx - 1][i * 2]
         const feedB = matchPositions[colIdx - 1][i * 2 + 1] || feedA
         const centerY = (feedA.yBadge + feedB.yBadge) / 2
         yChung = centerY - (boxH + gap / 2)
       }
       const yHong = yChung + boxH + gap
-      const yMid = yChung + boxH + gap / 2
       const yBadge = yChung + boxH / 2 + (yHong - yChung) / 2
       const x = marginL + colIdx * colW
-      return { m, yChung, yHong, yMid, yBadge, x, colIdx }
+      return { m, yChung, yHong, yBadge, x, colIdx }
     })
   })
 
+  // 1) Conectores primero (debajo de las cajas)
+  matchPositions.forEach((colMatches, colIdx) => {
+    colMatches.forEach(({ yChung, yHong, yBadge, x }, matchIdx) => {
+      const badgeX = x + boxW + connectorMid
+      if (colIdx < cols.length - 1) {
+        const targetIdx = Math.floor(matchIdx / 2)
+        const target = matchPositions[colIdx + 1]?.[targetIdx]
+        const yTarget = target ? target.yBadge : yBadge
+        drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, yTarget)
+      }
+    })
+  })
+
+  const finalPos = matchPositions[cols.length - 1]?.[0]
+  if (finalPos) {
+    const xWin = finalPos.x + boxW + connectorMid + 2
+    drawBracketConnector(
+      doc,
+      finalPos.x + boxW,
+      finalPos.yChung + boxH / 2,
+      finalPos.yHong + boxH / 2,
+      finalPos.x + boxW + connectorMid,
+      xWin,
+      finalPos.yBadge
+    )
+  }
+
+  // 2) Cajas y badges encima
   matchPositions.forEach((colMatches, colIdx) => {
     colMatches.forEach(({ m, yChung, yHong, yBadge, x }, matchIdx) => {
       const chung = m.chung || { nombre: 'POR DEFINIR', vacio: true }
@@ -231,34 +252,16 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
       const badgeX = x + boxW + connectorMid
       if (m.numero_combate) {
-        drawFightBadge(doc, badgeX, yBadge, cat.cancha, m.numero_combate, fightFont, Math.max(7, connectorMid * 1.9))
-      }
-
-      if (colIdx < cols.length - 1) {
-        const targetIdx = Math.floor(matchIdx / 2)
-        const target = matchPositions[colIdx + 1]?.[targetIdx]
-        const yTarget = target ? target.yBadge : yBadge
-        drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, yTarget)
+        drawFightBadge(doc, badgeX, yBadge, cat.cancha, m.numero_combate, fightFont, Math.max(10, connectorMid * 2.2))
       }
     })
   })
 
   const finalCol = cols[cols.length - 1]
   const finalMatch = finalCol?.combates[0]
-  const finalPos = matchPositions[cols.length - 1]?.[0]
   if (finalPos) {
     const xWin = finalPos.x + boxW + connectorMid + 2
     const yWin = finalPos.yBadge - boxH / 2
-
-    drawBracketConnector(
-      doc,
-      finalPos.x + boxW,
-      finalPos.yChung + boxH / 2,
-      finalPos.yHong + boxH / 2,
-      finalPos.x + boxW + connectorMid,
-      xWin,
-      finalPos.yBadge
-    )
 
     doc.setFillColor(255, 251, 235)
     doc.setDrawColor(...GOLD)

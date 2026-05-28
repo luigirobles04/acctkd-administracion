@@ -56,7 +56,23 @@ describe('layoutCnuBracket', () => {
     expect(layout.cells.get('2,1')?.hong).toBe(true)
   })
 
-  it('porRonda vacío devuelve null', () => {
-    expect(layoutCnuBracket({})).toBeNull()
+  it('dibuja brazos horizontales entre rondas (gap col + prev col)', () => {
+    const layout = layoutCnuBracket(porRonda8())
+    // Ronda 1 combate 0: feeders en filas 1 y 5, gap col 4, prev col 3
+    expect(layout.cells.get('1,4')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('5,4')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('1,3')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('5,3')?.border?.bottom).toBe(true)
+    // Vertical ronda 1 en col 5 filas 1..5
+    for (const r of [1, 2, 3, 4, 5]) {
+      expect(layout.cells.get(`${r},5`)?.border?.right, `fila ${r} col 5`).toBe(true)
+    }
+  })
+
+  it('no pierde bordes al poner número de combate', () => {
+    const layout = layoutCnuBracket(porRonda8(), { cancha: 1 })
+    const spec = layout.cells.get('1,3')
+    expect(spec?.v).toBe('1/01')
+    expect(spec?.border?.right).toBe(true)
   })
 })

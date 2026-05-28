@@ -197,5 +197,8 @@ export function agruparPorArea(categorias) {
     if (areas[a]) areas[a].push(cat)
     else areas[1].push(cat)
   }
+  for (const n of [1, 2, 3]) {
+    areas[n].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))
+  }
   return areas
 }

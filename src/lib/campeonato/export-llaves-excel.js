@@ -29,17 +29,18 @@ function applyCell(ws, r, c, spec) {
   else if (spec.hong) cell.font = { bold: true, size: 10, color: { argb: 'FFDC2626' }, italic: spec.italic }
   else if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
   else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
-  if (spec.matchNo) cell.font = { bold: true, size: 13, color: { argb: 'FF111111' } }
-  if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle' }
+  if (spec.matchNo) cell.font = { bold: true, size: 12, color: { argb: 'FF111111' } }
+  if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle', wrapText: false }
   if (spec.bg === 'yellow') cell.fill = FILL.yellow
   if (spec.bg === 'gray') cell.fill = FILL.gray
   if (spec.bg === 'white') cell.fill = FILL.white
   if (spec.border) {
+    const prev = cell.border || {}
     cell.border = {
-      top: spec.border.top ? BORDER : undefined,
-      bottom: spec.border.bottom ? BORDER : undefined,
-      left: spec.border.left ? BORDER : undefined,
-      right: spec.border.right ? BORDER : undefined,
+      top: spec.border.top ? BORDER : prev.top,
+      bottom: spec.border.bottom ? BORDER : prev.bottom,
+      left: spec.border.left ? BORDER : prev.left,
+      right: spec.border.right ? BORDER : prev.right,
     }
   }
 }
@@ -57,7 +58,7 @@ function writeCategoriaCnu(ws, cat, startRow) {
 
   let row = startRow + 1
   for (let r = 0; r < layout.rows; r++) {
-    ws.getRow(row + r).height = 18
+    ws.getRow(row + r).height = 20
     for (let c = 0; c < layout.cols; c++) {
       const cell = ws.getCell(row + r, c + 1)
       if (c >= 3) cell.fill = FILL.areaBg
@@ -65,7 +66,7 @@ function writeCategoriaCnu(ws, cat, startRow) {
       if (spec) applyCell(ws, row + r, c + 1, spec)
     }
   }
-  return row + layout.rows + 2
+  return row + layout.rows + 3
 }
 
 function addResumenSheet(wb, camp, resumen) {
@@ -115,7 +116,7 @@ function addAreaSheet(wb, camp, areaNum, categorias) {
     row = writeCategoriaCnu(ws, cat, row)
   }
 
-  ws.columns = [{ width: 5 }, { width: 38 }, { width: 28 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }]
+  ws.columns = [{ width: 5 }, { width: 36 }, { width: 26 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }]
 }
 
 /** Genera buffer xlsx en servidor (ExcelJS no corre bien en browser) */

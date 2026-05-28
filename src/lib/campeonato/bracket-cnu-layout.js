@@ -23,22 +23,22 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
   const cells = new Map()
   const merges = []
 
-  const set = (r, c, spec) => {
-    cells.set(`${r},${c}`, spec)
+  const setValue = (r, c, spec) => {
+    const key = `${r},${c}`
+    const prev = cells.get(key) || {}
+    cells.set(key, { ...prev, ...spec })
   }
 
-  // Fila de "salida" (donde sale el ganador) de cada combate. Para ronda 0 es
-  // la fila central entre chung (mi*4) y hong (mi*4+2) → mi*4+1.
+  const addBorder = (r, c, b) => {
+    const key = `${r},${c}`
+    const prev = cells.get(key) || {}
+    const border = { ...(prev.border || {}), ...b }
+    cells.set(key, { ...prev, border })
+  }
+
   const outRow = (roundIdx, mi) => {
     const span = ROWS_PER_MATCH * Math.pow(2, roundIdx)
     return mi * span + span / 2 - 1
-  }
-
-  // Combina bordes en una celda sin perder los previos
-  const addBorder = (r, c, b) => {
-    const prev = cells.get(`${r},${c}`) || {}
-    const border = { ...(prev.border || {}), ...b }
-    cells.set(`${r},${c}`, { ...prev, border })
   }
 
   cols[0].combates.forEach((m, mi) => {
@@ -48,22 +48,26 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
     const seedA = mi * 2 + 1
     const seedB = mi * 2 + 2
 
-    set(rTop, 0, { v: seedA, align: 'center', bold: true, bg: 'white' })
-    set(rTop, 1, { v: m.chung?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.chung?.vacio, chung: true })
-    set(rTop, 2, { v: m.chung?.academia || '', bg: 'gray', small: true })
+    setValue(rTop, 0, { v: seedA, align: 'center', bold: true, bg: 'white' })
+    setValue(rTop, 1, { v: m.chung?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.chung?.vacio, chung: true })
+    setValue(rTop, 2, { v: m.chung?.academia || '', bg: 'gray', small: true })
 
-    set(rBot, 0, { v: seedB, align: 'center', bold: true, bg: 'white' })
-    set(rBot, 1, { v: m.hong?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.hong?.vacio, hong: true })
-    set(rBot, 2, { v: m.hong?.academia || '', bg: 'gray', small: true })
+    setValue(rBot, 0, { v: seedB, align: 'center', bold: true, bg: 'white' })
+    setValue(rBot, 1, { v: m.hong?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.hong?.vacio, hong: true })
+    setValue(rBot, 2, { v: m.hong?.academia || '', bg: 'gray', small: true })
 
     const col0 = 3
-    // Vertical completo de rTop a rBot + tapas horizontales
     for (let r = rTop; r <= rBot; r++) addBorder(r, col0, { right: true })
     addBorder(rTop, col0, { top: true })
     addBorder(rBot, col0, { bottom: true })
 
     if (m.numero_combate) {
-      set(rMid, col0, { v: fmtCombate(m.numero_combate, cancha), align: 'center', bold: true, matchNo: true, border: { right: true } })
+      setValue(rMid, col0, {
+        v: fmtCombate(m.numero_combate, cancha),
+        align: 'center',
+        bold: true,
+        matchNo: true,
+      })
     }
   })
 
@@ -71,27 +75,36 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
     if (roundIdx === 0) return
     const colBase = 3 + roundIdx * 2
     const gapCol = colBase - 1
+    const prevCol = colBase - 2
 
     col.combates.forEach((m, mi) => {
-      const vTop = outRow(roundIdx - 1, mi * 2)       // salida del feeder superior
-      const vBot = outRow(roundIdx - 1, mi * 2 + 1)   // salida del feeder inferior
+      const vTop = outRow(roundIdx - 1, mi * 2)
+      const vBot = outRow(roundIdx - 1, mi * 2 + 1)
       const mid = outRow(roundIdx, mi)
 
-      // Brazos horizontales: del feeder hasta la vertical de este combate
-      addBorder(vTop, gapCol, { bottom: true })
-      addBorder(vBot, gapCol, { bottom: true })
+      // Brazos horizontales: desde la vertical anterior hasta esta ronda
+      for (const r of [vTop, vBot]) {
+        addBorder(r, prevCol, { bottom: true })
+        addBorder(r, gapCol, { bottom: true })
+      }
 
-      // Vertical completo de vTop a vBot (sin huecos)
+      // Vertical completa de vTop a vBot
       for (let r = vTop; r <= vBot; r++) addBorder(r, colBase, { right: true })
+      addBorder(vTop, colBase, { top: true })
+      addBorder(vBot, colBase, { bottom: true })
 
       const label = m.chung?.vacio && m.hong?.vacio ? 'POR DEFINIR' : m.chung?.nombre || m.hong?.nombre || 'POR DEFINIR'
       if (roundIdx === cols.length - 1) {
-        set(mid, 1, { v: label, bold: false, italic: true, bg: 'white' })
+        setValue(mid, 1, { v: label, bold: false, italic: true, bg: 'white' })
       }
 
       if (m.numero_combate) {
-        const prev = cells.get(`${mid},${colBase}`) || {}
-        set(mid, colBase, { ...prev, v: fmtCombate(m.numero_combate, cancha), align: 'center', bold: true, matchNo: true })
+        setValue(mid, colBase, {
+          v: fmtCombate(m.numero_combate, cancha),
+          align: 'center',
+          bold: true,
+          matchNo: true,
+        })
       }
     })
   })
