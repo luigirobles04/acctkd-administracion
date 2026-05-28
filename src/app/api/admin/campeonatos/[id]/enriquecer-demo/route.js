@@ -7,14 +7,6 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request, { params }) {
   try {
-    const secret = process.env.CRON_SECRET
-    if (secret) {
-      const auth = request.headers.get('authorization')
-      if (auth !== `Bearer ${secret}`) {
-        return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-      }
-    }
-
     const { id } = await params
     const idCampeonato = Number(id)
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })

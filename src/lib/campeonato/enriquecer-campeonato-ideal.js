@@ -272,7 +272,7 @@ export async function enriquecerCampeonatoIdeal(sb, idCampeonato) {
   const llaves = await generarTodasLasLlaves(sb, idCampeonato)
   const finalizados = await finalizarCombates(sb, idCampeonato)
 
-  await sb.from('campeonato').update({ estado: 'finalizado', updated_at: new Date().toISOString() }).eq('id_campeonato', idCampeonato)
+    await sb.from('campeonato').update({ estado: 'finalizado' }).eq('id_campeonato', idCampeonato)
 
   return {
     id_campeonato: idCampeonato,

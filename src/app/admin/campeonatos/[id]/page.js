@@ -48,6 +48,7 @@ export default function CampeonatoDetallePage() {
   const [editLinea, setEditLinea] = useState(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [guardandoLinea, setGuardandoLinea] = useState(false)
+  const [enriqueciendoDemo, setEnriqueciendoDemo] = useState(false)
   const [expandidasIns, setExpandidasIns] = useState({})
   const [filtrosIns, setFiltrosIns] = useState({})
 
@@ -172,6 +173,29 @@ export default function CampeonatoDetallePage() {
       router.push('/admin/campeonatos')
     } catch (e) {
       alert(e.message)
+    }
+  }
+
+  async function enriquecerDemo() {
+    if (
+      !confirm(
+        '¿Cargar escenario ideal?\n\nSe agregarán academias e inscripciones (kyorugi 5/7/9/11, poomsae mín. 5), pesaje, llaves y combates finalizados.\n\nPuede tardar 1–2 minutos.'
+      )
+    )
+      return
+    setEnriqueciendoDemo(true)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/enriquecer-demo`, { method: 'POST' })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      alert(
+        `Escenario listo:\n• ${json.kyorugi_agregados} kyorugi nuevos\n• ${json.poomsae_agregados} poomsae nuevos\n• ${json.llaves_generadas} llaves\n• ${json.combates_finalizados} combates cerrados`
+      )
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setEnriqueciendoDemo(false)
     }
   }
 
@@ -366,6 +390,16 @@ export default function CampeonatoDetallePage() {
                 <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
                 <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
+                {campeonato.slug === 'simulacion-10x40-2026' && (
+                  <button
+                    type="button"
+                    className="ios-btn ios-btn-secondary"
+                    disabled={enriqueciendoDemo}
+                    onClick={enriquecerDemo}
+                  >
+                    {enriqueciendoDemo ? 'Generando demo…' : 'Escenario ideal demo'}
+                  </button>
+                )}
                 {campeonato.slug && (
                   <>
                     <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
