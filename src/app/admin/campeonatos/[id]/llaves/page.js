@@ -8,6 +8,11 @@ import CombateCard from '@/components/campeonatos/CombateCard'
 import BracketVisual, { combateVisible } from '@/components/campeonatos/BracketVisual'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { readJsonResponse } from '@/lib/public-app-url'
+import {
+  descargarLlavesExcel,
+  descargarLlavesPdf,
+  fetchExportLlaves,
+} from '@/lib/campeonato/export-llaves-client'
 
 const RONDA_LABEL = { 1: 'Final', 2: 'Semifinal', 3: 'Cuartos de final', 4: 'Octavos de final', 5: 'Dieciseisavos de final' }
 const VISTAS = [
@@ -30,6 +35,7 @@ export default function CampeonatoLlavesPage() {
   const [generando, setGenerando] = useState(null)
   const [generandoTodas, setGenerandoTodas] = useState(false)
   const [marcando, setMarcando] = useState(null)
+  const [exportando, setExportando] = useState(null)
 
   const cargarCats = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -161,6 +167,19 @@ export default function CampeonatoLlavesPage() {
   }
 
   const catsConInscritos = categorias.filter((c) => c.inscritos >= 2)
+  async function exportar(formato) {
+    setExportando(formato)
+    try {
+      const data = await fetchExportLlaves(idCampeonato)
+      if (formato === 'xlsx') await descargarLlavesExcel(data)
+      else await descargarLlavesPdf(data)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setExportando(null)
+    }
+  }
+
   const bloqueado = generandoTodas || Boolean(generando)
 
   const combatesFiltrados = selCat && porRonda
@@ -198,6 +217,22 @@ export default function CampeonatoLlavesPage() {
             <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">
               Podios
             </Link>
+            <button
+              type="button"
+              className="ios-btn ios-btn-secondary"
+              disabled={bloqueado || exportando}
+              onClick={() => exportar('xlsx')}
+            >
+              {exportando === 'xlsx' ? 'Exportando…' : 'Excel llaves'}
+            </button>
+            <button
+              type="button"
+              className="ios-btn ios-btn-secondary"
+              disabled={bloqueado || exportando}
+              onClick={() => exportar('pdf')}
+            >
+              {exportando === 'pdf' ? 'Exportando…' : 'PDF llaves'}
+            </button>
           </div>
         )}
 

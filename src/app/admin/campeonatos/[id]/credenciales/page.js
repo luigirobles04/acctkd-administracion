@@ -60,8 +60,6 @@ export default function CredencialesPage() {
     sheets.forEach((el) => el.classList.remove('print-hide'))
   }
 
-  const diaEvento = 1
-
   return (
     <AdminLayout title="Credenciales" subtitle={campeonato?.nombre}>
       <div className="credenciales-root">
@@ -83,7 +81,7 @@ export default function CredencialesPage() {
           </div>
 
           <p className="credenciales-hint">
-            Cada credencial ocupa una hoja (100×148 mm). Agrupadas por academia — usa el botón de cada academia para imprimir solo la suya.
+            Diseño frente + reverso con sponsors. Cada competidor = frente (foto + datos) y reverso (patrocinadores). Imprime por academia o todas.
           </p>
         </div>
 
@@ -117,12 +115,7 @@ export default function CredencialesPage() {
 
               <div className="credenciales-stack">
                 {academia.competidores.map((c) => (
-                  <CredencialCard
-                    key={c.id_linea}
-                    competidor={c}
-                    campeonato={campeonato}
-                    dia={diaEvento}
-                  />
+                  <CredencialCard key={c.id_linea} competidor={c} campeonato={campeonato} />
                 ))}
               </div>
             </section>
