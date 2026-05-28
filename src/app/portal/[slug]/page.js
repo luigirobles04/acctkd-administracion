@@ -26,6 +26,7 @@ import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
 import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
 import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 import { getCurrentUser, isRepresentante } from '@/lib/services/auth.service'
+import { portalFetch } from '@/lib/portal-client'
 
 const TABS = [
   { id: 'inscribir', label: 'Inscribir' },

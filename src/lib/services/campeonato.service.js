@@ -89,6 +89,32 @@ export async function listarInscripciones(idCampeonato) {
   return data || []
 }
 
+export async function listarAcademiasCampeonato(idCampeonato) {
+  const { data, error } = await getSupabase()
+    .from('academia_campeonato')
+    .select('*, academia:id_academia(nombre, codigo_prefijo)')
+    .eq('id_campeonato', idCampeonato)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+export async function listarLineasInscripcion(idCampeonato) {
+  const { data, error } = await getSupabase()
+    .from('linea_inscripcion')
+    .select(`
+      *,
+      categoria:categoria_campeonato(nombre),
+      academia_campeonato(academia:academia(nombre, codigo_prefijo)),
+      miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(nombres, apellidos, documento_numero))
+    `)
+    .eq('id_campeonato', idCampeonato)
+    .neq('estado', 'anulado')
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
 export async function crearInscripcion(payload) {
   const { data, error } = await getSupabase()
     .from('inscripcion_campeonato')

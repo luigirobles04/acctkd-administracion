@@ -284,8 +284,42 @@ async function main() {
     await sb.from('academia_campeonato').update({ monto_total: montoTotal, ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
   }
 
+  await crearUsuariosRepresentantes()
+
   console.log('\n✅ Simulación completada')
   console.log(JSON.stringify({ slug: SLUG, id_campeonato: camp.id_campeonato, ...stats }, null, 2))
+  console.log('\n👤 Usuarios portal (contraseña: sim2026):')
+  for (let a = 0; a < PREFIJOS.length; a++) {
+    console.log(`   sim_${PREFIJOS[a].toLowerCase()} — ${ACADEMIA_NOMBRES[a]}`)
+  }
+}
+
+async function crearUsuariosRepresentantes() {
+  const bcrypt = (await import('bcryptjs')).default
+  const hash = await bcrypt.hash('sim2026', 10)
+  const { data: rol } = await sb.from('rol').select('id_rol').eq('nombre', 'representante').single()
+  if (!rol) return
+
+  const { data: academias } = await sb
+    .from('academia')
+    .select('id_academia, nombre, codigo_prefijo')
+    .in('nombre', ACADEMIA_NOMBRES)
+
+  for (const a of academias || []) {
+    const username = `sim_${String(a.codigo_prefijo).toLowerCase()}`
+    const { data: exists } = await sb.from('usuario').select('id_usuario').eq('username', username).maybeSingle()
+    if (exists) continue
+    await sb.from('usuario').insert({
+      username,
+      password_hash: hash,
+      id_rol: rol.id_rol,
+      activo: true,
+      email: `sim${String(a.codigo_prefijo).toLowerCase()}@fdptkd.test`,
+      nombre_completo: `Rep. ${a.nombre}`,
+      dni: `81${String(a.id_academia).padStart(6, '0')}`,
+      id_academia: a.id_academia,
+    })
+  }
 }
 
 main().catch((e) => {

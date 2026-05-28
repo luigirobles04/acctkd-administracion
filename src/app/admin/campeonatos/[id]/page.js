@@ -12,6 +12,8 @@ import {
   listarCategorias,
   listarCompetidores,
   listarInscripciones,
+  listarAcademiasCampeonato,
+  listarLineasInscripcion,
   obtenerCampeonato,
   actualizarInscripcion,
 } from '@/lib/services/campeonato.service'
@@ -46,6 +48,8 @@ export default function CampeonatoDetallePage() {
   const [campeonato, setCampeonato] = useState(null)
   const [categorias, setCategorias] = useState([])
   const [inscripciones, setInscripciones] = useState([])
+  const [academiasCamp, setAcademiasCamp] = useState([])
+  const [lineasInscripcion, setLineasInscripcion] = useState([])
   const [competidores, setCompetidores] = useState([])
   const [alumnos, setAlumnos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -61,18 +65,22 @@ export default function CampeonatoDetallePage() {
     setLoading(true)
     setError(null)
     try {
-      const [camp, cats, ins, comps, alu] = await Promise.all([
+      const [camp, cats, ins, comps, alu, acs, lineas] = await Promise.all([
         obtenerCampeonato(idCampeonato),
         listarCategorias(idCampeonato),
         listarInscripciones(idCampeonato),
         listarCompetidores(idCampeonato),
         listarAlumnosParaCompetir(),
+        listarAcademiasCampeonato(idCampeonato),
+        listarLineasInscripcion(idCampeonato),
       ])
       setCampeonato(camp)
       setCategorias(cats)
       setInscripciones(ins)
       setCompetidores(comps)
       setAlumnos(alu)
+      setAcademiasCamp(acs)
+      setLineasInscripcion(lineas)
     } catch (e) {
       setError(e.message || 'Error al cargar el campeonato')
     } finally {
@@ -254,8 +262,9 @@ export default function CampeonatoDetallePage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
               {[
                 { label: 'Categorías', val: categorias.length, icon: 'category', color: '#007AFF' },
-                { label: 'Inscripciones', val: inscripciones.length, icon: 'groups', color: '#FF9500' },
-                { label: 'Competidores', val: competidores.length, icon: 'sports_martial_arts', color: 'var(--red)' },
+                { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759' },
+                { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500' },
+                { label: 'Competidores (legacy)', val: competidores.length, icon: 'sports_martial_arts', color: 'var(--red)' },
                 { label: 'Slug portal', val: campeonato.slug || '—', icon: 'link', color: '#5856D6' },
               ].map((k) => (
                 <div key={k.label} className="ios-card" style={{ padding: 16 }}>
@@ -333,38 +342,56 @@ export default function CampeonatoDetallePage() {
         )}
 
         {tab === 'inscripciones' && (
-          <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 340px)' }}>
+          <div style={{ display: 'grid', gap: 20 }}>
+            <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p className="ios-headline">{academiasCamp.length} academias · {lineasInscripcion.length} líneas</p>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>
+                  Inscripciones del portal (líneas por modalidad). Pagos y dorsales en la vista dedicada.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</a>
+                <a href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos y dorsales</a>
+              </div>
+            </div>
+
             <div className="ios-group">
-              {inscripciones.length === 0 ? (
-                <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin inscripciones</p>
+              {academiasCamp.length === 0 ? (
+                <p className="ios-body" style={{ padding: 20, color: 'var(--label3)', textAlign: 'center' }}>Sin academias inscritas</p>
               ) : (
-                inscripciones.map((ins) => (
-                  <div key={ins.id_inscripcion} className="ios-group-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="ios-headline">{ins.nombre_academia}</span>
-                      <span className={`ios-badge ${ins.estado === 'aprobada' ? 'badge-green' : ins.estado === 'rechazada' ? 'badge-red' : 'badge-yellow'}`}>{ins.estado}</span>
+                academiasCamp.map((ac) => {
+                  const lineasAc = lineasInscripcion.filter((l) => l.id_academia_campeonato === ac.id)
+                  const pagadas = lineasAc.filter((l) => ['pagado', 'aprobado'].includes(l.estado)).length
+                  return (
+                    <div key={ac.id} className="ios-group-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span className="ios-headline">{ac.academia?.nombre || `Academia #${ac.id}`}</span>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <span className={`ios-badge ${ac.estado_aprobacion === 'aprobada' ? 'badge-green' : ac.estado_aprobacion === 'rechazada' ? 'badge-red' : 'badge-yellow'}`}>{ac.estado_aprobacion}</span>
+                          <span className="ios-badge badge-blue">{ac.estado_pago || 'pendiente'}</span>
+                        </div>
+                      </div>
+                      <span className="ios-caption" style={{ color: 'var(--label3)' }}>
+                        {lineasAc.length} líneas · {pagadas} pagadas/aprobadas · lista {ac.estado_lista} · S/ {Number(ac.monto_asignado || 0).toFixed(0)}/{Number(ac.monto_total || 0).toFixed(0)}
+                      </span>
+                      {lineasAc.slice(0, 4).map((l) => {
+                        const miembro = l.miembros?.[0]?.perfil
+                        const nombre = miembro ? `${miembro.nombres} ${miembro.apellidos}` : '—'
+                        return (
+                          <span key={l.id_linea} className="ios-caption" style={{ color: 'var(--label2)' }}>
+                            {l.dorsal_display || '—'} · {l.modalidad} · {nombre} · {l.estado}
+                          </span>
+                        )
+                      })}
+                      {lineasAc.length > 4 && (
+                        <span className="ios-caption" style={{ color: 'var(--label3)' }}>+{lineasAc.length - 4} líneas más</span>
+                      )}
                     </div>
-                    <span className="ios-caption" style={{ color: 'var(--label3)' }}>
-                      Coach: {ins.coach_nombres} {ins.coach_apellidos} · {ins.cantidad_competidores} comp. · {ins.coach_telefono || '—'}
-                    </span>
-                    {ins.estado === 'pendiente' && (
-                      <button type="button" className="ios-btn ios-btn-secondary" style={{ marginTop: 6, fontSize: 12 }} onClick={() => aprobarInscripcion(ins)}>Aprobar</button>
-                    )}
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
-            <form className="ios-card" style={{ padding: 18 }} onSubmit={guardarInscripcion}>
-              <p className="ios-headline" style={{ marginBottom: 14 }}>Nueva inscripción</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Academia *</span><input className="ios-input" required value={formIns.nombre_academia} onChange={(e) => setFormIns((p) => ({ ...p, nombre_academia: e.target.value }))} /></label>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Coach nombres</span><input className="ios-input" value={formIns.coach_nombres} onChange={(e) => setFormIns((p) => ({ ...p, coach_nombres: e.target.value }))} /></label>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Coach apellidos</span><input className="ios-input" value={formIns.coach_apellidos} onChange={(e) => setFormIns((p) => ({ ...p, coach_apellidos: e.target.value }))} /></label>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Teléfono coach</span><input className="ios-input" value={formIns.coach_telefono} onChange={(e) => setFormIns((p) => ({ ...p, coach_telefono: e.target.value }))} /></label>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Cant. competidores</span><input className="ios-input" type="number" min={1} value={formIns.cantidad_competidores} onChange={(e) => setFormIns((p) => ({ ...p, cantidad_competidores: e.target.value }))} /></label>
-                <button type="submit" className="ios-btn ios-btn-primary">Registrar inscripción</button>
-              </div>
-            </form>
           </div>
         )}
 
