@@ -81,7 +81,7 @@ export default function CredencialesPage() {
           </div>
 
           <p className="credenciales-hint">
-            Plantilla FESTCUP · tamaño real 54×86 mm. Al imprimir: <strong>márgenes Ninguno</strong>, gráficos de fondo activados. Si tu impresora no acepta tamaño custom, elige papel A4 y escala 100%.
+            Plantilla FESTCUP · 54×86 mm. Márgenes <strong>Ninguno</strong> + gráficos de fondo. Próximamente podrás subir tu plantilla y marcar en pantalla dónde va la foto (círculo/cuadrado) y los datos del participante.
           </p>
         </div>
 

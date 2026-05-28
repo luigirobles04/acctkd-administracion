@@ -5,7 +5,8 @@ import CombateCard from '@/components/campeonatos/CombateCard'
 const RONDA_LABEL = { 1: 'Final', 2: 'Semifinal', 3: 'Cuartos de final', 4: 'Octavos de final', 5: 'Dieciseisavos de final' }
 
 export function combateVisible(m) {
-  return m.estado !== 'vacío' && m.estado !== 'bye' && m.estado !== 'saltado'
+  if (!m || m.estado === 'vacío' || m.estado === 'bye') return false
+  return Boolean(m.competidor1?.id_linea || m.competidor2?.id_linea)
 }
 
 function BracketConnectors({ count, cellH, gap }) {
@@ -42,8 +43,8 @@ export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
   if (!rondas.length) return null
 
   const visiblesPorRonda = rondas.map((r) => (porRonda[r] || []).filter(combateVisible))
-  const CELL_H = 100
-  const GAP = 24
+  const CELL_H = 112
+  const GAP = 28
 
   return (
     <div style={{ overflowX: 'auto', padding: '8px 0 16px' }}>

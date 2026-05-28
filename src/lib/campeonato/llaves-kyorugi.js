@@ -184,7 +184,34 @@ async function batchUpdateCanchas(sb, rows) {
   }
 }
 
-/** Toda una categoría en la misma cancha; categorías repartidas 1→2→3→1… */
+/** Combates de una categoría ordenados: primero ronda más alta, luego match_numero */
+function combatesOrdenados(lista) {
+  return (lista || [])
+    .filter((c) => c.estado !== 'vacío')
+    .sort((a, b) => {
+      if (b.ronda !== a.ronda) return b.ronda - a.ronda
+      return a.match_numero - b.match_numero
+    })
+}
+
+/** Intercala combates de categorías pareadas (ej. -67 kg y +67 kg) para dar descanso */
+function intercalarParejas(categorias, porCat) {
+  const resultado = []
+  for (let i = 0; i < categorias.length; i += 2) {
+    const a = categorias[i]
+    const b = categorias[i + 1]
+    const ca = combatesOrdenados(porCat[a.id_categoria])
+    const cb = b ? combatesOrdenados(porCat[b.id_categoria]) : []
+    const max = Math.max(ca.length, cb.length)
+    for (let j = 0; j < max; j++) {
+      if (ca[j]) resultado.push({ combate: ca[j], categoria: a })
+      if (cb[j]) resultado.push({ combate: cb[j], categoria: b })
+    }
+  }
+  return resultado
+}
+
+/** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: categorias, error: errC } = await sb
     .from('categoria_campeonato')
@@ -199,8 +226,6 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     .select('id_llave, ronda, match_numero, estado, id_categoria')
     .eq('id_campeonato', idCampeonato)
     .neq('estado', 'vacío')
-    .neq('estado', 'bye')
-    .neq('estado', 'saltado')
   if (error) throw error
 
   const porCat = {}
@@ -210,23 +235,34 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
   }
 
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
+
+  const porCancha = Array.from({ length: numCanchas }, () => [])
+  catsConLlave.forEach((cat, ci) => {
+    porCancha[ci % numCanchas].push(cat)
+  })
+
   let ordenGlobal = 1
   const resumen = []
   const updates = []
 
-  for (let ci = 0; ci < catsConLlave.length; ci++) {
-    const cat = catsConLlave[ci]
-    const cancha = (ci % numCanchas) + 1
-    const combates = (porCat[cat.id_categoria] || []).sort((a, b) => {
-      if (b.ronda !== a.ronda) return b.ronda - a.ronda
-      return a.match_numero - b.match_numero
-    })
+  for (let n = 0; n < numCanchas; n++) {
+    const catsEnCancha = porCancha[n]
+    const secuencia = intercalarParejas(catsEnCancha, porCat)
+    const conteoCat = {}
 
-    for (const c of combates) {
-      updates.push({ id_llave: c.id_llave, cancha, orden_pista: ordenGlobal })
+    for (const { combate, categoria } of secuencia) {
+      updates.push({ id_llave: combate.id_llave, cancha: n + 1, orden_pista: ordenGlobal })
+      conteoCat[categoria.id_categoria] = (conteoCat[categoria.id_categoria] || 0) + 1
       ordenGlobal++
     }
-    resumen.push({ categoria: cat.nombre, cancha, combates: combates.length })
+
+    for (const cat of catsEnCancha) {
+      resumen.push({
+        categoria: cat.nombre,
+        cancha: n + 1,
+        combates: conteoCat[cat.id_categoria] || 0,
+      })
+    }
   }
 
   if (updates.length) await batchUpdateCanchas(sb, updates)
@@ -372,25 +408,22 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
     }
   }
 
-  if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
+        if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
     const bye = byePlayers[0]
     const sfIds = idsPorRonda[idsPorRonda.length - 2]
     const idSfBye = sfIds[sfIds.length - 1]
-    const idFinal = idsPorRonda[idsPorRonda.length - 1][0]
 
-    await sb
-      .from('llave_kyorugi')
-      .update({ estado: 'saltado', es_bye: true })
-      .eq('id_llave', idSfBye)
-
+    // Bye en semifinal (último cuadro SF), no en final
     await sb
       .from('llave_kyorugi')
       .update({
-        id_linea2: bye.id_linea,
-        color2: COLOR_HONG,
+        id_linea1: bye.id_linea,
+        color1: COLOR_CHUNG,
+        id_linea2: null,
         estado: 'pendiente',
+        es_bye: true,
       })
-      .eq('id_llave', idFinal)
+      .eq('id_llave', idSfBye)
   }
 
   if (asignarCanchas) await asignarCanchasCampeonato(sb, idCampeonato)
@@ -490,6 +523,32 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
       }
       if (Object.keys(patch).length) {
         await sb.from('llave_kyorugi').update(patch).eq('id_llave', match.siguiente_llave)
+      }
+    }
+  }
+
+  // Semifinal con bye: al cerrar la SF real, el bye pasa a la final
+  if (match.ronda === 2 && match.siguiente_llave) {
+    const { data: fin } = await sb.from('llave_kyorugi').select('*').eq('id_llave', match.siguiente_llave).maybeSingle()
+    const { data: siblings } = await sb
+      .from('llave_kyorugi')
+      .select('*')
+      .eq('id_categoria', match.id_categoria)
+      .eq('ronda', 2)
+    const byeSf = (siblings || []).find((s) => s.id_llave !== id && s.es_bye && (s.id_linea1 || s.id_linea2))
+    if (fin && byeSf) {
+      const byeId = byeSf.id_linea1 || byeSf.id_linea2
+      const byeColor = byeSf.id_linea1 === byeId ? byeSf.color1 : byeSf.color2
+      const patch = {}
+      if (fin.id_linea1 && !fin.id_linea2 && fin.id_linea1 !== byeId) {
+        patch.id_linea2 = byeId
+        patch.color2 = byeColor || COLOR_HONG
+      } else if (fin.id_linea2 && !fin.id_linea1 && fin.id_linea2 !== byeId) {
+        patch.id_linea1 = byeId
+        patch.color1 = byeColor || COLOR_CHUNG
+      }
+      if (Object.keys(patch).length) {
+        await sb.from('llave_kyorugi').update(patch).eq('id_llave', fin.id_llave)
       }
     }
   }

@@ -9,7 +9,7 @@ export const RONDA_LABEL_EXPORT = {
 }
 
 export function combateExportable(m) {
-  return m && !['vacío', 'bye', 'saltado'].includes(m.estado)
+  return m && m.estado !== 'vacío' && m.estado !== 'bye' && (m.competidor1 || m.competidor2)
 }
 
 export function rondasOrdenadas(porRonda) {
@@ -75,6 +75,7 @@ export function columnasBracket(porRonda) {
       .sort((a, b) => a.match_numero - b.match_numero)
       .map((m) => ({
         match_numero: m.match_numero,
+        numero_combate: m.orden_pista || '',
         chung: slotFromCompetidor(m.competidor1),
         hong: slotFromCompetidor(m.competidor2),
         ganador: ganadorNombre(m),

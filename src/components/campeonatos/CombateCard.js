@@ -86,8 +86,10 @@ function CompetidorBloque({ data, color, lado, esGanador, puedeMarcar, onMarcar,
 }
 
 export default function CombateCard({ combate, compact, marcando, onMarcarGanador, showCancha = true }) {
+  const tieneAlguno = combate.competidor1?.id_linea || combate.competidor2?.id_linea
+  if (combate.estado === 'bye' || combate.estado === 'vacío' || !tieneAlguno) return null
+
   const puedeMarcar = combate.estado === 'pendiente' && combate.id_linea1 && combate.id_linea2
-  if (combate.estado === 'bye' || combate.estado === 'saltado') return null
 
   const finalizado = combate.estado === 'finalizado'
 
@@ -105,9 +107,16 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
       {showCancha && combate.cancha && (
         <div style={{ padding: '5px 12px', background: '#111', color: '#fff', fontSize: 10, fontWeight: 700 }}>
           CANCHA {combate.cancha}
-          {combate.orden_pista ? <span style={{ float: 'right', opacity: 0.75 }}>#{combate.orden_pista}</span> : null}
+          {combate.orden_pista ? (
+            <span style={{ float: 'right', opacity: 0.85 }}>Combate #{combate.orden_pista}</span>
+          ) : null}
         </div>
       )}
+      {!showCancha && combate.orden_pista ? (
+        <div style={{ padding: '4px 10px', background: '#374151', color: '#fff', fontSize: 9, fontWeight: 700 }}>
+          Combate #{combate.orden_pista}
+        </div>
+      ) : null}
 
       <div style={{ display: 'flex', alignItems: 'stretch', position: 'relative', minHeight: compact ? 88 : 100 }}>
         <CompetidorBloque

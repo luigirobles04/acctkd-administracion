@@ -34,15 +34,15 @@ function enrichCombate(l, lineaMap, catMap) {
   }
 }
 
-export async function fetchCombatesCampeonato(sb, idCampeonato) {
-  const { data: llaves, error } = await sb
+export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltados = false } = {}) {
+  let q = sb
     .from('llave_kyorugi')
     .select('*')
     .eq('id_campeonato', idCampeonato)
     .neq('estado', 'vacío')
     .neq('estado', 'bye')
-    .neq('estado', 'saltado')
-    .order('orden_pista', { ascending: true, nullsFirst: false })
+  if (!incluirSaltados) q = q.neq('estado', 'saltado')
+  const { data: llaves, error } = await q.order('orden_pista', { ascending: true, nullsFirst: false })
   if (error) throw error
 
   const lineaIds = new Set()

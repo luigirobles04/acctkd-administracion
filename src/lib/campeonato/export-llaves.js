@@ -14,7 +14,11 @@ function labelGanador(combate) {
 }
 
 function combateExportable(c) {
-  return c && !['vacío', 'saltado', 'bye'].includes(c.estado)
+  return c && !['vacío', 'bye'].includes(c.estado)
+}
+
+function combateVisibleExport(c) {
+  return c && c.estado !== 'vacío' && (c.competidor1 || c.competidor2)
 }
 
 /** Agrupa combates por categoría con metadata para export */
@@ -45,7 +49,9 @@ export async function buildExportLlaves(sb, idCampeonato) {
     return acc
   }, {})
 
-  const { combates: todosCombates, porCancha } = await fetchCombatesCampeonato(sb, idCampeonato)
+  const { combates: todosCombates, porCancha } = await fetchCombatesCampeonato(sb, idCampeonato, {
+    incluirSaltados: true,
+  })
 
   const porCat = (todosCombates || []).reduce((acc, c) => {
     if (!acc[c.id_categoria]) acc[c.id_categoria] = []
@@ -62,11 +68,13 @@ export async function buildExportLlaves(sb, idCampeonato) {
 
   const categoriasExport = (categorias || []).map((cat) => {
     const combates = (porCat[cat.id_categoria] || []).filter(combateExportable)
-    const porRonda = combates.reduce((acc, c) => {
-      if (!acc[c.ronda]) acc[c.ronda] = []
-      acc[c.ronda].push(c)
-      return acc
-    }, {})
+    const porRonda = (porCat[cat.id_categoria] || [])
+      .filter(combateVisibleExport)
+      .reduce((acc, c) => {
+        if (!acc[c.ronda]) acc[c.ronda] = []
+        acc[c.ronda].push(c)
+        return acc
+      }, {})
 
     for (const r of Object.keys(porRonda)) {
       porRonda[r].sort((a, b) => a.match_numero - b.match_numero)
@@ -74,6 +82,9 @@ export async function buildExportLlaves(sb, idCampeonato) {
 
     const filasCombates = combates
       .sort((a, b) => {
+        if ((a.orden_pista || 9999) !== (b.orden_pista || 9999)) {
+          return (a.orden_pista || 9999) - (b.orden_pista || 9999)
+        }
         if (b.ronda !== a.ronda) return b.ronda - a.ronda
         return a.match_numero - b.match_numero
       })
@@ -81,6 +92,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
+        numero_combate: c.orden_pista || '',
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',

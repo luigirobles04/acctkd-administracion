@@ -49,38 +49,49 @@ function drawHeader(doc, campeonato, cat, pageW) {
   doc.line(12, 40, pageW - 12, 40)
 }
 
-function drawCompetidorBox(doc, x, y, w, h, slot, { highlight = false, color = null } = {}) {
+function drawCompetidorBox(doc, x, y, w, h, slot, { highlight = false, color = null, matchNo = null } = {}) {
   doc.setFillColor(255, highlight ? 243 : 255, highlight ? 199 : 255)
   doc.setDrawColor(highlight ? GOLD[0] : 180, highlight ? GOLD[1] : 180, highlight ? GOLD[2] : 180)
   doc.setLineWidth(highlight ? 0.6 : 0.35)
-  doc.roundedRect(x, y, w, h, 2, 2, highlight ? 'FD' : 'S')
+  doc.roundedRect(x, y, w, h, 2.5, 2.5, highlight ? 'FD' : 'S')
+
+  if (matchNo) {
+    doc.setFontSize(5.5)
+    doc.setTextColor(...GRAY)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`C${matchNo}`, x + w - 3, y + 4, { align: 'right' })
+  }
 
   if (slot?.dorsal) {
     doc.setFillColor(240, 240, 240)
-    doc.roundedRect(x + 2, y + 2, 14, 7, 1, 1, 'F')
-    doc.setFontSize(6)
+    doc.roundedRect(x + 2, y + 2, 16, 8, 1, 1, 'F')
+    doc.setFontSize(6.5)
     doc.setTextColor(...GRAY)
     doc.setFont('helvetica', 'bold')
-    doc.text(String(slot.dorsal).slice(0, 8), x + 9, y + 6.5, { align: 'center' })
+    doc.text(String(slot.dorsal).slice(0, 10), x + 10, y + 7.2, { align: 'center' })
   }
 
+  const nombre = (slot?.nombre || 'Por definir').toUpperCase()
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
+  doc.setFontSize(8.5)
   doc.setTextColor(color ? color[0] : 17, color ? color[1] : 17, color ? color[2] : 17)
-  doc.text(trunc(doc, (slot?.nombre || 'Por definir').toUpperCase(), w - 20), x + 18, y + 7)
+
+  const lines = doc.splitTextToSize(nombre, w - 22)
+  doc.text(lines.slice(0, 2), x + 20, y + (lines.length > 1 ? 6 : 8))
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6)
+  doc.setFontSize(6.5)
   doc.setTextColor(...GRAY)
-  doc.text(trunc(doc, slot?.academia || '', w - 8), x + 4, y + 12)
+  const acadLines = doc.splitTextToSize(slot?.academia || '', w - 6)
+  doc.text(acadLines.slice(0, 1), x + 4, y + h - 2.5)
 }
 
-function drawMatchConnectors(doc, x1, y1, x2, yMid, x3) {
+function drawMatchConnectors(doc, x1, y1, x2, yMid, x3, boxH = 18) {
   doc.setDrawColor(...GRAY)
-  doc.setLineWidth(0.4)
+  doc.setLineWidth(0.45)
   doc.line(x1, y1, x2, y1)
-  doc.line(x1, y1 + 14, x2, y1 + 14)
-  doc.line(x2, y1, x2, y1 + 14)
+  doc.line(x1, y1 + boxH, x2, y1 + boxH)
+  doc.line(x2, y1, x2, y1 + boxH)
   doc.line(x2, yMid, x3, yMid)
 }
 
@@ -102,11 +113,11 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
   drawHeader(doc, campeonato, cat, pageW)
 
-  const marginL = 12
+  const marginL = 10
   const marginT = 48
-  const boxW = 52
-  const boxH = 14
-  const colW = 58
+  const boxW = 68
+  const boxH = 18
+  const colW = 72
   const maxFirst = (cols[0]?.combates.length || 1) * 2
   const rowSpan = Math.max(2, maxFirst)
   const totalH = rowSpan * (boxH + 2)
@@ -123,11 +134,19 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     const yHong = baseY + boxH + 1
     slotYs.push({ yChung, yHong, mid: baseY + boxH / 2 + 0.5 })
 
-    drawCompetidorBox(doc, marginL, yChung, boxW, boxH, m.chung, { color: CHUNG })
-    drawCompetidorBox(doc, marginL, yHong, boxW, boxH, m.hong, { color: HONG })
+    drawCompetidorBox(doc, marginL, yChung, boxW, boxH, m.chung, { color: CHUNG, matchNo: m.numero_combate })
+    drawCompetidorBox(doc, marginL, yHong, boxW, boxH, m.hong, { color: HONG, matchNo: m.numero_combate })
 
     if (cols.length > 1) {
-      drawMatchConnectors(doc, marginL + boxW, yChung + boxH / 2, marginL + boxW + 8, slotYs[i].mid + boxH / 2, marginL + boxW + 16)
+      drawMatchConnectors(
+        doc,
+        marginL + boxW,
+        yChung + boxH / 2,
+        marginL + boxW + 8,
+        slotYs[i].mid + boxH / 2,
+        marginL + boxW + 16,
+        boxH
+      )
     }
   })
 
@@ -139,17 +158,27 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       const yBot = yTop + boxH + 2
       const yMid = yTop + boxH + 1
 
-      drawCompetidorBox(doc, x, yTop, boxW, boxH, m.chung, {
-        color: CHUNG,
-        highlight: Boolean(m.ganador && m.chung?.nombre === m.ganador.toUpperCase()),
-      })
-      drawCompetidorBox(doc, x, yBot, boxW, boxH, m.hong, {
-        color: HONG,
-        highlight: Boolean(m.ganador && m.hong?.nombre === m.ganador.toUpperCase()),
-      })
+      if (m.chung && !m.hong) {
+        drawCompetidorBox(doc, x, yMid - boxH / 2, boxW, boxH, m.chung, {
+          color: CHUNG,
+          highlight: Boolean(m.ganador),
+          matchNo: m.numero_combate,
+        })
+      } else {
+        drawCompetidorBox(doc, x, yTop, boxW, boxH, m.chung, {
+          color: CHUNG,
+          highlight: Boolean(m.ganador && m.chung?.nombre === m.ganador.toUpperCase()),
+          matchNo: m.numero_combate,
+        })
+        drawCompetidorBox(doc, x, yBot, boxW, boxH, m.hong, {
+          color: HONG,
+          highlight: Boolean(m.ganador && m.hong?.nombre === m.ganador.toUpperCase()),
+          matchNo: m.numero_combate,
+        })
+      }
 
       if (colIdx < cols.length - 2) {
-        drawMatchConnectors(doc, x + boxW, yTop + boxH / 2, x + boxW + 8, yMid, x + boxW + 16)
+        drawMatchConnectors(doc, x + boxW, yTop + boxH / 2, x + boxW + 8, yMid, x + boxW + 16, boxH)
       }
     })
   })
