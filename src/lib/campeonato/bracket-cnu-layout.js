@@ -4,8 +4,14 @@ import { columnasBracket, rondasOrdenadas } from '@/lib/campeonato/bracket-expor
 
 const ROWS_PER_MATCH = 4
 
+function fmtCombate(num, cancha) {
+  if (!num) return ''
+  const n = String(num).padStart(2, '0')
+  return cancha ? `${cancha}/${n}` : n
+}
+
 /** @returns {{ rows: number, cols: number, cells: Map<string, CellSpec>, merges: string[] }} */
-export function layoutCnuBracket(porRonda) {
+export function layoutCnuBracket(porRonda, { cancha } = {}) {
   const cols = columnasBracket(porRonda)
   if (!cols.length) return null
 
@@ -41,7 +47,7 @@ export function layoutCnuBracket(porRonda) {
     set(rBot, col0, { border: { bottom: true, right: true } })
 
     if (m.numero_combate) {
-      set(rTop + 1, col0, { v: String(m.numero_combate), align: 'center', bold: true, matchNo: true })
+      set(rTop + 1, col0, { v: fmtCombate(m.numero_combate, cancha), align: 'center', bold: true, matchNo: true })
     }
   })
 
@@ -72,7 +78,7 @@ export function layoutCnuBracket(porRonda) {
       }
 
       if (m.numero_combate) {
-        set(mid, colBase, { v: String(m.numero_combate), align: 'center', bold: true, matchNo: true })
+        set(mid, colBase, { v: fmtCombate(m.numero_combate, cancha), align: 'center', bold: true, matchNo: true })
       }
     })
   })

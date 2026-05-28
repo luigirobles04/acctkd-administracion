@@ -242,7 +242,6 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     porCancha[ci % numCanchas].push(cat)
   })
 
-  let ordenGlobal = 1
   const resumen = []
   const updates = []
 
@@ -250,11 +249,12 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     const catsEnCancha = porCancha[n]
     const secuencia = intercalarParejas(catsEnCancha, porCat)
     const conteoCat = {}
+    let ordenCancha = 1  // numeración secuencial dentro de cada cancha
 
     for (const { combate, categoria } of secuencia) {
-      updates.push({ id_llave: combate.id_llave, cancha: n + 1, orden_pista: ordenGlobal })
+      updates.push({ id_llave: combate.id_llave, cancha: n + 1, orden_pista: ordenCancha })
       conteoCat[categoria.id_categoria] = (conteoCat[categoria.id_categoria] || 0) + 1
-      ordenGlobal++
+      ordenCancha++
     }
 
     for (const cat of catsEnCancha) {

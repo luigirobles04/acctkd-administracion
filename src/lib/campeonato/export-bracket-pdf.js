@@ -18,35 +18,32 @@ function trunc(doc, text, maxW) {
 function drawHeader(doc, campeonato, cat, pageW) {
   doc.setTextColor(...DARK)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.text(trunc(doc, campeonato?.nombre || 'Campeonato', pageW - 24), pageW / 2, 11, { align: 'center' })
+  doc.setFontSize(12)
+  doc.text(trunc(doc, campeonato?.nombre || 'Campeonato', pageW - 24), pageW / 2, 9, { align: 'center' })
 
-  doc.setFontSize(10)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
-  doc.text(
-    trunc(doc, `${cat.nombre} · Área ${cat.cancha || '—'} · ${cat.inscritos} competidores`, pageW - 24),
-    pageW / 2,
-    17,
-    { align: 'center' }
-  )
+  const subtitle = [cat.nombre, cat.cancha ? `Área ${cat.cancha}` : null, cat.inscritos ? `${cat.inscritos} competidores` : null].filter(Boolean).join(' · ')
+  doc.text(trunc(doc, subtitle, pageW - 24), pageW / 2, 15, { align: 'center' })
 
   if (campeonato?.fecha_inicio) {
     const f = new Date(campeonato.fecha_inicio)
+    doc.setFontSize(8)
     doc.text(
       f.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }),
       pageW / 2,
-      22,
+      20,
       { align: 'center' }
     )
   }
 
   doc.setDrawColor(180, 180, 180)
-  doc.line(10, 25, pageW - 10, 25)
+  doc.line(10, 23, pageW - 10, 23)
 }
 
 function drawFightBadge(doc, x, y, area, num, fontSize = 10) {
   if (!num) return
-  const label = area ? `${area}/${num}` : String(num)
+  const label = area ? `${area}/${String(num).padStart(2, '0')}` : String(num)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(fontSize)
   const w = Math.max(16, doc.getTextWidth(label) + 8)
@@ -130,59 +127,68 @@ function drawBracketConnector(doc, xFrom, yTop, yBot, xMid, xTo, yOut) {
   doc.line(xMid, yMid, xTo, yOut)
 }
 
-function calcLayout(cols, pageW, pageH) {
-  const marginT = 52
-  const marginB = 10
-  const availH = pageH - marginT - marginB
+function calcLayout(cols, pageW, pageH, { byeCount = 0 } = {}) {
+  const marginT = 32           // header termina en y≈25, 7mm de buffer
+  const marginB = 8
+  // Reservar espacio para bye boxes al final (byeCount caja + separador)
+  const byeReserve = byeCount > 0 ? byeCount * 20 + 12 : 0
+  const availH = pageH - marginT - marginB - byeReserve
   const availW = pageW - 20
   const firstCount = Math.max(1, cols[0]?.combates.length || 1)
-  const numRoundCols = cols.length + 1  // +1 for winner box
+  const numRoundCols = cols.length + 1  // +1 para caja winner
 
-  // Start with comfortable defaults
   let boxH = 18
   let gap = 5
-  let boxW = 62
-  let colGap = 22
+  let boxW = 58
+  let colGap = 20
 
-  // Inter-block spacing scales with boxH
-  const interBlock = () => Math.max(1, boxH * 0.3)
-  const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
+  const interBlock = () => Math.max(0.5, boxH * 0.25)
+  // La altura total incluye un +boxH de seguridad para que el último box no se corte
+  const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock() + boxH
 
-  // Scale height until it fits
-  while (blockH() > availH && boxH > 5) {
-    boxH = Math.max(5, boxH * 0.9)
-    gap = Math.max(1, gap * 0.9)
+  while (blockH() > availH && boxH > 4) {
+    boxH = Math.max(4, boxH * 0.9)
+    gap = Math.max(0.5, gap * 0.9)
   }
 
-  // Scale width until it fits
+  // Escalar ancho; minimums más bajos para brackets de 5+ rondas
+  const minBoxW = cols.length >= 5 ? 22 : cols.length >= 4 ? 28 : 36
+  const minColGap = cols.length >= 5 ? 8 : 10
   let colW = boxW + colGap
   let totalW = numRoundCols * colW + boxW + 20
   if (totalW > availW) {
     const scale = availW / totalW
-    boxW = Math.max(36, boxW * scale)
-    colGap = Math.max(12, colGap * scale)
+    boxW = Math.max(minBoxW, boxW * scale)
+    colGap = Math.max(minColGap, colGap * scale)
     colW = boxW + colGap
     totalW = numRoundCols * colW + boxW + 20
+    // Segunda pasada si aún no cabe
+    if (totalW > availW) {
+      const scale2 = availW / totalW
+      boxW = Math.max(minBoxW * 0.8, boxW * scale2)
+      colGap = Math.max(minColGap * 0.8, colGap * scale2)
+      colW = boxW + colGap
+    }
   }
 
-  const totalH = blockH()
-  const marginL = Math.max(8, (pageW - totalW) / 2)
-  const fightFont = firstCount > 12 ? 7 : firstCount > 8 ? 8 : firstCount > 4 ? 9 : 10
-  const connectorMid = Math.min(14, colGap * 0.45)
+  const totalH = firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
+  const marginL = Math.max(6, (pageW - (numRoundCols * colW + boxW + 20)) / 2)
+  const fightFont = firstCount > 12 ? 6 : firstCount > 8 ? 7 : firstCount > 4 ? 8 : 9
+  const connectorMid = Math.min(12, colGap * 0.5)
 
   return { marginL, marginT, boxW, boxH, gap, colW, colGap, totalH, firstCount, fightFont, connectorMid }
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
-  const { marginL, boxW, colW } = layout
+  const { marginL, boxW, colW, connectorMid } = layout
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
+  doc.setFontSize(7)
   doc.setTextColor(...GRAY)
   doc.text('Name / Team', marginL, y)
   cols.forEach((col, i) => {
-    doc.text(col.label, marginL + boxW + 12 + i * colW + boxW * 0.08, y)
+    doc.text(col.label, marginL + (i + 1) * colW + boxW * 0.1, y)
   })
-  doc.text('Winner', marginL + boxW + 12 + cols.length * colW + 6, y)
+  doc.text('Winner', marginL + (cols.length + 1) * colW + 2, y)
 }
 
 export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, pageH = 210 } = {}) {
@@ -191,9 +197,9 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   if (!cols.length || !rondas.length) return
 
   drawHeader(doc, campeonato, cat, pageW)
-  const layout = calcLayout(cols, pageW, pageH)
-  const { marginL, marginT, boxW, boxH, gap, colW, totalH, fightFont, connectorMid } = layout
   const byes = byePlayersEnLlave(cat.porRonda)
+  const layout = calcLayout(cols, pageW, pageH, { byeCount: byes.length })
+  const { marginL, marginT, boxW, boxH, gap, colW, totalH, fightFont, connectorMid } = layout
   const byeNames = new Set(byes.map((b) => b.nombre))
 
   drawColumnHeaders(doc, cols, layout, marginT - 4)

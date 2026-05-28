@@ -45,7 +45,7 @@ function applyCell(ws, r, c, spec) {
 }
 
 function writeCategoriaCnu(ws, cat, startRow) {
-  const layout = layoutCnuBracket(cat.porRonda)
+  const layout = layoutCnuBracket(cat.porRonda, { cancha: cat.cancha })
   if (!layout) return startRow
 
   safeMerge(ws, startRow, 1, startRow, Math.max(12, layout.cols))
