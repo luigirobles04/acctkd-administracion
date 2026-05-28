@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { generarLlaveCategoria, generarTodasLasLlaves } from '@/lib/campeonato/llaves-kyorugi'
+import { generarLlaveCategoria, generarTodasLasLlaves, asignarCanchasCampeonato } from '@/lib/campeonato/llaves-kyorugi'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
@@ -61,6 +61,11 @@ export async function POST(request, { params }) {
 
     const body = await request.json()
     const sb = getSupabaseAdmin()
+
+    if (body.reasignarCanchas) {
+      const result = await asignarCanchasCampeonato(sb, idCampeonato)
+      return NextResponse.json({ ok: true, ...result })
+    }
 
     if (body.todas || body.idsCategorias) {
       const ids = body.idsCategorias ?? null
