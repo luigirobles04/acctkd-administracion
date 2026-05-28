@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
-import { crearCampeonato, listarCampeonatos } from '@/lib/services/campeonato.service'
+import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
 
 const ESTADOS = {
@@ -19,10 +19,10 @@ const FORM_INICIAL = {
   descripcion: '',
   fecha_inicio: '',
   fecha_fin: '',
+  fecha_cierre_inscripcion: '',
   lugar: '',
   ciudad: 'Trujillo',
-  estado: 'planificado',
-  monto_inscripcion: 0,
+  estado: 'inscripciones',
 }
 
 function conteo(rel) {
@@ -59,13 +59,20 @@ export default function CampeonatosPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const c = await crearCampeonato({
-        ...form,
-        monto_inscripcion: Number(form.monto_inscripcion) || 0,
+      const res = await fetch('/api/admin/campeonatos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          fecha_cierre_inscripcion: form.fecha_cierre_inscripcion || form.fecha_inicio,
+          publicado: true,
+        }),
       })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
       setShowModal(false)
       setForm(FORM_INICIAL)
-      router.push(`/admin/campeonatos/${c.id_campeonato}`)
+      router.push(`/admin/campeonatos/${json.campeonato.id_campeonato}`)
     } catch (err) {
       alert('Error: ' + err.message)
     } finally {
@@ -79,7 +86,7 @@ export default function CampeonatosPage() {
         <div className="anim-fade-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
           <div>
             <p className="ios-caption" style={{ color: 'var(--label3)' }}>
-              {campeonatos.length} evento(s) · MVP v1.2
+              {campeonatos.length} evento(s) registrados
             </p>
           </div>
           <button type="button" className="ios-btn ios-btn-primary" onClick={() => setShowModal(true)}>
@@ -112,6 +119,7 @@ export default function CampeonatosPage() {
             {campeonatos.map((c) => {
               const st = ESTADOS[c.estado] || { label: c.estado, cls: 'badge-gray' }
               const nCat = conteo(c.categoria_campeonato)
+              const listoPortal = c.slug && c.publicado && nCat >= 50
               const nComp = conteo(c.competidor)
               const nIns = conteo(c.inscripcion_campeonato)
               return (
@@ -128,6 +136,11 @@ export default function CampeonatosPage() {
                     </div>
                     <span className={`ios-badge ${st.cls}`}>{st.label}</span>
                   </div>
+                  {!listoPortal && (
+                    <span className="ios-badge badge-yellow" style={{ display: 'inline-block', marginBottom: 8, fontSize: 11 }}>
+                      Configurando…
+                    </span>
+                  )}
                   <p className="ios-headline" style={{ color: 'var(--label)', marginBottom: 4 }}>{c.nombre}</p>
                   <p className="ios-caption" style={{ color: 'var(--label3)' }}>{c.lugar || c.ciudad || 'Trujillo'}</p>
                   <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 8 }}>
@@ -159,9 +172,11 @@ export default function CampeonatosPage() {
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Nombre del evento *</span><input className="ios-input" required value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} /></label>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Lugar</span><input className="ios-input" value={form.lugar} onChange={(e) => setForm((p) => ({ ...p, lugar: e.target.value }))} /></label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Inicio</span><input className="ios-input" type="date" value={form.fecha_inicio} onChange={(e) => setForm((p) => ({ ...p, fecha_inicio: e.target.value }))} /></label>
-                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Fin</span><input className="ios-input" type="date" value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} /></label>
+                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Inicio *</span><input className="ios-input" type="date" required value={form.fecha_inicio} onChange={(e) => setForm((p) => ({ ...p, fecha_inicio: e.target.value }))} /></label>
+                <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Fin *</span><input className="ios-input" type="date" required value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} /></label>
               </div>
+              <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Cierre de inscripciones</span><input className="ios-input" type="date" value={form.fecha_cierre_inscripcion} onChange={(e) => setForm((p) => ({ ...p, fecha_cierre_inscripcion: e.target.value }))} /></label>
+              <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: -6 }}>Se generan automáticamente todas las categorías WT y tarifas FDPTKD.</p>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Descripción</span><textarea className="ios-input" rows={2} style={{ height: 'auto', paddingTop: 10 }} value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} /></label>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Estado inicial</span><select className="ios-input" value={form.estado} onChange={(e) => setForm((p) => ({ ...p, estado: e.target.value }))}>{Object.entries(ESTADOS).map(([k, v]) => (<option key={k} value={k}>{v.label}</option>))}</select></label>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>

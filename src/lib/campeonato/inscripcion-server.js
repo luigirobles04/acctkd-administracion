@@ -169,7 +169,14 @@ export function puedeEnviarLista(ac) {
 }
 
 export function puedeSubirVoucher(ac) {
-  return puedeEnviarLista(ac)
+  if (!ac) return { ok: false, reason: 'Inscripción no encontrada' }
+  if (ac.estado_aprobacion === 'rechazada') {
+    return { ok: false, reason: ac.motivo_rechazo || 'Academia rechazada' }
+  }
+  if (!ac.aceptacion_bases_at) {
+    return { ok: false, reason: 'Acepta las bases del campeonato primero' }
+  }
+  return { ok: true }
 }
 
 /** Registro academia + representante (Hayllis) */

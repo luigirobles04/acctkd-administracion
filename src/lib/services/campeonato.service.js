@@ -27,13 +27,19 @@ export async function obtenerCampeonato(id) {
 }
 
 export async function crearCampeonato(payload) {
-  const { data, error } = await getSupabase()
-    .from('campeonato')
-    .insert(payload)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const res = await fetch('/api/admin/campeonatos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...payload,
+      estado: payload.estado || 'inscripciones',
+      fecha_cierre_inscripcion: payload.fecha_cierre_inscripcion || payload.fecha_inicio,
+      publicado: true,
+    }),
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'No se pudo crear el campeonato')
+  return json.campeonato
 }
 
 export async function actualizarCampeonato(id, patch) {

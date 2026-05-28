@@ -58,35 +58,28 @@ export default function RegistroAcademiaPage() {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
 
   return (
-    <div className="min-h-dvh" style={{ background: 'var(--bg)' }}>
-      <div
-        style={{
-          background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
-          padding: '24px 20px 48px',
-          color: '#fff',
-        }}
-      >
-        <div style={{ maxWidth: 520, margin: '0 auto' }}>
-          <Link href="/login" style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, textDecoration: 'none' }}>
-            ← Volver al login
+    <div className="portal-shell">
+      <header className="portal-topbar">
+        <div className="portal-topbar-inner">
+          <Link href="/login" className="portal-topbar-brand">
+            <Image src="/logo-dark.png" alt="ACCTKD" width={28} height={28} className="portal-topbar-logo" />
+            <span>ACCTKD</span>
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 20 }}>
-            <Image src="/logo-dark.png" alt="ACCTKD" width={52} height={52} style={{ objectFit: 'contain' }} />
-            <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>Registro de academia</h1>
-              <p style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>
-                Crea tu cuenta y arma tu lista. ACCTKD aprueba antes de enviar.
-              </p>
-            </div>
-          </div>
+        </div>
+      </header>
+
+      <div className="portal-page-head">
+        <div className="portal-page-head-inner">
+          <Link href="/login" className="portal-hero-back">← Volver al login</Link>
+          <h1 className="portal-page-title">Registro de academia</h1>
+          <p className="portal-page-sub">
+            Crea tu cuenta y arma tu lista. ACCTKD aprueba antes de enviar.
+          </p>
         </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ maxWidth: 520, margin: '-28px auto 40px', padding: '0 16px' }}
-      >
-        <div className="ios-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="portal-main portal-register-form">
+        <div className="portal-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label className="ios-label">Campeonato</label>
             <select className="ios-input" value={form.slug} onChange={(e) => set('slug', e.target.value)} required>

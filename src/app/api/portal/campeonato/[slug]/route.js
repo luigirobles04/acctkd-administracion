@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { getClientIp } from '@/lib/supabase-server'
 import { resolverPortalCampeonato } from '@/lib/campeonato/portal-server'
 import {
@@ -9,6 +10,55 @@ import {
   puedeEnviarLista,
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
+import { validarLineaInscripcion } from '@/lib/campeonato/validar-categoria'
+
+async function insertarLineaInscripcion(sb, ac, body) {
+  const { modalidad, idPerfiles, idCategoria, pesoDeclarado, tipoOficial, grupoUuid } = body
+  await validarLineaInscripcion(sb, ac, body)
+
+  if (modalidad === 'oficial') {
+    const { count } = await sb
+      .from('linea_inscripcion')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_academia_campeonato', ac.id)
+      .eq('modalidad', 'oficial')
+      .neq('estado', 'anulado')
+    if ((count || 0) >= MAX_OFICIALES) {
+      throw new Error(`Máximo ${MAX_OFICIALES} oficiales`)
+    }
+  }
+
+  const tipoTarifa = tipoTarifaActual(ac.campeonato)
+  const precio =
+    modalidad === 'oficial' ? 0 : await precioModalidad(sb, ac.id_campeonato, modalidad, tipoTarifa)
+
+  const grupoUuidFinal = grupoUuid || (MODALIDADES[modalidad]?.miembros > 1 ? randomUUID() : null)
+
+  const { data: linea, error: errL } = await sb
+    .from('linea_inscripcion')
+    .insert({
+      id_academia_campeonato: ac.id,
+      id_campeonato: ac.id_campeonato,
+      modalidad,
+      tipo_oficial: tipoOficial || null,
+      id_categoria: idCategoria || null,
+      grupo_uuid: grupoUuidFinal,
+      es_cobro: modalidad !== 'oficial',
+      precio_aplicado: precio,
+      tipo_tarifa: tipoTarifa,
+      peso_declarado: pesoDeclarado || null,
+      estado: modalidad === 'oficial' || precio === 0 ? 'pagado' : 'pendiente_pago',
+    })
+    .select()
+    .single()
+  if (errL) throw errL
+
+  for (const idPerfil of idPerfiles || []) {
+    await sb.from('linea_inscripcion_miembro').insert({ id_linea: linea.id_linea, id_perfil: idPerfil })
+  }
+
+  return linea
+}
 
 export async function GET(request, { params }) {
   try {
@@ -23,6 +73,7 @@ export async function GET(request, { params }) {
       .from('linea_inscripcion')
       .select(`
         *,
+        categoria:categoria_campeonato(id_categoria, nombre, modalidad),
         miembros:linea_inscripcion_miembro(id_perfil, rol, perfil:competidor_perfil(*))
       `)
       .eq('id_academia_campeonato', ac.id)
@@ -182,50 +233,60 @@ export async function POST(request, { params }) {
         return NextResponse.json({ error: 'Debes aceptar las bases primero' }, { status: 400 })
       }
 
-      const { modalidad, idPerfiles, idCategoria, pesoDeclarado, tipoOficial, grupoUuid } = body
-      const mod = MODALIDADES[modalidad]
-      if (!mod && modalidad !== 'oficial') {
-        return NextResponse.json({ error: 'Modalidad inválida' }, { status: 400 })
+      const linea = await insertarLineaInscripcion(sb, ac, body)
+      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
+      await recalcularMontosAcademia(sb, ac.id)
+      return NextResponse.json({ linea })
+    }
+
+    if (accion === 'crear_lineas') {
+      if (check.soloPago) {
+        return NextResponse.json({ error: 'Inscripción cerrada. Solo pagos.' }, { status: 403 })
+      }
+      if (ac.estado_aprobacion === 'rechazada') {
+        return NextResponse.json({ error: 'Academia rechazada' }, { status: 403 })
+      }
+      if (!ac.aceptacion_bases_at) {
+        return NextResponse.json({ error: 'Debes aceptar las bases primero' }, { status: 400 })
       }
 
-      if (modalidad === 'oficial') {
-        const { count } = await sb
-          .from('linea_inscripcion')
-          .select('*', { count: 'exact', head: true })
-          .eq('id_academia_campeonato', ac.id)
-          .eq('modalidad', 'oficial')
-          .neq('estado', 'anulado')
-        if ((count || 0) >= MAX_OFICIALES) {
-          return NextResponse.json({ error: `Máximo ${MAX_OFICIALES} oficiales` }, { status: 400 })
-        }
+      const { idPerfil, lineas } = body
+      if (!idPerfil || !Array.isArray(lineas) || lineas.length === 0) {
+        return NextResponse.json({ error: 'Perfil y al menos una modalidad requeridos' }, { status: 400 })
       }
 
-      const tipoTarifa = tipoTarifaActual(ac.campeonato)
-      const precio =
-        modalidad === 'oficial' ? 0 : await precioModalidad(sb, ac.id_campeonato, modalidad, tipoTarifa)
-
-      const { data: linea, error: errL } = await sb
-        .from('linea_inscripcion')
-        .insert({
-          id_academia_campeonato: ac.id,
-          id_campeonato: ac.id_campeonato,
-          modalidad,
-          tipo_oficial: tipoOficial || null,
-          id_categoria: idCategoria || null,
-          grupo_uuid: grupoUuid || null,
-          es_cobro: modalidad !== 'oficial',
-          precio_aplicado: precio,
-          tipo_tarifa: tipoTarifa,
-          peso_declarado: pesoDeclarado || null,
-          estado: 'pendiente_pago',
-        })
-        .select()
-        .single()
-      if (errL) throw errL
-
-      for (const idPerfil of idPerfiles || []) {
-        await sb.from('linea_inscripcion_miembro').insert({ id_linea: linea.id_linea, id_perfil: idPerfil })
+      const creadas = []
+      for (const l of lineas) {
+        const linea = await insertarLineaInscripcion(sb, ac, { ...l, idPerfiles: [idPerfil] })
+        creadas.push(linea)
       }
+
+      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
+      await recalcularMontosAcademia(sb, ac.id)
+      return NextResponse.json({ lineas: creadas })
+    }
+
+    if (accion === 'crear_grupo') {
+      if (check.soloPago) {
+        return NextResponse.json({ error: 'Inscripción cerrada. Solo pagos.' }, { status: 403 })
+      }
+      if (ac.estado_aprobacion === 'rechazada') {
+        return NextResponse.json({ error: 'Academia rechazada' }, { status: 403 })
+      }
+      if (!ac.aceptacion_bases_at) {
+        return NextResponse.json({ error: 'Debes aceptar las bases primero' }, { status: 400 })
+      }
+
+      const { modalidad, idPerfiles, idCategoria } = body
+      if (!modalidad || !Array.isArray(idPerfiles) || !idPerfiles.length) {
+        return NextResponse.json({ error: 'Modalidad e integrantes requeridos' }, { status: 400 })
+      }
+
+      const linea = await insertarLineaInscripcion(sb, ac, {
+        modalidad,
+        idPerfiles,
+        idCategoria: idCategoria ? Number(idCategoria) : null,
+      })
 
       await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
       await recalcularMontosAcademia(sb, ac.id)

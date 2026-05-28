@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { resolverTokenAcademia, puedeInscribir } from '@/lib/campeonato/inscripcion-server'
+import { readUploadFile } from '@/lib/campeonato/upload-file'
 
 export async function POST(request, { params }) {
   try {
@@ -18,15 +19,14 @@ export async function POST(request, { params }) {
     const file = formData.get('file')
     if (!file) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
 
-    const ext = file.name?.split('.').pop()?.toLowerCase() || 'jpg'
+    const { buffer, contentType, filename } = await readUploadFile(file)
+    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg'
     const fileName = `${ac.id_academia}/${Date.now()}.${ext}`
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
 
     const { error } = await sb.storage
       .from('competidores-fotos')
       .upload(fileName, buffer, {
-        contentType: file.type || 'image/jpeg',
+        contentType: contentType || 'image/jpeg',
         upsert: false,
       })
 

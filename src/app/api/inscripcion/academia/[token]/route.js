@@ -171,7 +171,7 @@ export async function POST(request, { params }) {
           precio_aplicado: precio,
           tipo_tarifa: tipoTarifa,
           peso_declarado: pesoDeclarado || null,
-          estado: precio === 0 ? 'pendiente_pago' : 'pendiente_pago',
+          estado: modalidad === 'oficial' || precio === 0 ? 'pagado' : 'pendiente_pago',
         })
         .select()
         .single()

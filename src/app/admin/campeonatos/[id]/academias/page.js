@@ -19,7 +19,7 @@ export default function CampeonatoAcademiasPage() {
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [academias, setAcademias] = useState([])
-  const [filtro, setFiltro] = useState('pendiente')
+  const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
   const [procesando, setProcesando] = useState(null)
 
@@ -85,10 +85,9 @@ export default function CampeonatoAcademiasPage() {
         <Link href={`/admin/campeonatos/${id}`} className="ios-caption" style={{ color: 'var(--red)' }}>← Volver al campeonato</Link>
 
         <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
-          <strong>Sistema Hayllis — inscripción con usuario</strong>
-          <p style={{ fontSize: 13, marginTop: 8, color: 'var(--label2)' }}>
-            Las academias se registran en <code>/registro-academia</code> con DNI + contraseña.
-            Aprueba aquí para habilitar envío de lista y pagos.
+          <p className="ios-headline" style={{ marginBottom: 8 }}>Portal de inscripción</p>
+          <p style={{ fontSize: 13, color: 'var(--label2)', lineHeight: 1.5, maxWidth: 640 }}>
+            Las academias se registran con DNI y contraseña. Aprueba aquí para habilitar el envío de lista y los pagos.
           </p>
           {slug && (
             <Link href={`/campeonato/${slug}`} className="ios-btn ios-btn-secondary" style={{ marginTop: 12, display: 'inline-flex' }}>
@@ -104,11 +103,11 @@ export default function CampeonatoAcademiasPage() {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button type="button" className={filtro === 'pendiente' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('pendiente')}>
-            Pendientes ({pendientes.length})
-          </button>
           <button type="button" className={filtro === 'todas' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('todas')}>
             Todas ({academias.length})
+          </button>
+          <button type="button" className={filtro === 'pendiente' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('pendiente')}>
+            Pendientes ({pendientes.length})
           </button>
         </div>
 
@@ -165,7 +164,13 @@ export default function CampeonatoAcademiasPage() {
                 })}
               </tbody>
             </table>
-            {listado.length === 0 && <p style={{ padding: 20, color: 'var(--label3)' }}>Sin academias en esta vista.</p>}
+            {listado.length === 0 && (
+              <p style={{ padding: 20, color: 'var(--label3)', lineHeight: 1.5 }}>
+                {filtro === 'pendiente'
+                  ? 'No hay academias pendientes de aprobación en este campeonato.'
+                  : 'Ninguna academia inscrita en este campeonato aún. Las academias eligen el evento al registrarse en el portal o en /registro-academia.'}
+              </p>
+            )}
           </div>
         )}
       </div>

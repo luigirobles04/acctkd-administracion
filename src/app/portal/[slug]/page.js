@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import PortalLayout, { PortalBarraTotales, PortalTabs } from '@/components/campeonatos/PortalLayout'
+import PortalLayout, { PortalBarraTotales, PortalTabs, PortalWizardSteps } from '@/components/campeonatos/PortalLayout'
+import PortalStatusChips from '@/components/campeonatos/PortalStatusChips'
+import {
+  PortalField,
+  PortalCategoriaPicker,
+  PortalModalityCard,
+  MODALIDADES_PORTAL,
+  modalidadRequiereCategoriaPoomsae,
+} from '@/components/campeonatos/PortalInscripcion'
 import {
   MODALIDADES,
   GRADOS_KUP_DAN,
@@ -14,16 +21,19 @@ import {
   edadWT,
   whatsappUrl,
 } from '@/lib/campeonato/constants'
-import { categoriasValidas } from '@/lib/campeonato/validar-categoria'
+import { categoriasValidas, categoriasPoomsaeValidas, parseGrado, nombreCategoria, poomsaeCategoriaSugerida } from '@/lib/campeonato/validar-categoria'
 import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
-import { portalFetch } from '@/lib/portal-client'
+import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
+import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 import { getCurrentUser, isRepresentante } from '@/lib/services/auth.service'
 
 const TABS = [
-  { id: 'inscribir', label: '+ Inscribir' },
+  { id: 'inscribir', label: 'Inscribir' },
   { id: 'plantel', label: 'Plantel' },
   { id: 'pagos', label: 'Pagos' },
 ]
+
+const STEPS = ['Documento', 'Datos', 'Modalidades', 'Confirmar']
 
 const FORM = {
   documento_tipo: 'DNI',
@@ -36,7 +46,22 @@ const FORM = {
   foto_url: '',
 }
 
-const STEPS = ['Documento', 'Datos', 'Modalidad', 'Confirmar']
+function modalidadLabel(key) {
+  if (key === 'oficial') return 'Oficial'
+  return MODALIDADES[key]?.label || MODALIDADES_PORTAL.find((m) => m.key === key)?.label || key
+}
+
+function resumenCategoria(key, sel, catsKyorugi, catsPoomsae, allCats) {
+  const id = sel?.idCategoria
+  if (!id) return null
+  if (key === 'kyorugi_individual') {
+    return catsKyorugi.find((c) => String(c.id_categoria) === String(id))?.nombre
+  }
+  if (modalidadRequiereCategoriaPoomsae(key)) {
+    return catsPoomsae.find((c) => String(c.id_categoria) === String(id))?.nombre || nombreCategoria(id, allCats)
+  }
+  return nombreCategoria(id, allCats)
+}
 
 export default function PortalCampeonatoPage() {
   const { slug } = useParams()
@@ -47,12 +72,10 @@ export default function PortalCampeonatoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [perfil, setPerfil] = useState(FORM)
-  const [modalidad, setModalidad] = useState('kyorugi_individual')
-  const [peso, setPeso] = useState('')
-  const [idCategoria, setIdCategoria] = useState('')
-  const [tipoOficial, setTipoOficial] = useState('coach')
+  const [modalidadesSel, setModalidadesSel] = useState({})
   const [voucher, setVoucher] = useState({ monto: '', operacion: '', file: null })
   const [submitting, setSubmitting] = useState(false)
+  const [showGrupoForm, setShowGrupoForm] = useState(false)
 
   const cargar = useCallback(async () => {
     const user = getCurrentUser()
@@ -77,15 +100,91 @@ export default function PortalCampeonatoPage() {
   }, [cargar])
 
   const anio = data?.campeonato?.anioCampeonato || new Date().getFullYear()
+  const edad = edadWT(perfil.fecha_nacimiento, anio)
+  const gradoInfo = parseGrado(perfil.grado)
+  const esDan = gradoInfo?.tipo === 'dan'
+
   const catsKyorugi = useMemo(
     () => categoriasValidas(
       (data?.categorias || []).filter((c) => c.modalidad === 'kyorugi'),
       perfil,
       anio,
-      peso
+      modalidadesSel.kyorugi_individual?.peso || ''
     ),
-    [data?.categorias, perfil, anio, peso]
+    [data?.categorias, perfil, anio, modalidadesSel.kyorugi_individual?.peso]
   )
+
+  const catsPoomsae = useMemo(
+    () => categoriasPoomsaeValidas(
+      (data?.categorias || []).filter((c) => c.modalidad === 'poomsae'),
+      perfil,
+      anio
+    ),
+    [data?.categorias, perfil, anio]
+  )
+
+  function toggleModalidad(key) {
+    const mod = MODALIDADES_PORTAL.find((m) => m.key === key)
+    if (mod?.disabled) return
+    setModalidadesSel((prev) => {
+      const next = { ...prev }
+      if (next[key]) {
+        delete next[key]
+        return next
+      }
+      if (key === 'kyorugi_individual') next[key] = { peso: '', idCategoria: '' }
+      else if (key === 'oficial') next[key] = { tipoOficial: 'coach' }
+      else if (modalidadRequiereCategoriaPoomsae(key)) {
+        const sugerida = poomsaeCategoriaSugerida(data?.categorias || [], perfil, anio)
+        next[key] = { idCategoria: sugerida || '' }
+      } else next[key] = {}
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (!data?.categorias?.length) return
+    setModalidadesSel((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const modKey of Object.keys(next)) {
+        if (modalidadRequiereCategoriaPoomsae(modKey) && !next[modKey]?.idCategoria) {
+          const sugerida = poomsaeCategoriaSugerida(data.categorias, perfil, anio)
+          if (sugerida) {
+            next[modKey] = { ...next[modKey], idCategoria: sugerida }
+            changed = true
+          }
+        }
+        if (
+          modKey === 'kyorugi_individual' &&
+          next.kyorugi_individual?.peso &&
+          !next.kyorugi_individual?.idCategoria &&
+          catsKyorugi.length === 1
+        ) {
+          next.kyorugi_individual = {
+            ...next.kyorugi_individual,
+            idCategoria: String(catsKyorugi[0].id_categoria),
+          }
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [data?.categorias, perfil, anio, catsKyorugi])
+
+  function updateModalidad(key, patch) {
+    setModalidadesSel((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+  }
+
+  const modalidadesActivas = Object.keys(modalidadesSel)
+
+  const step2Valid = modalidadesActivas.length > 0 && modalidadesActivas.every((key) => {
+    const sel = modalidadesSel[key]
+    if (key === 'kyorugi_individual') return sel.peso && sel.idCategoria
+    if (modalidadRequiereCategoriaPoomsae(key)) return sel.idCategoria
+    if (key === 'oficial') return sel.tipoOficial
+    return true
+  })
 
   async function buscarDocumento() {
     if (!perfil.documento_numero) return
@@ -98,7 +197,7 @@ export default function PortalCampeonatoPage() {
   async function subirFoto() {
     if (!perfil._fotoFile) return perfil.foto_url
     const fd = new FormData()
-    fd.append('file', perfil._fotoFile)
+    fd.append('file', perfil._fotoFile, perfil._fotoFile.name || 'foto.jpg')
     const res = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
     const json = await res.json()
     if (!res.ok) throw new Error(json.error)
@@ -123,23 +222,23 @@ export default function PortalCampeonatoPage() {
     try {
       const fotoUrl = await subirFoto()
       const p = await guardarPerfil(fotoUrl)
+      const lineas = modalidadesActivas.map((key) => ({
+        modalidad: key,
+        idCategoria: modalidadesSel[key]?.idCategoria ? Number(modalidadesSel[key].idCategoria) : null,
+        pesoDeclarado: key === 'kyorugi_individual' ? Number(modalidadesSel[key].peso) : null,
+        tipoOficial: key === 'oficial' ? modalidadesSel[key].tipoOficial : null,
+      }))
+
       const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
         method: 'POST',
-        body: JSON.stringify({
-          accion: 'crear_linea',
-          modalidad,
-          idPerfiles: [p.id_perfil],
-          idCategoria: modalidad === 'kyorugi_individual' ? Number(idCategoria) || null : null,
-          pesoDeclarado: modalidad === 'kyorugi_individual' ? Number(peso) : null,
-          tipoOficial: modalidad === 'oficial' ? tipoOficial : null,
-        }),
+        body: JSON.stringify({ accion: 'crear_lineas', idPerfil: p.id_perfil, lineas }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
+
       setPerfil(FORM)
+      setModalidadesSel({})
       setStep(0)
-      setPeso('')
-      setIdCategoria('')
       setTab('plantel')
       await cargar()
     } catch (e) {
@@ -178,8 +277,9 @@ export default function PortalCampeonatoPage() {
 
   async function subirVoucher(e) {
     e.preventDefault()
+    if (!voucher.file) return alert('Selecciona el comprobante')
     const fd = new FormData()
-    fd.append('file', voucher.file)
+    fd.append('file', voucher.file, voucher.file.name || 'voucher.jpg')
     fd.append('monto_declarado', voucher.monto)
     fd.append('numero_operacion', voucher.operacion)
     const res = await portalFetch(`/api/portal/campeonato/${slug}/comprobante`, { method: 'POST', body: fd })
@@ -193,8 +293,8 @@ export default function PortalCampeonatoPage() {
 
   if (loading) {
     return (
-      <PortalLayout titulo="Cargando…">
-        <div className="ios-card" style={{ padding: 32, textAlign: 'center' }}>Un momento…</div>
+      <PortalLayout titulo="Cargando…" backHref={null}>
+        <div className="portal-card portal-empty">Un momento…</div>
       </PortalLayout>
     )
   }
@@ -202,10 +302,7 @@ export default function PortalCampeonatoPage() {
   if (error && !data) {
     return (
       <PortalLayout titulo="Error">
-        <div className="ios-card" style={{ padding: 20 }}>
-          <p style={{ color: 'var(--red)' }}>{error}</p>
-          <Link href="/portal" className="ios-btn ios-btn-secondary" style={{ marginTop: 12, display: 'inline-flex' }}>Mis campeonatos</Link>
-        </div>
+        <div className="portal-card"><p className="portal-error">{error}</p></div>
       </PortalLayout>
     )
   }
@@ -214,30 +311,30 @@ export default function PortalCampeonatoPage() {
   const camp = data.campeonato
   const aprobada = ac.estado_aprobacion === 'aprobada'
   const rechazada = ac.estado_aprobacion === 'rechazada'
-  const edad = edadWT(perfil.fecha_nacimiento, anio)
+  const allCats = data.categorias || []
 
   return (
-    <PortalLayout titulo={camp.nombre} subtitulo="Portal de inscripción" academiaNombre={data.academia?.nombre}>
-      <Link href="/portal" style={{ fontSize: 13, color: 'var(--red)', textDecoration: 'none', marginBottom: 12, display: 'inline-block' }}>
-        ← Mis campeonatos
-      </Link>
-
-      {/* Estado academia */}
-      <div className="ios-card" style={{ padding: 14, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+    <PortalLayout titulo={camp.nombre} subtitulo="Inscripción en línea" academiaNombre={data.academia?.nombre}>
+      <div className="portal-card portal-card--flat">
         {rechazada ? (
-          <span className="badge badge-red">Rechazada: {ac.motivo_rechazo || 'Contacta ACCTKD'}</span>
-        ) : aprobada ? (
-          <span className="badge badge-green">Academia aprobada — puedes enviar lista y pagar</span>
+          <div className="portal-alert portal-alert--warn">
+            Rechazada: {ac.motivo_rechazo || 'Contacta a ACCTKD para más información.'}
+          </div>
         ) : (
-          <span className="badge badge-yellow">Pendiente de aprobación — puedes armar tu lista</span>
+          <PortalStatusChips
+            estado_aprobacion={ac.estado_aprobacion}
+            estado_lista={ac.estado_lista}
+            estado_pago={ac.estado_pago}
+            monto_total={ac.monto_total}
+            showPago={Number(ac.monto_total) > 0}
+          />
         )}
-        {ac.estado_lista === 'enviada' && <span className="badge badge-blue">Lista enviada</span>}
       </div>
 
       {!ac.aceptacion_bases_at && (
-        <div className="ios-card" style={{ padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>{TEXTO_LEGAL_BASES}</p>
-          <button type="button" className="ios-btn ios-btn-primary" onClick={aceptarBases}>
+        <div className="portal-card">
+          <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--label2)', margin: 0 }}>{TEXTO_LEGAL_BASES}</p>
+          <button type="button" className="ios-btn ios-btn-primary portal-btn-block" onClick={aceptarBases}>
             Acepto las bases y continúo
           </button>
         </div>
@@ -246,111 +343,169 @@ export default function PortalCampeonatoPage() {
       <PortalTabs tabs={TABS} active={tab} onChange={setTab} />
 
       {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && (
-        <div className="ios-card" style={{ padding: 16 }}>
-          {/* Step indicator */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-            {STEPS.map((s, i) => (
-              <div key={s} style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{
-                  height: 4, borderRadius: 2,
-                  background: i <= step ? 'var(--red)' : 'var(--separator)',
-                  marginBottom: 6,
-                }} />
-                <span style={{ fontSize: 10, color: i <= step ? 'var(--red)' : 'var(--label3)', fontWeight: i === step ? 700 : 400 }}>{s}</span>
-              </div>
-            ))}
-          </div>
+        <div className="portal-card">
+          <PortalWizardSteps steps={STEPS} current={step} />
 
           {step === 0 && (
             <>
-              <h3 style={{ fontSize: 16, marginBottom: 12 }}>Buscar competidor</h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select className="ios-input" style={{ width: 100 }} value={perfil.documento_tipo} onChange={(e) => setPerfil({ ...perfil, documento_tipo: e.target.value })}>
-                  {DOCUMENTO_TIPOS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-                </select>
-                <input className="ios-input" style={{ flex: 1 }} placeholder="Nº documento" value={perfil.documento_numero} onChange={(e) => setPerfil({ ...perfil, documento_numero: e.target.value })} />
+              <h3 className="portal-section-title">Buscar competidor</h3>
+              <p className="portal-section-lead">Ingresa el documento para recuperar datos si ya fue inscrito antes.</p>
+              <div className="portal-field-grid portal-field-grid--doc">
+                <PortalField label="Tipo">
+                  <select className="ios-input" value={perfil.documento_tipo} onChange={(e) => setPerfil({ ...perfil, documento_tipo: e.target.value })}>
+                    {DOCUMENTO_TIPOS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  </select>
+                </PortalField>
+                <PortalField label="Número">
+                  <input className="ios-input" placeholder="12345678" value={perfil.documento_numero} onChange={(e) => setPerfil({ ...perfil, documento_numero: e.target.value })} />
+                </PortalField>
                 <button type="button" className="ios-btn ios-btn-secondary" onClick={buscarDocumento}>Buscar</button>
               </div>
-              <button type="button" className="ios-btn ios-btn-primary" style={{ width: '100%', marginTop: 16 }} disabled={!perfil.documento_numero} onClick={() => setStep(1)}>
-                Continuar
-              </button>
+              <div className="portal-actions">
+                <button type="button" className="ios-btn ios-btn-primary" disabled={!perfil.documento_numero} onClick={() => setStep(1)}>
+                  Continuar
+                </button>
+              </div>
             </>
           )}
 
           {step === 1 && (
             <>
-              <h3 style={{ fontSize: 16, marginBottom: 12 }}>Datos del competidor</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <input className="ios-input" placeholder="Nombres" value={perfil.nombres} onChange={(e) => setPerfil({ ...perfil, nombres: e.target.value })} required />
-                <input className="ios-input" placeholder="Apellidos" value={perfil.apellidos} onChange={(e) => setPerfil({ ...perfil, apellidos: e.target.value })} required />
+              <h3 className="portal-section-title">Datos del competidor</h3>
+              <p className="portal-section-lead">Verifica nombre, edad WT y grado — definen las categorías disponibles.</p>
+              <div className="portal-field-grid portal-field-grid--2">
+                <PortalField label="Nombres">
+                  <input className="ios-input" value={perfil.nombres} onChange={(e) => setPerfil({ ...perfil, nombres: e.target.value })} required />
+                </PortalField>
+                <PortalField label="Apellidos">
+                  <input className="ios-input" value={perfil.apellidos} onChange={(e) => setPerfil({ ...perfil, apellidos: e.target.value })} required />
+                </PortalField>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
-                <select className="ios-input" value={perfil.sexo} onChange={(e) => setPerfil({ ...perfil, sexo: e.target.value })}>
-                  <option value="M">Masculino</option>
-                  <option value="F">Femenino</option>
-                </select>
-                <input className="ios-input" type="date" value={perfil.fecha_nacimiento} onChange={(e) => setPerfil({ ...perfil, fecha_nacimiento: e.target.value })} />
-                <select className="ios-input" value={perfil.grado} onChange={(e) => setPerfil({ ...perfil, grado: e.target.value })}>
-                  {GRADOS_KUP_DAN.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
+              <div className="portal-field-grid portal-field-grid--3">
+                <PortalField label="Sexo">
+                  <select className="ios-input" value={perfil.sexo} onChange={(e) => setPerfil({ ...perfil, sexo: e.target.value })}>
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                  </select>
+                </PortalField>
+                <PortalField label="Nacimiento">
+                  <input className="ios-input" type="date" value={perfil.fecha_nacimiento} onChange={(e) => setPerfil({ ...perfil, fecha_nacimiento: e.target.value })} />
+                </PortalField>
+                <PortalField label="Grado">
+                  <select className="ios-input" value={perfil.grado} onChange={(e) => { setPerfil({ ...perfil, grado: e.target.value }); setModalidadesSel({}) }}>
+                    {GRADOS_KUP_DAN.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </PortalField>
               </div>
-              {edad != null && <p style={{ fontSize: 12, color: 'var(--label3)', marginTop: 8 }}>Edad WT al 31-dic-{anio}: <strong>{edad} años</strong></p>}
-              <label className="ios-label" style={{ marginTop: 12 }}>Foto carnet</label>
-              <input type="file" accept="image/jpeg,image/png" onChange={async (e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                const val = await validarFotoCarnet(file)
-                if (!val.ok) { alert(val.error); return }
-                setPerfil((p) => ({ ...p, foto_url: val.preview, _fotoFile: file }))
-              }} />
-              {perfil.foto_url && <img src={perfil.foto_url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, marginTop: 8 }} />}
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              {edad != null && (
+                <p className="portal-field-hint">
+                  Edad WT al 31-dic-{anio}: <strong>{edad} años</strong>
+                  {esDan && ' · Cinturón negro compite en Ranking G3 (no en cintas de color)'}
+                  {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup puede elegir cintas (Pal Jang) o Ranking G3'}
+                </p>
+              )}
+              <PortalField label="Foto carnet">
+                <div className="portal-photo-box">
+                  {perfil.foto_url && <img src={perfil.foto_url} alt="" className="portal-photo-preview" />}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="portal-photo-upload"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const val = await validarFotoCarnet(file)
+                      if (!val.ok) { alert(val.error); return }
+                      setPerfil((p) => ({ ...p, foto_url: val.preview, _fotoFile: file }))
+                    }}
+                  />
+                </div>
+              </PortalField>
+              <div className="portal-actions">
                 <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setStep(0)}>Atrás</button>
-                <button type="button" className="ios-btn ios-btn-primary" style={{ flex: 1 }} disabled={!perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento} onClick={() => setStep(2)}>Continuar</button>
+                <button type="button" className="ios-btn ios-btn-primary" disabled={!perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento} onClick={() => setStep(2)}>
+                  Continuar
+                </button>
               </div>
             </>
           )}
 
           {step === 2 && (
             <>
-              <h3 style={{ fontSize: 16, marginBottom: 12 }}>Modalidad y categoría</h3>
-              <select className="ios-input" value={modalidad} onChange={(e) => { setModalidad(e.target.value); setIdCategoria('') }}>
-                {Object.entries(MODALIDADES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                <option value="oficial">Oficial (gratis, máx. 3)</option>
-              </select>
+              <h3 className="portal-section-title">Modalidades y categorías</h3>
+              <p className="portal-section-lead">Activa las modalidades deseadas. En kyorugi y poomsae debes elegir la categoría concreta.</p>
+              <div className="portal-mod-list">
+                {MODALIDADES_PORTAL.map(({ key, label, desc, icon, disabled }) => {
+                  const active = Boolean(modalidadesSel[key])
+                  return (
+                    <PortalModalityCard
+                      key={key}
+                      active={active}
+                      icon={icon}
+                      title={label}
+                      desc={desc}
+                      disabled={disabled}
+                      onToggle={() => toggleModalidad(key)}
+                    >
+                      {key === 'kyorugi_individual' && (
+                        <>
+                          <PortalField label="Peso declarado (kg)">
+                            <input
+                              className="ios-input"
+                              type="number"
+                              step="0.1"
+                              placeholder="Ej. 45.5"
+                              value={modalidadesSel[key].peso}
+                              onChange={(e) => updateModalidad(key, { peso: e.target.value, idCategoria: '' })}
+                            />
+                          </PortalField>
+                          <PortalField label="Categoría kyorugi">
+                            <PortalCategoriaPicker
+                              categorias={catsKyorugi}
+                              value={modalidadesSel[key].idCategoria}
+                              onChange={(v) => updateModalidad(key, { idCategoria: v })}
+                              emptyMessage="No hay categorías válidas. Revisa edad, sexo o peso."
+                            />
+                          </PortalField>
+                        </>
+                      )}
 
-              {modalidad === 'oficial' && (
-                <select className="ios-input" style={{ marginTop: 8 }} value={tipoOficial} onChange={(e) => setTipoOficial(e.target.value)}>
-                  {ROLES_OFICIAL.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              )}
+                      {modalidadRequiereCategoriaPoomsae(key) && (
+                        <PortalField
+                          label="División poomsae"
+                          hint={
+                            esDan
+                              ? 'Ranking G3 según edad WT — todas las divisiones dan compiten juntas por categoría.'
+                              : gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1
+                                ? 'Puedes inscribirte en Cintas (Pal Jang) o en Ranking G3.'
+                                : undefined
+                          }
+                        >
+                          <PortalCategoriaPicker
+                            categorias={catsPoomsae}
+                            value={modalidadesSel[key].idCategoria}
+                            onChange={(v) => updateModalidad(key, { idCategoria: v })}
+                            emptyMessage="No hay divisiones poomsae para esta edad, sexo o grado."
+                            grouped
+                          />
+                        </PortalField>
+                      )}
 
-              {modalidad === 'kyorugi_individual' && (
-                <>
-                  <label className="ios-label" style={{ marginTop: 12 }}>Peso declarado (kg)</label>
-                  <input className="ios-input" type="number" step="0.1" value={peso} onChange={(e) => { setPeso(e.target.value); setIdCategoria('') }} placeholder="Ej. 45.5" />
-                  <label className="ios-label" style={{ marginTop: 12 }}>Categoría (filtrada por edad, sexo y peso)</label>
-                  {catsKyorugi.length === 0 ? (
-                    <p style={{ fontSize: 13, color: 'var(--red)', marginTop: 8 }}>No hay categorías válidas. Revisa edad, sexo o peso.</p>
-                  ) : (
-                    <select className="ios-input" value={idCategoria} onChange={(e) => setIdCategoria(e.target.value)}>
-                      <option value="">Selecciona categoría</option>
-                      {catsKyorugi.map((c) => <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>)}
-                    </select>
-                  )}
-                </>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                      {key === 'oficial' && (
+                        <PortalField label="Rol">
+                          <select className="ios-input" value={modalidadesSel[key].tipoOficial} onChange={(e) => updateModalidad(key, { tipoOficial: e.target.value })}>
+                            {ROLES_OFICIAL.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          </select>
+                        </PortalField>
+                      )}
+                    </PortalModalityCard>
+                  )
+                })}
+              </div>
+              <div className="portal-actions">
                 <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setStep(1)}>Atrás</button>
-                <button
-                  type="button"
-                  className="ios-btn ios-btn-primary"
-                  style={{ flex: 1 }}
-                  disabled={modalidad === 'kyorugi_individual' && (!peso || !idCategoria)}
-                  onClick={() => setStep(3)}
-                >
-                  Continuar
+                <button type="button" className="ios-btn ios-btn-primary" disabled={!step2Valid} onClick={() => setStep(3)}>
+                  Revisar
                 </button>
               </div>
             </>
@@ -358,18 +513,36 @@ export default function PortalCampeonatoPage() {
 
           {step === 3 && (
             <>
-              <h3 style={{ fontSize: 16, marginBottom: 12 }}>Confirmar inscripción</h3>
-              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: 14, fontSize: 14 }}>
-                <p><strong>{perfil.nombres} {perfil.apellidos}</strong></p>
-                <p style={{ color: 'var(--label3)', marginTop: 4 }}>{perfil.documento_tipo} {perfil.documento_numero} · {edad} años · {perfil.grado}</p>
-                <p style={{ marginTop: 8 }}>{MODALIDADES[modalidad]?.label || (modalidad === 'oficial' ? `Oficial (${tipoOficial})` : modalidad)}</p>
-                {idCategoria && <p style={{ color: 'var(--label3)' }}>{catsKyorugi.find((c) => String(c.id_categoria) === idCategoria)?.nombre}</p>}
+              <h3 className="portal-section-title">Confirmar inscripción</h3>
+              <div className="portal-summary">
+                <p className="portal-summary-athlete">{perfil.nombres} {perfil.apellidos}</p>
+                <p className="portal-summary-meta">
+                  {perfil.documento_tipo} {perfil.documento_numero} · {edad} años · {perfil.grado}
+                </p>
+                <div style={{ marginTop: 14 }}>
+                  {modalidadesActivas.map((key) => (
+                    <div key={key} className="portal-summary-row">
+                      <div>
+                        <div className="portal-summary-mod">
+                          {modalidadLabel(key)}
+                          {key === 'oficial' && ` · ${modalidadesSel[key].tipoOficial}`}
+                        </div>
+                        {key === 'kyorugi_individual' && modalidadesSel[key].peso && (
+                          <div className="portal-line-meta">{modalidadesSel[key].peso} kg</div>
+                        )}
+                      </div>
+                      <div className="portal-summary-cat">
+                        {resumenCategoria(key, modalidadesSel[key], catsKyorugi, catsPoomsae, allCats) || (key === 'oficial' ? 'Gratis' : '—')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {error && <p style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{error}</p>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              {error && <p className="portal-error">{error}</p>}
+              <div className="portal-actions">
                 <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setStep(2)}>Atrás</button>
-                <button type="button" className="ios-btn ios-btn-primary" style={{ flex: 1 }} disabled={submitting} onClick={confirmarInscripcion}>
-                  {submitting ? 'Inscribiendo…' : 'Confirmar inscripción'}
+                <button type="button" className="ios-btn ios-btn-primary" disabled={submitting} onClick={confirmarInscripcion}>
+                  {submitting ? 'Inscribiendo…' : `Confirmar ${modalidadesActivas.length} inscripción(es)`}
                 </button>
               </div>
             </>
@@ -378,77 +551,146 @@ export default function PortalCampeonatoPage() {
       )}
 
       {tab === 'plantel' && (
-        <div className="ios-card" style={{ padding: 16 }}>
-          <h3 style={{ fontSize: 16, marginBottom: 12 }}>Plantel ({data.lineas?.length || 0})</h3>
-          {(data.lineas || []).length === 0 ? (
-            <p style={{ color: 'var(--label3)', fontSize: 14 }}>Sin inscripciones aún. Ve a + Inscribir.</p>
-          ) : (
-            data.lineas.map((l) => {
-              const est = ESTADOS_LINEA[l.estado] || { label: l.estado, cls: 'badge-gray' }
-              return (
-                <div key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)', padding: '12px 0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <strong>{MODALIDADES[l.modalidad]?.label || l.modalidad}</strong>
-                      <span className={`badge ${est.cls}`} style={{ marginLeft: 8, fontSize: 11 }}>{est.label}</span>
-                      {l.dorsal_display && <span style={{ marginLeft: 8, color: 'var(--red)', fontWeight: 700 }}>{l.dorsal_display}</span>}
-                      <div style={{ fontSize: 13, color: 'var(--label3)', marginTop: 4 }}>
-                        {l.miembros?.map((m) => `${m.perfil?.nombres} ${m.perfil?.apellidos}`).join(', ')}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--label3)' }}>S/ {l.precio_aplicado}</div>
-                    </div>
-                    {l.estado !== 'aprobado' && (
-                      <button type="button" onClick={() => anularLinea(l.id_linea)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>Anular</button>
-                    )}
-                  </div>
-                </div>
-              )
-            })
+        <>
+          {ac.aceptacion_bases_at && !rechazada && !data.inscripcion?.soloPago && (
+            <div className="portal-card">
+              {!showGrupoForm ? (
+                <>
+                  <h3 className="portal-section-title">Pareja y equipo poomsae</h3>
+                  <p className="portal-section-lead">
+                    Arma parejas reconocidas, freestyle (mixta) o equipos WT con competidores ya registrados en tu academia.
+                  </p>
+                  <button
+                    type="button"
+                    className="ios-btn ios-btn-primary portal-btn-block"
+                    onClick={() => setShowGrupoForm(true)}
+                    disabled={(data.perfiles || []).length < 2}
+                  >
+                    Armar pareja o equipo
+                  </button>
+                  {(data.perfiles || []).length < 2 && (
+                    <p className="portal-field-hint" style={{ marginTop: 10 }}>
+                      Necesitas al menos 2 competidores en el plantel.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h3 className="portal-section-title">Nueva pareja / equipo</h3>
+                  <PortalGrupoForm
+                    slug={slug}
+                    perfiles={data.perfiles || []}
+                    categorias={data.categorias || []}
+                    anioCampeonato={anio}
+                    disabled={data.inscripcion?.soloPago}
+                    onCancel={() => setShowGrupoForm(false)}
+                    onSuccess={async () => {
+                      setShowGrupoForm(false)
+                      await cargar()
+                    }}
+                  />
+                </>
+              )}
+            </div>
           )}
-        </div>
+
+          <div className="portal-card">
+            <h3 className="portal-section-title">Plantel · {data.lineas?.length || 0}</h3>
+            {(data.lineas || []).length === 0 ? (
+              <p className="portal-empty">Sin inscripciones aún. Ve a la pestaña Inscribir.</p>
+            ) : (
+              data.lineas.map((l) => {
+                const est = ESTADOS_LINEA[l.estado] || { label: l.estado, cls: 'badge-gray' }
+                const catNombre = l.categoria?.nombre
+                const miembrosCount = l.miembros?.length || 0
+                return (
+                  <div key={l.id_linea} className="portal-line-item">
+                    <div className="portal-line-top">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="portal-line-name">
+                          {modalidadLabel(l.modalidad)}
+                          {esModalidadGrupo(l.modalidad) && miembrosCount > 0 && (
+                            <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--label3)' }}>
+                              ({miembrosCount} integrantes)
+                            </span>
+                          )}
+                          <span className={`badge ${est.cls}`} style={{ marginLeft: 8, fontSize: 11 }}>{est.label}</span>
+                          {l.dorsal_display && <span style={{ marginLeft: 8, color: 'var(--red)', fontWeight: 700 }}>{l.dorsal_display}</span>}
+                        </div>
+                        {catNombre && <div className="portal-line-meta"><strong>{catNombre}</strong></div>}
+                        <div className="portal-line-meta">
+                          {l.miembros?.map((m) => `${m.perfil?.nombres} ${m.perfil?.apellidos}`).join(' · ')}
+                        </div>
+                        {l.peso_declarado && <div className="portal-line-meta">{l.peso_declarado} kg</div>}
+                        <div className="portal-line-meta">S/ {l.precio_aplicado}</div>
+                      </div>
+                      {l.estado !== 'aprobado' && (
+                        <button type="button" onClick={() => anularLinea(l.id_linea)} className="ios-btn ios-btn-ghost" style={{ fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>
+                          Anular
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </>
       )}
 
       {tab === 'pagos' && (
-        <div className="ios-card" style={{ padding: 16 }}>
-          {!aprobada ? (
-            <p style={{ fontSize: 14, color: 'var(--label3)' }}>Los pagos se habilitan cuando ACCTKD apruebe tu academia.</p>
+        <div className="portal-card">
+          {!ac.aceptacion_bases_at || rechazada ? (
+            <p className="portal-empty">Acepta las bases y completa al menos una inscripción para subir vouchers.</p>
           ) : (
             <>
+              {ac.estado_aprobacion !== 'aprobada' && (
+                <p className="portal-field-hint portal-field-hint--info" style={{ marginBottom: 14 }}>
+                  Puedes pagar en cualquier momento. La aprobación de ACCTKD es independiente del pago.
+                </p>
+              )}
               {camp.cuenta_bancaria_info && (
-                <div style={{ background: 'var(--red-50)', padding: 12, borderRadius: 10, marginBottom: 16, fontSize: 13 }}>
+                <div style={{ background: '#f8f8fa', padding: 16, borderRadius: 12, marginBottom: 18, fontSize: 13, border: '1px solid var(--separator)' }}>
                   <strong>Cuenta para depósito</strong>
-                  <pre style={{ whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit' }}>{camp.cuenta_bancaria_info}</pre>
+                  <pre style={{ whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', wordBreak: 'break-word', fontSize: 13 }}>{camp.cuenta_bancaria_info}</pre>
                 </div>
               )}
               <form onSubmit={subirVoucher}>
-                <label className="ios-label">Monto (S/)</label>
-                <input className="ios-input" type="number" step="0.01" value={voucher.monto} onChange={(e) => setVoucher({ ...voucher, monto: e.target.value })} required />
-                <label className="ios-label" style={{ marginTop: 8 }}>Nº operación</label>
-                <input className="ios-input" value={voucher.operacion} onChange={(e) => setVoucher({ ...voucher, operacion: e.target.value })} />
-                <label className="ios-label" style={{ marginTop: 8 }}>Captura del voucher</label>
-                <input type="file" accept="image/*" onChange={(e) => setVoucher({ ...voucher, file: e.target.files?.[0] })} required />
-                <button type="submit" className="ios-btn ios-btn-primary" style={{ width: '100%', marginTop: 16 }}>Subir comprobante</button>
+                <PortalField label="Monto (S/)">
+                  <input className="ios-input" type="number" step="0.01" value={voucher.monto} onChange={(e) => setVoucher({ ...voucher, monto: e.target.value })} required />
+                </PortalField>
+                <PortalField label="Nº operación">
+                  <input className="ios-input" value={voucher.operacion} onChange={(e) => setVoucher({ ...voucher, operacion: e.target.value })} />
+                </PortalField>
+                <PortalField label="Captura del voucher">
+                  <input type="file" accept="image/*" onChange={(e) => setVoucher({ ...voucher, file: e.target.files?.[0] || null })} required />
+                </PortalField>
+                <button type="submit" className="ios-btn ios-btn-primary portal-btn-block">Subir comprobante</button>
               </form>
-              <h4 style={{ marginTop: 20, marginBottom: 8 }}>Historial</h4>
-              {(data.comprobantes || []).map((c) => (
-                <div key={c.id_comprobante} style={{ fontSize: 13, padding: '8px 0', borderBottom: '1px solid var(--separator)' }}>
-                  S/ {c.monto_declarado} · {c.estado}
-                </div>
-              ))}
+              {(data.comprobantes || []).length > 0 && (
+                <>
+                  <h4 className="portal-section-title" style={{ marginTop: 24, fontSize: 15 }}>Historial</h4>
+                  {data.comprobantes.map((c) => (
+                    <div key={c.id_comprobante} className="portal-line-meta" style={{ padding: '10px 0', borderBottom: '1px solid var(--separator)' }}>
+                      S/ {c.monto_declarado} · {c.estado}
+                    </div>
+                  ))}
+                </>
+              )}
             </>
           )}
         </div>
       )}
 
       {aprobada && ac.estado_lista !== 'enviada' && (
-        <button type="button" className="ios-btn ios-btn-primary" style={{ width: '100%', marginTop: 20 }} onClick={enviarLista}>
+        <button type="button" className="ios-btn ios-btn-primary portal-btn-block" onClick={enviarLista}>
           Enviar lista a ACCTKD
         </button>
       )}
 
       <a
-        className="ios-btn ios-btn-secondary"
-        style={{ width: '100%', marginTop: 10, textAlign: 'center' }}
+        className="ios-btn ios-btn-secondary portal-btn-block"
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
         href={whatsappUrl(data.academia?.telefono || '51999999999', `Hola ACCTKD, ${data.academia?.nombre} — ${camp.nombre}`)}
         target="_blank"
         rel="noreferrer"

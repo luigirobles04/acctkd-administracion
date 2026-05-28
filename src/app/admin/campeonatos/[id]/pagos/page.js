@@ -29,9 +29,10 @@ export default function CampeonatoPagosPage() {
       setComprobantes(comps || [])
       const { data: lins } = await sb
         .from('linea_inscripcion')
-        .select('*, academia_campeonato(academia:academia(nombre))')
+        .select('*, categoria:categoria_campeonato(nombre), academia_campeonato(academia:academia(nombre))')
         .eq('id_campeonato', idCampeonato)
         .neq('estado', 'anulado')
+        .order('created_at', { ascending: true })
       setLineas(lins || [])
     }
   }, [idCampeonato])
@@ -89,9 +90,30 @@ export default function CampeonatoPagosPage() {
         <h3 style={{ marginBottom: 12 }}>Líneas pagadas (aprobar dorsal)</h3>
         <div className="ios-card" style={{ padding: 16 }}>
           {lineas.filter((l) => l.estado === 'pagado').map((l) => (
-            <div key={l.id_linea} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--separator)', fontSize: 14 }}>
-              <span>{l.academia_campeonato?.academia?.nombre} · {l.modalidad}</span>
-              <button type="button" className="ios-btn ios-btn-secondary" onClick={() => aprobarLinea(l.id_linea)}>Aprobar</button>
+            <div key={l.id_linea} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--separator)', fontSize: 14, gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <strong>{l.academia_campeonato?.academia?.nombre}</strong>
+                <div style={{ fontSize: 13, color: 'var(--label2)' }}>
+                  {l.modalidad.replace(/_/g, ' ')}
+                  {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
+                  {' · S/ '}{l.precio_aplicado}
+                </div>
+              </div>
+              <button type="button" className="ios-btn ios-btn-secondary" onClick={() => aprobarLinea(l.id_linea)}>Aprobar dorsal</button>
+            </div>
+          ))}
+          {!lineas.some((l) => l.estado === 'pagado') && <p style={{ color: 'var(--label3)' }}>Sin líneas pagadas pendientes de dorsal</p>}
+        </div>
+
+        <h3 style={{ marginTop: 24, marginBottom: 12 }}>Todas las líneas</h3>
+        <div className="ios-card" style={{ padding: 16 }}>
+          {lineas.map((l) => (
+            <div key={l.id_linea} style={{ padding: '8px 0', borderBottom: '1px solid var(--separator)', fontSize: 13 }}>
+              <strong>{l.academia_campeonato?.academia?.nombre}</strong>
+              {' · '}{l.modalidad.replace(/_/g, ' ')}
+              {' · '}<span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`}>{l.estado}</span>
+              {l.dorsal_display && <span style={{ marginLeft: 8, fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display}</span>}
+              {l.categoria?.nombre && <div style={{ color: 'var(--label2)', marginTop: 4 }}>{l.categoria.nombre}</div>}
             </div>
           ))}
         </div>

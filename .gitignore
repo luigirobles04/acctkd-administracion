@@ -46,6 +46,24 @@ yarn-error.log*
 .mcp_*
 .only_query__*.sql
 .mcp_invoke*.json
+scripts/.simulacion/
+scripts/._*
+scripts/.mcp*
+scripts/.batch*
+scripts/.b4*
+scripts/.catalogo*
+scripts/.validar*
+scripts/.exec*
+scripts/.live*
+scripts/.out*
+scripts/.q*
+scripts/.resync*
+scripts/.run-*
+scripts/.tmp*
+scripts/.current*
+scripts/__live*
+scripts/_*
+scripts/*.b64
 
 # supabase local (CLI)
 supabase/.temp/
