@@ -62,8 +62,9 @@ export async function POST(request, { params }) {
     const body = await request.json()
     const sb = getSupabaseAdmin()
 
-    if (body.todas) {
-      const result = await generarTodasLasLlaves(sb, idCampeonato)
+    if (body.todas || body.idsCategorias) {
+      const ids = body.idsCategorias ?? null
+      const result = await generarTodasLasLlaves(sb, idCampeonato, { idsCategorias: ids })
       return NextResponse.json({ ok: true, ...result })
     }
 

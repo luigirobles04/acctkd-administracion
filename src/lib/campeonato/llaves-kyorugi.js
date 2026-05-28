@@ -438,13 +438,16 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
   }
 }
 
-export async function generarTodasLasLlaves(sb, idCampeonato) {
-  const { data: categorias, error } = await sb
+export async function generarTodasLasLlaves(sb, idCampeonato, { idsCategorias = null } = {}) {
+  const qCats = sb
     .from('categoria_campeonato')
     .select('id_categoria, nombre')
     .eq('id_campeonato', idCampeonato)
     .eq('modalidad', 'kyorugi')
     .order('orden', { ascending: true })
+  if (idsCategorias?.length) qCats.in('id_categoria', idsCategorias)
+
+  const { data: categorias, error } = await qCats
   if (error) throw error
 
   const { data: lineasInscritas, error: errL } = await sb

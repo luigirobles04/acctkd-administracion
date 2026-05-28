@@ -134,39 +134,43 @@ function calcLayout(cols, pageW, pageH) {
   const marginT = 52
   const marginB = 10
   const availH = pageH - marginT - marginB
+  const availW = pageW - 20
   const firstCount = Math.max(1, cols[0]?.combates.length || 1)
-  const numCols = cols.length + 1
+  const numRoundCols = cols.length + 1  // +1 for winner box
 
-  let boxH = 20
-  let gap = 6
-  let boxW = 64
-  let colGap = 28
-  let colW = boxW + colGap
+  // Start with comfortable defaults
+  let boxH = 18
+  let gap = 5
+  let boxW = 62
+  let colGap = 22
 
-  const blockH = (n) => n * (boxH * 2 + gap) + Math.max(0, n - 1) * 8
-  let totalH = blockH(firstCount)
+  // Inter-block spacing scales with boxH
+  const interBlock = () => Math.max(1, boxH * 0.3)
+  const blockH = () => firstCount * (boxH * 2 + gap) + Math.max(0, firstCount - 1) * interBlock()
 
-  if (totalH > availH) {
-    const scale = availH / totalH
-    boxH = Math.max(8, boxH * scale)
-    gap = Math.max(1, gap * scale)
-    totalH = blockH(firstCount)
+  // Scale height until it fits
+  while (blockH() > availH && boxH > 5) {
+    boxH = Math.max(5, boxH * 0.9)
+    gap = Math.max(1, gap * 0.9)
   }
 
-  let totalW = numCols * colW + boxW + 24
-  const availW = pageW - 16
+  // Scale width until it fits
+  let colW = boxW + colGap
+  let totalW = numRoundCols * colW + boxW + 20
   if (totalW > availW) {
     const scale = availW / totalW
-    boxW = Math.max(40, boxW * scale)
-    colW = boxW + colGap * scale
-    colGap *= scale
-    totalW = numCols * colW + boxW + 24
+    boxW = Math.max(36, boxW * scale)
+    colGap = Math.max(12, colGap * scale)
+    colW = boxW + colGap
+    totalW = numRoundCols * colW + boxW + 20
   }
 
+  const totalH = blockH()
   const marginL = Math.max(8, (pageW - totalW) / 2)
-  const fightFont = firstCount > 8 ? 9 : firstCount > 4 ? 10 : 11
+  const fightFont = firstCount > 12 ? 7 : firstCount > 8 ? 8 : firstCount > 4 ? 9 : 10
+  const connectorMid = Math.min(14, colGap * 0.45)
 
-  return { marginL, marginT, boxW, boxH, gap, colW, colGap, totalH, firstCount, fightFont, connectorMid: 14 }
+  return { marginL, marginT, boxW, boxH, gap, colW, colGap, totalH, firstCount, fightFont, connectorMid }
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
@@ -202,15 +206,16 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       const yChung = blockTop
       const yHong = blockTop + boxH + gap
       const yMid = blockTop + boxH + gap / 2
+      const yBadge = yChung + boxH / 2 + (yHong - yChung) / 2
       const x = marginL + colIdx * colW
-      return { m, yChung, yHong, yMid, x, colIdx }
+      return { m, yChung, yHong, yMid, yBadge, x, colIdx }
     })
   })
 
   const hideIfBye = (m, slot) => m.es_bye && slot?.nombre && byeNames.has(slot.nombre.toUpperCase())
 
   matchPositions.forEach((colMatches, colIdx) => {
-    colMatches.forEach(({ m, yChung, yHong, yMid, x }, matchIdx) => {
+    colMatches.forEach(({ m, yChung, yHong, yMid, yBadge, x }, matchIdx) => {
       const chung = m.chung || { nombre: 'POR DEFINIR', vacio: true }
       const hong = m.hong || { nombre: 'POR DEFINIR', vacio: true }
       const hideChung = colIdx > 0 && hideIfBye(m, chung)
@@ -229,13 +234,13 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
       const badgeX = x + boxW + connectorMid
       if (m.numero_combate) {
-        drawFightBadge(doc, badgeX, yMid + boxH / 2, cat.cancha, m.numero_combate, fightFont)
+        drawFightBadge(doc, badgeX, yBadge, cat.cancha, m.numero_combate, fightFont)
       }
 
       if (colIdx < cols.length - 1) {
         const targetIdx = Math.floor(matchIdx / 2)
         const target = matchPositions[colIdx + 1]?.[targetIdx]
-        const yTarget = target ? target.yMid + boxH / 2 : yMid + boxH / 2
+        const yTarget = target ? target.yBadge : badgeY
         drawBracketConnector(doc, x + boxW, yChung + boxH / 2, yHong + boxH / 2, badgeX, x + colW, yTarget)
       }
     })
@@ -278,8 +283,8 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   const finalMatch = finalCol?.combates[0]
   const finalPos = matchPositions[cols.length - 1]?.[0]
   if (finalPos) {
-    const xWin = finalPos.x + boxW + 14
-    const yWin = finalPos.yMid + boxH / 2 - boxH / 2
+    const xWin = finalPos.x + boxW + connectorMid + 2
+    const yWin = finalPos.yBadge - boxH / 2
 
     drawBracketConnector(
       doc,
@@ -288,7 +293,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       finalPos.yHong + boxH / 2,
       finalPos.x + boxW + connectorMid,
       xWin,
-      yWin + boxH / 2
+      finalPos.yBadge
     )
 
     doc.setFillColor(255, 251, 235)

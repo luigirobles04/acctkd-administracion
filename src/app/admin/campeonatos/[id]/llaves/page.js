@@ -89,8 +89,10 @@ export default function CampeonatoLlavesPage() {
   }
 
   async function generarTodas() {
-    const n = catsConInscritos.length
-    if (!confirm(`¿Generar llaves aleatorias para las ${n} categorías?\nSe asignarán canchas 1–3 y colores de peto.`)) return
+    const sinLlave = catsConInscritos.filter((c) => !c.tiene_llave)
+    const n = sinLlave.length
+    if (!n) { alert('Todas las categorías ya tienen llave generada.'); return }
+    if (!confirm(`¿Generar llaves para ${n} categoría(s) sin llave?\nSe asignarán canchas 1–3 y colores de peto.`)) return
 
     const catPrev = selCat
     setGenerandoTodas(true)
@@ -99,19 +101,27 @@ export default function CampeonatoLlavesPage() {
     setPorRonda({})
     setPorCancha(null)
 
+    let totalGeneradas = 0
+    let totalErrores = 0
+    const BATCH = 10
+
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ todas: true }),
-      })
-      const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(apiError(json, 'Error al generar llaves'))
+      for (let i = 0; i < sinLlave.length; i += BATCH) {
+        const lote = sinLlave.slice(i, i + BATCH).map((c) => c.id_categoria)
+        const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idsCategorias: lote }),
+        })
+        const json = await readJsonResponse(res)
+        if (!res.ok) throw new Error(apiError(json, 'Error al generar llaves'))
+        totalGeneradas += json.generadas ?? 0
+        totalErrores += json.errores?.length ?? 0
+      }
 
       const cats = await cargarCats({ silent: true })
       await cargarCanchas()
-      const errs = json.errores?.length || 0
-      alert(`${json.generadas ?? 0} llaves generadas${errs ? ` · ${errs} categoría(s) con error` : ''} · canchas asignadas`)
+      alert(`${totalGeneradas} llave(s) generadas${totalErrores ? ` · ${totalErrores} con error` : ''} · canchas asignadas`)
 
       if (catPrev) {
         const actualizada = cats.find((c) => c.id_categoria === catPrev.id_categoria)

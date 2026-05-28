@@ -24,15 +24,10 @@ export function rondasOrdenadas(porRonda) {
     .sort((a, b) => b - a)
 }
 
-export function labelRondaExport(ronda, maxRonda) {
-  if (ronda === 1) return 'Final'
-  if (ronda === 2) return 'S-Final'
-  if (ronda === maxRonda) {
-    const map = { 2: 'S-Final', 3: 'Q-Final', 4: 'R16', 5: 'R32' }
-    return map[maxRonda] || `Ronda ${ronda}`
-  }
-  if (ronda === maxRonda - 1 && maxRonda >= 4) return 'Q-Final'
-  return RONDA_LABEL_EXPORT[ronda] || `R${ronda}`
+const RONDA_NOMBRE = { 1: 'Final', 2: 'S-Final', 3: 'Q-Final', 4: 'R16', 5: 'R32', 6: 'R64' }
+
+export function labelRondaExport(ronda) {
+  return RONDA_NOMBRE[ronda] || `R${Math.pow(2, ronda)}`
 }
 
 function slotFromCompetidor(c, color = null) {
@@ -90,7 +85,7 @@ export function columnasBracket(porRonda) {
   const maxR = rondas[0] || 1
   return rondas.map((r) => ({
     ronda: r,
-    label: labelRondaExport(r, maxR),
+    label: labelRondaExport(r),
     combates: (porRonda[r] || [])
       .filter(combateEnBracket)
       .sort((a, b) => a.match_numero - b.match_numero)

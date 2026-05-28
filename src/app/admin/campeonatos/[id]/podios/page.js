@@ -9,10 +9,10 @@ import { readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/podios.css'
 
 const FILTROS = [
-  { id: 'todos', label: 'Todos' },
+  { id: 'con_llave', label: 'Con llave' },
   { id: 'completo', label: 'Completos' },
   { id: 'en_curso', label: 'En curso' },
-  { id: 'sin_llave', label: 'Sin llave' },
+  { id: 'todos', label: 'Todos' },
 ]
 
 export default function CampeonatoPodiosPage() {
@@ -22,7 +22,7 @@ export default function CampeonatoPodiosPage() {
   const [podios, setPodios] = useState([])
   const [resumen, setResumen] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState('todos')
+  const [filtro, setFiltro] = useState('con_llave')
   const [buscar, setBuscar] = useState('')
 
   const cargar = useCallback(async () => {
@@ -47,9 +47,9 @@ export default function CampeonatoPodiosPage() {
 
   const lista = useMemo(() => {
     let items = podios
-    if (filtro === 'completo') items = items.filter((p) => p.estado === 'completo')
+    if (filtro === 'con_llave') items = items.filter((p) => p.tiene_llave)
+    else if (filtro === 'completo') items = items.filter((p) => p.estado === 'completo')
     else if (filtro === 'en_curso') items = items.filter((p) => p.estado === 'en_curso')
-    else if (filtro === 'sin_llave') items = items.filter((p) => !p.tiene_llave)
 
     const q = buscar.trim().toLowerCase()
     if (q) {

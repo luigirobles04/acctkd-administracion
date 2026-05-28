@@ -115,7 +115,7 @@ function addAreaSheet(wb, camp, areaNum, categorias) {
     row = writeCategoriaCnu(ws, cat, row)
   }
 
-  ws.columns = [{ width: 5 }, { width: 38 }, { width: 30 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }, { width: 4 }]
+  ws.columns = [{ width: 5 }, { width: 38 }, { width: 28 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }, { width: 6 }, { width: 8 }]
 }
 
 /** Genera buffer xlsx en servidor (ExcelJS no corre bien en browser) */
