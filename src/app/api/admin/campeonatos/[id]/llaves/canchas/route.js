@@ -27,6 +27,8 @@ export async function GET(_request, { params }) {
       .select('*')
       .eq('id_campeonato', idCampeonato)
       .neq('estado', 'vacío')
+      .neq('estado', 'bye')
+      .neq('estado', 'saltado')
       .order('orden_pista', { ascending: true, nullsFirst: false })
     if (error) throw error
 

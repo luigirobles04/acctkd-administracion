@@ -4,6 +4,10 @@ import CombateCard from '@/components/campeonatos/CombateCard'
 
 const RONDA_LABEL = { 1: 'Final', 2: 'Semifinal', 3: 'Cuartos de final', 4: 'Octavos de final', 5: 'Dieciseisavos de final' }
 
+export function combateVisible(m) {
+  return m.estado !== 'vacío' && m.estado !== 'bye' && m.estado !== 'saltado'
+}
+
 export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
   const rondas = Object.keys(porRonda)
     .map(Number)
@@ -11,44 +15,19 @@ export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
 
   if (!rondas.length) return null
 
-  const maxCombates = Math.max(...rondas.map((r) => (porRonda[r] || []).filter((m) => m.estado !== 'vacío').length))
+  const visiblesPorRonda = rondas.map((r) => (porRonda[r] || []).filter(combateVisible))
+  const maxCombates = Math.max(1, ...visiblesPorRonda.map((c) => c.length))
 
   return (
     <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 0,
-          minWidth: rondas.length * 300,
-          alignItems: 'stretch',
-        }}
-      >
+      <div style={{ display: 'flex', gap: 16, minWidth: rondas.length * 300, alignItems: 'stretch' }}>
         {rondas.map((ronda, colIdx) => {
-          const combates = (porRonda[ronda] || []).filter((m) => m.estado !== 'vacío')
-          const gap = maxCombates > 1 ? Math.max(16, (maxCombates / combates.length) * 24) : 16
+          const combates = visiblesPorRonda[colIdx]
+          if (!combates.length) return null
+          const gap = maxCombates > 1 ? Math.max(20, (maxCombates / combates.length) * 28) : 16
 
           return (
-            <div
-              key={ronda}
-              style={{
-                flex: '0 0 290px',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-              }}
-            >
-              {colIdx > 0 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: -12,
-                    top: 0,
-                    bottom: 0,
-                    width: 24,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
+            <div key={ronda} style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column' }}>
               <div
                 style={{
                   textAlign: 'center',
@@ -63,28 +42,18 @@ export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
               >
                 {RONDA_LABEL[ronda] || `Ronda ${ronda}`}
               </div>
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-around',
-                  gap,
-                  padding: '0 8px',
-                }}
-              >
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', gap, padding: '0 4px' }}>
                 {combates.map((m) => (
                   <div key={m.id_llave} style={{ position: 'relative' }}>
                     {colIdx < rondas.length - 1 && (
                       <div
                         style={{
                           position: 'absolute',
-                          right: -16,
+                          right: -12,
                           top: '50%',
-                          width: 16,
+                          width: 12,
                           height: 2,
                           background: 'var(--separator)',
-                          zIndex: 0,
                         }}
                       />
                     )}
@@ -92,7 +61,7 @@ export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
                       combate={m}
                       compact
                       marcando={marcando === m.id_llave}
-                      onMarcarGanador={(idLinea) => onMarcarGanador(m.id_llave, idLinea)}
+                      onMarcarGanador={(idLinea) => onMarcarGanador(m.id_llave, idLinea, m)}
                     />
                   </div>
                 ))}

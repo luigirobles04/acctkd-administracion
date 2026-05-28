@@ -1,8 +1,22 @@
 'use client'
 
 const COLOR_STYLE = {
-  azul: { bg: '#1e3a8a', light: '#dbeafe', border: '#2563eb', label: 'AZUL' },
-  rojo: { bg: '#991b1b', light: '#fee2e2', border: '#dc2626', label: 'ROJO' },
+  azul: {
+    bg: '#1d4ed8',
+    panel: '#dbeafe',
+    panelStrong: '#bfdbfe',
+    border: '#2563eb',
+    text: '#1e3a8a',
+    label: 'CHUNG · AZUL',
+  },
+  rojo: {
+    bg: '#b91c1c',
+    panel: '#fee2e2',
+    panelStrong: '#fecaca',
+    border: '#dc2626',
+    text: '#7f1d1d',
+    label: 'HONG · ROJO',
+  },
 }
 
 function CompetidorBloque({ data, color, lado, esGanador, puedeMarcar, onMarcar, marcando }) {
@@ -21,19 +35,17 @@ function CompetidorBloque({ data, color, lado, esGanador, puedeMarcar, onMarcar,
         flexDirection: 'column',
         alignItems: lado === 'izq' ? 'flex-end' : 'flex-start',
         textAlign: lado === 'izq' ? 'right' : 'left',
-        padding: '14px 24px',
-        paddingLeft: lado === 'izq' ? '14px' : '32px',
-        paddingRight: lado === 'der' ? '14px' : '32px',
+        padding: '16px 36px 16px 16px',
+        paddingRight: lado === 'izq' ? '36px' : '16px',
+        paddingLeft: lado === 'der' ? '36px' : '16px',
         border: 'none',
-        borderRadius: lado === 'izq' ? '12px 0 0 12px' : '0 12px 12px 0',
-        background: esGanador ? (c?.light || '#fff8e1') : '#fff',
-        borderTop: `3px solid ${c?.border || 'var(--separator)'}`,
-        borderBottom: `3px solid ${c?.border || 'var(--separator)'}`,
-        borderLeft: lado === 'izq' ? `4px solid ${c?.border || 'var(--separator)'}` : '1px solid var(--separator)',
-        borderRight: lado === 'der' ? `4px solid ${c?.border || 'var(--separator)'}` : '1px solid var(--separator)',
+        borderRadius: lado === 'izq' ? '14px 0 0 14px' : '0 14px 14px 0',
+        background: c ? (esGanador ? c.panelStrong : c.panel) : '#f4f4f5',
+        boxShadow: c ? `inset 0 0 0 2px ${c.border}` : 'inset 0 0 0 1px var(--separator)',
         cursor: clickable ? 'pointer' : 'default',
         opacity: marcando ? 0.6 : 1,
         minWidth: 0,
+        transition: 'transform 0.12s',
       }}
       title={clickable ? 'Marcar ganador' : undefined}
     >
@@ -42,31 +54,34 @@ function CompetidorBloque({ data, color, lado, esGanador, puedeMarcar, onMarcar,
           style={{
             fontSize: 10,
             fontWeight: 800,
-            letterSpacing: 1,
-            color: c.bg,
-            marginBottom: 6,
+            letterSpacing: 0.8,
+            color: '#fff',
+            background: c.bg,
+            padding: '3px 8px',
+            borderRadius: 6,
+            marginBottom: 8,
           }}
         >
           {c.label}
         </span>
       )}
       {data?.dorsal ? (
-        <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--red)', lineHeight: 1.1, letterSpacing: -0.5 }}>
+        <span style={{ fontSize: 26, fontWeight: 800, color: c?.text || '#111', lineHeight: 1.05 }}>
           {data.dorsal}
         </span>
       ) : (
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--label3)' }}>Por definir</span>
+        <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--label3)' }}>Por definir</span>
       )}
       {data?.nombres && (
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#111', marginTop: 4, lineHeight: 1.25 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: '#111', marginTop: 6, lineHeight: 1.2 }}>
           {data.nombres}
         </span>
       )}
       {data?.academia && (
-        <span style={{ fontSize: 12, color: 'var(--label3)', marginTop: 3 }}>{data.academia}</span>
+        <span style={{ fontSize: 12, color: 'var(--label2)', marginTop: 4, fontWeight: 500 }}>{data.academia}</span>
       )}
       {esGanador && (
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--red)', marginTop: 6 }}>★ Ganador</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: c?.bg || 'var(--red)', marginTop: 8 }}>★ GANADOR</span>
       )}
     </button>
   )
@@ -76,43 +91,15 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
   const puedeMarcar = combate.estado === 'pendiente' && combate.id_linea1 && combate.id_linea2
   const esBye = combate.estado === 'bye'
 
-  if (esBye) {
-    const data = combate.competidor1?.id_linea ? combate.competidor1 : combate.competidor2
-    const color = combate.color1 || combate.color2 || 'azul'
-    return (
-      <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: compact ? 8 : 12 }}>
-        <div style={{ display: 'flex', alignItems: 'stretch', background: '#f8f9fa' }}>
-          <CompetidorBloque data={data} color={color} lado="izq" esGanador={false} />
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0 8px',
-              background: '#eef0f3',
-              minWidth: 56,
-            }}
-          >
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--label3)' }}>BYE</span>
-          </div>
-        </div>
-        <div style={{ padding: '8px 12px', background: '#eff6ff', borderTop: '1px solid #bfdbfe' }}>
-          <span className="badge badge-blue" style={{ fontSize: 10 }}>Pase directo</span>
-          {combate.cancha && (
-            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--label3)' }}>Cancha {combate.cancha}</span>
-          )}
-        </div>
-      </div>
-    )
-  }
+  if (esBye) return null
 
   return (
     <div
       style={{
-        borderRadius: 14,
+        borderRadius: 16,
         overflow: 'hidden',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        marginBottom: compact ? 8 : 12,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+        marginBottom: compact ? 10 : 14,
         position: 'relative',
       }}
     >
@@ -122,23 +109,24 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '6px 12px',
-            background: '#1a1a1a',
+            padding: '7px 14px',
+            background: '#111',
             color: '#fff',
             fontSize: 11,
             fontWeight: 700,
+            letterSpacing: 0.3,
           }}
         >
-          {combate.cancha ? <span>CANCHA {combate.cancha}</span> : <span />}
+          {combate.cancha ? <span>🥋 CANCHA {combate.cancha}</span> : <span />}
           {combate.orden_pista ? <span>Pista #{combate.orden_pista}</span> : null}
-          {combate.estado === 'finalizado' && <span style={{ color: '#86efac' }}>Finalizado</span>}
+          {combate.estado === 'finalizado' && <span style={{ color: '#86efac' }}>✓ Finalizado</span>}
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'stretch', position: 'relative', minHeight: compact ? 88 : 100 }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', position: 'relative', minHeight: compact ? 96 : 112 }}>
         <CompetidorBloque
           data={combate.competidor1}
-          color={combate.color1}
+          color={combate.color1 || 'azul'}
           lado="izq"
           esGanador={combate.ganador_id_linea === combate.id_linea1}
           puedeMarcar={puedeMarcar}
@@ -147,7 +135,7 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
         />
         <CompetidorBloque
           data={combate.competidor2}
-          color={combate.color2}
+          color={combate.color2 || 'rojo'}
           lado="der"
           esGanador={combate.ganador_id_linea === combate.id_linea2}
           puedeMarcar={puedeMarcar}
@@ -162,18 +150,18 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
             top: '50%',
             transform: 'translate(-50%, -50%)',
             zIndex: 5,
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: '50%',
             background: '#fff',
-            border: '2px solid var(--separator)',
+            border: '3px solid #111',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 13,
-            fontWeight: 800,
-            color: 'var(--label2)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            fontSize: 14,
+            fontWeight: 900,
+            color: '#111',
+            boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
             pointerEvents: 'none',
           }}
         >
@@ -183,9 +171,11 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
 
       {puedeMarcar && !compact && (
         <p style={{ margin: 0, padding: '8px 12px', fontSize: 11, color: 'var(--label3)', background: '#fafafa', textAlign: 'center' }}>
-          Toca el nombre del ganador para avanzarlo
+          Toca el competidor ganador (azul o rojo) para avanzarlo
         </p>
       )}
     </div>
   )
 }
+
+export { COLOR_STYLE }

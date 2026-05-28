@@ -96,6 +96,52 @@ function buildSlots(seeds, bracketSize) {
   return slots
 }
 
+/** Primera ronda con máximo de peleas: empareja consecutivamente, mínimo de BYE */
+function buildCompactSlots(participantes) {
+  const n = participantes.length
+  const bracketSize = bracketSizeFor(n)
+  const fightCount = Math.floor(n / 2)
+  const byeCount = n % 2
+  const shuffled = shuffleInPlace([...participantes])
+
+  const byePlayers = byeCount ? [shuffled[0]] : []
+  let fighters = byeCount ? shuffled.slice(1) : [...shuffled]
+
+  const counts = {}
+  for (const p of fighters) {
+    const ac = academyId(p)
+    if (ac) counts[ac] = (counts[ac] || 0) + 1
+  }
+  if (Object.values(counts).some((c) => c > 3) && fightCount >= 2) {
+    for (let attempt = 0; attempt < 40; attempt++) {
+      let ok = true
+      for (let m = 0; m < fightCount; m++) {
+        const a = academyId(fighters[m * 2])
+        const b = academyId(fighters[m * 2 + 1])
+        if (a && b && a === b) {
+          ok = false
+          const j = m * 2 + 1 + Math.floor(Math.random() * (fighters.length - m * 2 - 1))
+          if (j < fighters.length) [fighters[m * 2 + 1], fighters[j]] = [fighters[j], fighters[m * 2 + 1]]
+        }
+      }
+      if (ok) break
+    }
+  }
+
+  const slots = new Array(bracketSize).fill(null)
+  for (let m = 0; m < fightCount; m++) {
+    slots[m * 2] = fighters[m * 2]
+    slots[m * 2 + 1] = fighters[m * 2 + 1]
+  }
+
+  return { slots, bracketSize, byePlayers, fightCount }
+}
+
+function usarLlaveCompacta(n) {
+  const b = bracketSizeFor(n)
+  return n < b && n > 4
+}
+
 const CANCHAS_DEFAULT = 3
 const COLOR_CHUNG = 'azul'
 const COLOR_HONG = 'rojo'
@@ -126,33 +172,44 @@ function nombreLinea(l) {
   return `${l.dorsal_display || ''} ${m.nombres || ''} ${m.apellidos || ''}`.trim()
 }
 
-/** Reparte combates del campeonato en 3 canchas con orden de pista global */
+/** Reparte combates equilibrando carga entre canchas (menos combates = prioridad) */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: llaves, error } = await sb
     .from('llave_kyorugi')
     .select(`
-      id_llave, ronda, match_numero, estado, id_categoria,
+      id_llave, ronda, match_numero, estado, id_categoria, id_linea1, id_linea2,
       categoria:categoria_campeonato(orden, nombre)
     `)
     .eq('id_campeonato', idCampeonato)
     .neq('estado', 'vacío')
-    .order('ronda', { ascending: false })
+    .neq('estado', 'bye')
+    .neq('estado', 'saltado')
   if (error) throw error
 
-  const combates = (llaves || [])
-    .filter((l) => l.estado !== 'vacío')
-    .sort((a, b) => {
-      if (b.ronda !== a.ronda) return b.ronda - a.ronda
-      const ordA = a.categoria?.orden ?? 9999
-      const ordB = b.categoria?.orden ?? 9999
-      if (ordA !== ordB) return ordA - ordB
-      return a.match_numero - b.match_numero
-    })
+  const peso = (l) => {
+    const esReal = l.estado === 'pendiente' && l.id_linea1 && l.id_linea2
+    return esReal ? 0 : 1
+  }
 
+  const combates = (llaves || []).sort((a, b) => {
+    const pa = peso(a)
+    const pb = peso(b)
+    if (pa !== pb) return pa - pb
+    if (b.ronda !== a.ronda) return b.ronda - a.ronda
+    const ordA = a.categoria?.orden ?? 9999
+    const ordB = b.categoria?.orden ?? 9999
+    if (ordA !== ordB) return ordA - ordB
+    return a.match_numero - b.match_numero
+  })
+
+  const cargas = Object.fromEntries([...Array(numCanchas)].map((_, i) => [i + 1, 0]))
   let orden = 1
-  for (let i = 0; i < combates.length; i++) {
-    const c = combates[i]
-    const cancha = ((orden - 1) % numCanchas) + 1
+
+  for (const c of combates) {
+    const cancha = Number(
+      Object.entries(cargas).sort((a, b) => a[1] - b[1] || a[0] - b[0])[0][0]
+    )
+    cargas[cancha] += 1
     await sb
       .from('llave_kyorugi')
       .update({ cancha, orden_pista: orden })
@@ -160,7 +217,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     orden++
   }
 
-  return { asignados: combates.length, canchas: numCanchas }
+  return { asignados: combates.length, canchas: numCanchas, cargas }
 }
 
 export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
@@ -193,10 +250,24 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
 
   await sb.from('llave_kyorugi').delete().eq('id_categoria', idCategoria)
 
-  const bracketSize = bracketSizeFor(participantes.length)
+  const n = participantes.length
+  const compacta = usarLlaveCompacta(n)
+  let bracketSize
+  let slots
+  let byePlayers = []
+
+  if (compacta) {
+    const built = buildCompactSlots(participantes)
+    bracketSize = built.bracketSize
+    slots = built.slots
+    byePlayers = built.byePlayers
+  } else {
+    bracketSize = bracketSizeFor(n)
+    const seeds = assignSeeds(participantes, bracketSize)
+    slots = buildSlots(seeds, bracketSize)
+  }
+
   const numRondas = Math.log2(bracketSize)
-  const seeds = assignSeeds(participantes, bracketSize)
-  const slots = buildSlots(seeds, bracketSize)
 
   const estructura = []
   for (let r = numRondas; r >= 1; r--) {
@@ -224,13 +295,13 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
         if (p1 && !p2) {
           es_bye = true
           ganador_id_linea = p1.id_linea
-          estado = 'bye'
+          estado = 'saltado'
         } else if (!p1 && p2) {
           es_bye = true
           id_linea1 = p2.id_linea
           id_linea2 = null
           ganador_id_linea = p2.id_linea
-          estado = 'bye'
+          estado = 'saltado'
         } else if (!p1 && !p2) {
           estado = 'vacío'
         }
@@ -281,6 +352,30 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria) {
           await sb.from('llave_kyorugi').update(patch).eq('id_llave', idSiguiente)
         }
       }
+    }
+  }
+
+  if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
+    const bye = byePlayers[0]
+    const sfIds = idsPorRonda[1]
+    const idSfBye = sfIds[sfIds.length - 1]
+    await sb
+      .from('llave_kyorugi')
+      .update({
+        id_linea1: bye.id_linea,
+        ganador_id_linea: bye.id_linea,
+        color1: COLOR_CHUNG,
+        es_bye: true,
+        estado: 'saltado',
+      })
+      .eq('id_llave', idSfBye)
+
+    if (idsPorRonda.length >= 3) {
+      const idFinal = idsPorRonda[2][0]
+      await sb
+        .from('llave_kyorugi')
+        .update({ id_linea2: bye.id_linea, color2: COLOR_CHUNG })
+        .eq('id_llave', idFinal)
     }
   }
 

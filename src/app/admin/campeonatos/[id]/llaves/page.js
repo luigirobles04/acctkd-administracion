@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import CombateCard from '@/components/campeonatos/CombateCard'
-import BracketVisual from '@/components/campeonatos/BracketVisual'
+import BracketVisual, { combateVisible } from '@/components/campeonatos/BracketVisual'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { readJsonResponse } from '@/lib/public-app-url'
 
@@ -136,14 +136,18 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
-  async function marcarGanador(idLlave, ganadorIdLinea) {
+  async function marcarGanador(idLlave, ganadorIdLinea, combate) {
     if (!confirm('¿Registrar ganador y avanzarlo?')) return
+    const p1 = prompt(`Puntos AZUL (Chung) — ${combate?.competidor1?.nombres || 'lado izquierdo'}:`, '0')
+    if (p1 === null) return
+    const p2 = prompt(`Puntos ROJO (Hong) — ${combate?.competidor2?.nombres || 'lado derecho'}:`, '0')
+    if (p2 === null) return
     setMarcando(idLlave)
     try {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idLlave, ganadorIdLinea }),
+        body: JSON.stringify({ idLlave, ganadorIdLinea, puntaje1: Number(p1), puntaje2: Number(p2) }),
       })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
@@ -164,7 +168,7 @@ export default function CampeonatoLlavesPage() {
         .sort((a, b) => Number(b) - Number(a))
         .flatMap((ronda) =>
           (porRonda[ronda] || [])
-            .filter((m) => m.estado !== 'vacío')
+            .filter(combateVisible)
             .map((m) => ({ ...m, rondaLabel: RONDA_LABEL[ronda] || `Ronda ${ronda}` }))
         )
     : []
@@ -271,7 +275,7 @@ export default function CampeonatoLlavesPage() {
                               combate={m}
                               compact
                               marcando={marcando === m.id_llave}
-                              onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
+                              onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea, m)}
                             />
                           </div>
                         ))}
@@ -315,7 +319,7 @@ export default function CampeonatoLlavesPage() {
                       <CombateCard
                         combate={m}
                         marcando={marcando === m.id_llave}
-                        onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
+                        onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea, m)}
                       />
                     </div>
                   ))
