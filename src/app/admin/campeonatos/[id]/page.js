@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN } from '@/lib/campeonato/constants'
+import { readJsonResponse } from '@/lib/public-app-url'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -53,7 +54,7 @@ export default function CampeonatoDetallePage() {
     setError(null)
     try {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, { cache: 'no-store' })
-      const json = await res.json()
+      const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar el campeonato')
       setCampeonato(json.campeonato)
       setCategoriasCount(json.categoriasCount || 0)
