@@ -1,18 +1,16 @@
 import ExcelJS from 'exceljs'
 import { agruparPorArea } from '@/lib/campeonato/bracket-export'
-import { layoutCnuBracket } from '@/lib/campeonato/bracket-cnu-layout'
+import { layoutFestcupBracket } from '@/lib/campeonato/bracket-festcup-layout'
 import { slugArchivo } from '@/lib/campeonato/export-utils'
 
 const FILL = {
   yellow: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
-  gray: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } },
-  areaBg: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } },
   white: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
   red: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC0000A' } },
   green: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCfce7' } },
 }
 
-const BORDER = { style: 'thin', color: { argb: 'FF111111' } }
+const BORDER = { style: 'thin', color: { argb: 'FF000000' } }
 
 function safeMerge(ws, r1, c1, r2, c2) {
   try {
@@ -24,46 +22,43 @@ function safeMerge(ws, r1, c1, r2, c2) {
 
 function applyCell(ws, r, c, spec) {
   const cell = ws.getCell(r, c)
+  cell.fill = FILL.white
   if (spec.v != null) cell.value = spec.v
-  if (spec.chung) cell.font = { bold: true, size: 10, color: { argb: 'FF1D4ED8' }, italic: spec.italic }
-  else if (spec.hong) cell.font = { bold: true, size: 10, color: { argb: 'FFDC2626' }, italic: spec.italic }
+  if (spec.chung) cell.font = { bold: true, size: 10, color: { argb: 'FF000000' }, italic: spec.italic }
+  else if (spec.hong) cell.font = { bold: true, size: 10, color: { argb: 'FF000000' }, italic: spec.italic }
   else if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
   else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
-  if (spec.matchNo) cell.font = { bold: true, size: 12, color: { argb: 'FF111111' } }
+  else if (spec.italic) cell.font = { size: 10, italic: true, color: { argb: 'FF666666' } }
+  if (spec.matchNo) cell.font = { bold: true, size: 11, color: { argb: 'FF000000' } }
   if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle', wrapText: false }
-  if (spec.bg === 'yellow') cell.fill = FILL.yellow
-  if (spec.bg === 'gray') cell.fill = FILL.gray
-  if (spec.bg === 'white') cell.fill = FILL.white
   if (spec.border) {
-    const prev = cell.border || {}
     cell.border = {
-      top: spec.border.top ? BORDER : prev.top,
-      bottom: spec.border.bottom ? BORDER : prev.bottom,
-      left: spec.border.left ? BORDER : prev.left,
-      right: spec.border.right ? BORDER : prev.right,
+      top: spec.border.top ? BORDER : undefined,
+      bottom: spec.border.bottom ? BORDER : undefined,
+      left: spec.border.left ? BORDER : undefined,
+      right: spec.border.right ? BORDER : undefined,
     }
   }
 }
 
-function writeCategoriaCnu(ws, cat, startRow) {
-  const layout = layoutCnuBracket(cat.porRonda, { cancha: cat.cancha })
+function writeCategoriaFestcup(ws, cat, startRow) {
+  const layout = layoutFestcupBracket(cat.porRonda, { cancha: cat.cancha })
   if (!layout) return startRow
 
-  safeMerge(ws, startRow, 1, startRow, Math.max(12, layout.cols))
-  const title = ws.getCell(startRow, 1)
+  const mergeEnd = Math.max(8, layout.cols)
+  safeMerge(ws, startRow, 2, startRow, mergeEnd)
+  const title = ws.getCell(startRow, 2)
   title.value = `Categoría ${cat.nombre}`
   title.fill = FILL.yellow
-  title.font = { bold: true, size: 12 }
-  title.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER }
+  title.font = { bold: true, size: 11 }
+  title.alignment = { vertical: 'middle' }
 
-  let row = startRow + 1
+  let row = startRow + 2
   for (let r = 0; r < layout.rows; r++) {
-    ws.getRow(row + r).height = 20
+    ws.getRow(row + r).height = 15
     for (let c = 0; c < layout.cols; c++) {
-      const cell = ws.getCell(row + r, c + 1)
-      if (c >= 3) cell.fill = FILL.areaBg
       const spec = layout.cells.get(`${r},${c}`)
-      if (spec) applyCell(ws, row + r, c + 1, spec)
+      applyCell(ws, row + r, c + 1, spec || { bg: 'white' })
     }
   }
   return row + layout.rows + 3
@@ -102,21 +97,36 @@ function addResumenSheet(wb, camp, resumen) {
 
 function addAreaSheet(wb, camp, areaNum, categorias) {
   const ws = wb.addWorksheet(`AREA ${areaNum}`)
-  safeMerge(ws, 1, 1, 1, 14)
-  const h = ws.getCell(1, 1)
-  h.value = `ÁREA # ${areaNum} · ${camp}`
+  ws.views = [{ showGridLines: false, state: 'normal' }]
+
+  safeMerge(ws, 1, 2, 1, 9)
+  const h = ws.getCell(1, 2)
+  h.value = `ÁREA # ${areaNum}`
   h.fill = FILL.yellow
   h.font = { bold: true, size: 14 }
+  h.alignment = { vertical: 'middle' }
 
-  ws.getCell(2, 1).value = `${categorias.length} categoría(s)`
-  ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF555555' } }
-
-  let row = 4
+  let row = 3
   for (const cat of categorias) {
-    row = writeCategoriaCnu(ws, cat, row)
+    row = writeCategoriaFestcup(ws, cat, row)
   }
 
-  ws.columns = [{ width: 5 }, { width: 36 }, { width: 26 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }]
+  ws.columns = [
+    { width: 4 },
+    { width: 32 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+    { width: 3 },
+  ]
 }
 
 /** Genera buffer xlsx en servidor (ExcelJS no corre bien en browser) */
