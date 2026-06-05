@@ -50,6 +50,24 @@ describe('layoutCnuBracket', () => {
     expect(spec?.v).toBe('01')
   })
 
+  it('no muestra POR DEFINIR en columna de nombres en rondas siguientes', () => {
+    const layout = layoutCnuBracket(porRonda8(), { cancha: 1 })
+    for (const [key, spec] of layout.cells) {
+      const [, col] = key.split(',').map(Number)
+      if (col !== 1) continue
+      if (spec.v === 'POR DEFINIR' && !spec.chung && !spec.hong) {
+        expect.fail(`POR DEFINIR suelto en ${key}`)
+      }
+    }
+  })
+
+  it('brazos horizontales desde fila del jugador (cols B-C)', () => {
+    const layout = layoutCnuBracket(porRonda8())
+    expect(layout.cells.get('0,1')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('0,2')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('2,1')?.border?.bottom).toBe(true)
+  })
+
   it('marca chung/hong para colorear nombres', () => {
     const layout = layoutCnuBracket(porRonda8())
     expect(layout.cells.get('0,1')?.chung).toBe(true)
@@ -74,6 +92,72 @@ describe('layoutCnuBracket', () => {
     const spec = layout.cells.get('1,3')
     expect(spec?.v).toBe('1/01')
     expect(spec?.border?.right).toBe(true)
+  })
+
+  it('6 pers. con byes: 4 bloques (2 byes + 2 QF) y 16 filas', () => {
+    const porRonda = {
+      3: [
+        {
+          ronda: 3,
+          match_numero: 1,
+          orden_pista: 10,
+          es_bye: true,
+          estado: 'saltado',
+          competidor1: { id_linea: 1, nombres: 'P1', academia: 'A' },
+          competidor2: null,
+          color1: 'azul',
+        },
+        {
+          ronda: 3,
+          match_numero: 2,
+          orden_pista: 11,
+          estado: 'pendiente',
+          competidor1: { id_linea: 2, nombres: 'P2', academia: 'B' },
+          competidor2: { id_linea: 3, nombres: 'P3', academia: 'C' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+        {
+          ronda: 3,
+          match_numero: 3,
+          orden_pista: 12,
+          estado: 'pendiente',
+          competidor1: { id_linea: 4, nombres: 'P4', academia: 'D' },
+          competidor2: { id_linea: 5, nombres: 'P5', academia: 'A' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+        {
+          ronda: 3,
+          match_numero: 4,
+          orden_pista: 0,
+          es_bye: true,
+          estado: 'saltado',
+          competidor1: { id_linea: 6, nombres: 'P6', academia: 'B' },
+          competidor2: null,
+          color1: 'azul',
+        },
+      ],
+      2: [
+        { ronda: 2, match_numero: 1, orden_pista: 17, estado: 'pendiente', competidor1: null, competidor2: null, color1: 'azul', color2: 'rojo' },
+        { ronda: 2, match_numero: 2, orden_pista: 18, estado: 'pendiente', competidor1: null, competidor2: null, color1: 'azul', color2: 'rojo' },
+      ],
+      1: [{ ronda: 1, match_numero: 1, orden_pista: 25, estado: 'pendiente', competidor1: null, competidor2: null, color1: 'azul', color2: 'rojo' }],
+    }
+    const layout = layoutCnuBracket(porRonda, { cancha: 4 })
+    expect(layout.rows).toBe(16)
+    expect(layout.cells.get('0,1')?.v).toBe('P1')
+    expect(layout.cells.get('4,1')?.v).toBe('P2')
+    expect(layout.cells.get('8,1')?.v).toBe('P4')
+    expect(layout.cells.get('12,1')?.v).toBe('P6')
+    // Bye superior: brazo horizontal sin vertical QF
+    expect(layout.cells.get('1,3')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('1,3')?.border?.right).toBeFalsy()
+    // QF: vertical en col 3
+    expect(layout.cells.get('5,3')?.border?.right).toBe(true)
+    // SF conecta bloques 0 y 1
+    expect(layout.cells.get('1,4')?.border?.bottom).toBe(true)
+    expect(layout.cells.get('5,4')?.border?.bottom).toBe(true)
   })
 
   it('árbol con un solo feeder (bye) no rompe conectores', () => {

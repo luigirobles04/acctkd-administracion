@@ -83,10 +83,28 @@ export async function buildExportLlaves(sb, idCampeonato) {
   }
 
   const categoriasExport = (categorias || []).map((cat) => {
-    const combates = (porCat[cat.id_categoria] || []).filter(combateExportable).map(conOrdenLocal)
-    const porRonda = (porCat[cat.id_categoria] || [])
+    const rawCat = porCat[cat.id_categoria] || []
+    const combatesBracketOrden = rawCat
       .filter(combateBracketExport)
-      .map(conOrdenLocal)
+      .sort((a, b) => {
+        if (b.ronda !== a.ronda) return b.ronda - a.ronda
+        return a.match_numero - b.match_numero
+      })
+    const ordenBracketPorLlave = {}
+    combatesBracketOrden.forEach((c, idx) => {
+      ordenBracketPorLlave[c.id_llave] = idx + 1
+    })
+
+    function enrichCombate(c) {
+      const base = conOrdenLocal(c)
+      const ob = ordenBracketPorLlave[c.id_llave]
+      return ob != null ? { ...base, orden_bracket: ob } : base
+    }
+
+    const combates = rawCat.filter(combateExportable).map(enrichCombate)
+    const porRonda = rawCat
+      .filter(combateBracketExport)
+      .map(enrichCombate)
       .reduce((acc, c) => {
         if (!acc[c.ronda]) acc[c.ronda] = []
         acc[c.ronda].push(c)
@@ -122,6 +140,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
     return {
       id_categoria: cat.id_categoria,
       nombre: cat.nombre,
+      orden: cat.orden,
       division: cat.division,
       genero: cat.genero,
       inscritos: inscritosPorCat[cat.id_categoria] || 0,

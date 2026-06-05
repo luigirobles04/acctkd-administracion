@@ -1,8 +1,12 @@
-/** Layout árbol CNU para Excel/PDF — columnas de ronda con conectores */
+/** Layout árbol CNU (Campeonato Nacional Universitario) — como PDF oficial */
 
 import { columnasBracket, rondasOrdenadas } from '@/lib/campeonato/bracket-export'
 
 const ROWS_PER_MATCH = 4
+const COL_SEED = 0
+const COL_NAME = 1
+const COL_TEAM = 2
+const COL_BRACKET = 3
 
 function fmtCombate(num, cancha) {
   if (!num) return ''
@@ -10,13 +14,50 @@ function fmtCombate(num, cancha) {
   return cancha ? `${cancha}/${n}` : n
 }
 
-/** @returns {{ rows: number, cols: number, cells: Map<string, CellSpec>, merges: string[] }} */
+function slotFromRaw(c) {
+  if (!c?.nombres && !c?.id_linea) return { nombre: 'POR DEFINIR', academia: '', vacio: true }
+  return { nombre: (c.nombres || 'POR DEFINIR').toUpperCase(), academia: c.academia || '', vacio: false }
+}
+
+/** Primera ronda completa: combates reales + byes (pasan directo a la siguiente ronda) */
+export function entradasPrimeraRonda(porRonda) {
+  const rondas = rondasOrdenadas(porRonda)
+  if (!rondas.length) return []
+  const maxR = rondas[0]
+  return (porRonda[maxR] || [])
+    .sort((a, b) => a.match_numero - b.match_numero)
+    .map((m) => {
+      if (m.estado === 'vacío') {
+        return {
+          es_bye: false,
+          vacio: true,
+          numero_combate: '',
+          chung: slotFromRaw(null),
+          hong: slotFromRaw(null),
+        }
+      }
+      return {
+        es_bye: Boolean(m.es_bye),
+        numero_combate: m.orden_bracket || m.orden_pista || '',
+        chung: slotFromRaw(m.competidor1),
+        hong: m.es_bye ? null : slotFromRaw(m.competidor2),
+      }
+    })
+}
+
+/** Brazo horizontal desde la fila del jugador hacia la columna del conector */
+function armFromPlayer(addBorder, row, toCol) {
+  for (let c = COL_NAME; c <= toCol; c++) addBorder(row, c, { bottom: true })
+}
+
+/** @returns {{ rows: number, cols: number, cells: Map<string, CellSpec>, merges: string[], roundLabels: string[] }} */
 export function layoutCnuBracket(porRonda, { cancha } = {}) {
   const cols = columnasBracket(porRonda)
-  if (!cols.length) return null
+  const entradas = entradasPrimeraRonda(porRonda)
+  if (!cols.length || !entradas.length) return null
 
-  const numMatches0 = cols[0].combates.length
-  const numRows = numMatches0 * ROWS_PER_MATCH
+  const numBlocks0 = entradas.length
+  const numRows = numBlocks0 * ROWS_PER_MATCH
   const bracketCols = cols.length * 2 + 1
   const totalCols = 3 + bracketCols
 
@@ -32,38 +73,55 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
   const addBorder = (r, c, b) => {
     const key = `${r},${c}`
     const prev = cells.get(key) || {}
-    const border = { ...(prev.border || {}), ...b }
-    cells.set(key, { ...prev, border })
+    cells.set(key, { ...prev, border: { ...(prev.border || {}), ...b } })
   }
 
   const outRow = (roundIdx, mi) => {
-    const span = ROWS_PER_MATCH * Math.pow(2, roundIdx)
+    const span = ROWS_PER_MATCH * 2 ** roundIdx
     return mi * span + span / 2 - 1
   }
 
-  cols[0].combates.forEach((m, mi) => {
-    const rTop = mi * ROWS_PER_MATCH
+  const drawPlayer = (r, p, seed, { chung = true, hong = false } = {}) => {
+    setValue(r, COL_SEED, { v: seed, align: 'center', bold: true, bg: 'white' })
+    setValue(r, COL_NAME, {
+      v: p?.nombre || 'POR DEFINIR',
+      bold: true,
+      bg: 'gray',
+      italic: p?.vacio,
+      chung,
+      hong,
+      mergeAcademy: true,
+    })
+    setValue(r, COL_TEAM, { v: p?.academia || '', bg: 'gray', small: true, mergeAcademy: true })
+    armFromPlayer(addBorder, r, COL_TEAM)
+  }
+
+  let seed = 1
+
+  // ── Columna Name/Team + conector 1.ª ronda ──
+  entradas.forEach((entry, bi) => {
+    const rTop = bi * ROWS_PER_MATCH
     const rBot = rTop + 2
     const rMid = rTop + 1
-    const seedA = mi * 2 + 1
-    const seedB = mi * 2 + 2
+    const center = outRow(0, bi)
 
-    setValue(rTop, 0, { v: seedA, align: 'center', bold: true, bg: 'white' })
-    setValue(rTop, 1, { v: m.chung?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.chung?.vacio, chung: true })
-    setValue(rTop, 2, { v: m.chung?.academia || '', bg: 'gray', small: true })
+    if (entry.es_bye) {
+      const p = entry.chung?.vacio === false ? entry.chung : entry.hong
+      drawPlayer(rTop, p, seed++, { chung: true })
+      armFromPlayer(addBorder, center, COL_BRACKET)
+      return
+    }
 
-    setValue(rBot, 0, { v: seedB, align: 'center', bold: true, bg: 'white' })
-    setValue(rBot, 1, { v: m.hong?.nombre || 'POR DEFINIR', bold: true, bg: 'gray', italic: m.hong?.vacio, hong: true })
-    setValue(rBot, 2, { v: m.hong?.academia || '', bg: 'gray', small: true })
+    drawPlayer(rTop, entry.chung, seed++, { chung: true })
+    drawPlayer(rBot, entry.hong, seed++, { hong: true })
 
-    const col0 = 3
-    for (let r = rTop; r <= rBot; r++) addBorder(r, col0, { right: true })
-    addBorder(rTop, col0, { top: true })
-    addBorder(rBot, col0, { bottom: true })
+    for (let r = rTop; r <= rBot; r++) addBorder(r, COL_BRACKET, { right: true })
+    addBorder(rTop, COL_BRACKET, { top: true })
+    addBorder(rBot, COL_BRACKET, { bottom: true })
 
-    if (m.numero_combate) {
-      setValue(rMid, col0, {
-        v: fmtCombate(m.numero_combate, cancha),
+    if (entry.numero_combate) {
+      setValue(rMid, COL_BRACKET, {
+        v: fmtCombate(entry.numero_combate, cancha),
         align: 'center',
         bold: true,
         matchNo: true,
@@ -71,41 +129,38 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
     }
   })
 
+  // ── Rondas siguientes ──
   cols.forEach((col, roundIdx) => {
     if (roundIdx === 0) return
-    const colBase = 3 + roundIdx * 2
+
+    const colBase = COL_BRACKET + roundIdx * 2
     const gapCol = colBase - 1
     const prevCol = colBase - 2
-    const prevCount = cols[roundIdx - 1].combates.length
+    const levelBlockCount = numBlocks0 / 2 ** (roundIdx - 1)
 
     col.combates.forEach((m, mi) => {
       const feedA = mi * 2
       const feedB = mi * 2 + 1
       const vTop = outRow(roundIdx - 1, feedA)
-      const vBot = feedB < prevCount ? outRow(roundIdx - 1, feedB) : vTop
+      const vBot = feedB < levelBlockCount ? outRow(roundIdx - 1, feedB) : vTop
       const mid = outRow(roundIdx, mi)
 
-      // Brazos horizontales desde la vertical anterior
+      // Brazos horizontales (como PDF: línea desde cada feeder hacia la vertical)
       for (const r of [vTop, vBot]) {
         addBorder(r, prevCol, { bottom: true })
         addBorder(r, gapCol, { bottom: true })
       }
 
-      // Vertical de vTop a vBot (si hay un solo feeder, tramo mínimo)
       const rStart = Math.min(vTop, vBot)
       const rEnd = Math.max(vTop, vBot)
       for (let r = rStart; r <= rEnd; r++) addBorder(r, colBase, { right: true })
       addBorder(rStart, colBase, { top: true })
       addBorder(rEnd, colBase, { bottom: true })
 
-      // Línea horizontal de salida hacia la siguiente ronda (si existe)
-      if (roundIdx < cols.length - 1) {
-        addBorder(mid, colBase, { bottom: true })
-      }
-
-      const label = m.chung?.vacio && m.hong?.vacio ? 'POR DEFINIR' : m.chung?.nombre || m.hong?.nombre || 'POR DEFINIR'
+      // Salida hacia siguiente ronda (o Winner)
+      addBorder(mid, colBase, { bottom: true })
       if (roundIdx === cols.length - 1) {
-        setValue(mid, 1, { v: label, bold: false, italic: true, bg: 'white' })
+        addBorder(mid, colBase + 1, { bottom: true })
       }
 
       if (m.numero_combate) {
@@ -119,7 +174,15 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
     })
   })
 
-  return { rows: numRows, cols: totalCols, cells, merges, bracketCols: cols }
+  for (let r = 0; r < numRows; r++) {
+    if (cells.get(`${r},${COL_NAME}`)?.mergeAcademy) {
+      merges.push(`B${r + 1}:C${r + 1}`)
+    }
+  }
+
+  const roundLabels = ['Name / Team', ...cols.map((c) => c.label), 'Winner']
+
+  return { rows: numRows, cols: totalCols, cells, merges, bracketCols: cols, roundLabels }
 }
 
 export function participantesPrimeraRonda(porRonda) {
@@ -127,7 +190,9 @@ export function participantesPrimeraRonda(porRonda) {
   if (!rondas.length) return []
   const primera = rondas[0]
   const out = []
-  for (const m of (porRonda[primera] || []).filter((x) => x.estado !== 'vacío' && x.estado !== 'bye').sort((a, b) => a.match_numero - b.match_numero)) {
+  for (const m of (porRonda[primera] || [])
+    .filter((x) => x.estado !== 'vacío' && x.estado !== 'bye')
+    .sort((a, b) => a.match_numero - b.match_numero)) {
     out.push(m.competidor1, m.competidor2)
   }
   return out

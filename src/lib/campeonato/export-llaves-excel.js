@@ -1,11 +1,12 @@
 import ExcelJS from 'exceljs'
 import { agruparPorArea } from '@/lib/campeonato/bracket-export'
-import { layoutFestcupBracket } from '@/lib/campeonato/bracket-festcup-layout'
+import { layoutCnuBracket } from '@/lib/campeonato/bracket-cnu-layout'
 import { slugArchivo } from '@/lib/campeonato/export-utils'
 
 const FILL = {
   yellow: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
   white: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
+  gray: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } },
   red: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC0000A' } },
   green: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCfce7' } },
 }
@@ -22,15 +23,28 @@ function safeMerge(ws, r1, c1, r2, c2) {
 
 function applyCell(ws, r, c, spec) {
   const cell = ws.getCell(r, c)
-  cell.fill = FILL.white
+  const bg = spec.bg === 'gray' ? FILL.gray : FILL.white
+  cell.fill = bg
+
   if (spec.v != null) cell.value = spec.v
-  if (spec.chung) cell.font = { bold: true, size: 10, color: { argb: 'FF000000' }, italic: spec.italic }
-  else if (spec.hong) cell.font = { bold: true, size: 10, color: { argb: 'FF000000' }, italic: spec.italic }
-  else if (spec.bold) cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
-  else if (spec.small) cell.font = { size: 9, color: { argb: 'FF333333' } }
-  else if (spec.italic) cell.font = { size: 10, italic: true, color: { argb: 'FF666666' } }
-  if (spec.matchNo) cell.font = { bold: true, size: 11, color: { argb: 'FF000000' } }
-  if (spec.align) cell.alignment = { horizontal: spec.align, vertical: 'middle', wrapText: false }
+
+  if (spec.chung || spec.hong) {
+    cell.font = { bold: true, size: 10, color: { argb: 'FF000000' }, italic: spec.italic }
+  } else if (spec.bold) {
+    cell.font = { ...(cell.font || {}), bold: true, size: spec.small ? 9 : 10, italic: spec.italic }
+  } else if (spec.small) {
+    cell.font = { size: 9, color: { argb: 'FF333333' } }
+  } else if (spec.italic) {
+    cell.font = { size: 10, italic: true, color: { argb: 'FF666666' } }
+  }
+
+  if (spec.matchNo) {
+    cell.font = { bold: true, size: 11, color: { argb: 'FF000000' } }
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false }
+  } else if (spec.align) {
+    cell.alignment = { horizontal: spec.align, vertical: 'middle', wrapText: false }
+  }
+
   if (spec.border) {
     cell.border = {
       top: spec.border.top ? BORDER : undefined,
@@ -41,11 +55,32 @@ function applyCell(ws, r, c, spec) {
   }
 }
 
-function writeCategoriaFestcup(ws, cat, startRow) {
-  const layout = layoutFestcupBracket(cat.porRonda, { cancha: cat.cancha })
+function writeRoundHeaders(ws, layout, row) {
+  const labels = layout.roundLabels || []
+  if (!labels.length) return
+
+  const positions = [2]
+  let col = 4
+  for (let i = 1; i < labels.length - 1; i++) {
+    positions.push(col)
+    col += 2
+  }
+  positions.push(col)
+
+  labels.forEach((label, i) => {
+    const c = positions[i] ?? 2 + i * 2
+    const cell = ws.getCell(row, c)
+    cell.value = label
+    cell.font = { bold: true, size: 9, color: { argb: 'FF555555' } }
+    cell.alignment = { horizontal: i === 0 ? 'left' : 'center', vertical: 'middle' }
+  })
+}
+
+function writeCategoriaCnu(ws, cat, startRow) {
+  const layout = layoutCnuBracket(cat.porRonda, { cancha: cat.cancha })
   if (!layout) return startRow
 
-  const mergeEnd = Math.max(8, layout.cols)
+  const mergeEnd = Math.max(10, layout.cols)
   safeMerge(ws, startRow, 2, startRow, mergeEnd)
   const title = ws.getCell(startRow, 2)
   title.value = `Categoría ${cat.nombre}`
@@ -53,14 +88,30 @@ function writeCategoriaFestcup(ws, cat, startRow) {
   title.font = { bold: true, size: 11 }
   title.alignment = { vertical: 'middle' }
 
+  const headerRow = startRow + 1
+  writeRoundHeaders(ws, layout, headerRow)
+
   let row = startRow + 2
   for (let r = 0; r < layout.rows; r++) {
-    ws.getRow(row + r).height = 15
+    ws.getRow(row + r).height = 18
     for (let c = 0; c < layout.cols; c++) {
       const spec = layout.cells.get(`${r},${c}`)
-      applyCell(ws, row + r, c + 1, spec || { bg: 'white' })
+      applyCell(ws, row + r, c + 1, spec || {})
     }
   }
+
+  for (const merge of layout.merges || []) {
+    const m = merge.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/)
+    if (!m) continue
+    const [, c1, r1, c2, r2] = m
+    const col1 = c1.charCodeAt(0) - 64
+    const col2 = c2.charCodeAt(0) - 64
+    safeMerge(ws, row + Number(r1) - 1, col1, row + Number(r2) - 1, col2)
+    const merged = ws.getCell(row + Number(r1) - 1, col1)
+    merged.fill = FILL.gray
+    merged.alignment = { vertical: 'middle', wrapText: false }
+  }
+
   return row + layout.rows + 3
 }
 
@@ -99,7 +150,7 @@ function addAreaSheet(wb, camp, areaNum, categorias) {
   const ws = wb.addWorksheet(`AREA ${areaNum}`)
   ws.views = [{ showGridLines: false, state: 'normal' }]
 
-  safeMerge(ws, 1, 2, 1, 9)
+  safeMerge(ws, 1, 2, 1, 12)
   const h = ws.getCell(1, 2)
   h.value = `ÁREA # ${areaNum}`
   h.fill = FILL.yellow
@@ -108,24 +159,24 @@ function addAreaSheet(wb, camp, areaNum, categorias) {
 
   let row = 3
   for (const cat of categorias) {
-    row = writeCategoriaFestcup(ws, cat, row)
+    row = writeCategoriaCnu(ws, cat, row)
   }
 
   ws.columns = [
     { width: 4 },
-    { width: 32 },
+    { width: 28 },
+    { width: 18 },
+    { width: 3 },
+    { width: 3 },
     { width: 10 },
+    { width: 3 },
     { width: 10 },
+    { width: 3 },
     { width: 10 },
+    { width: 3 },
     { width: 10 },
     { width: 3 },
-    { width: 3 },
-    { width: 3 },
-    { width: 3 },
-    { width: 3 },
-    { width: 3 },
-    { width: 3 },
-    { width: 3 },
+    { width: 10 },
   ]
 }
 

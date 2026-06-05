@@ -5,7 +5,8 @@ import {
   getSeedOrder,
   firstRoundOpponentSeed,
   buildSlots,
-  buildCompactSlots,
+  buildSlotsCnu6,
+  buildSlotsCnu,
   usarLlaveCompacta,
 } from '@/lib/campeonato/llaves-kyorugi'
 
@@ -49,7 +50,6 @@ describe('getSeedOrder', () => {
     const order = getSeedOrder(16)
     const pos1 = order.indexOf(1)
     const pos2 = order.indexOf(2)
-    // seed 1 en la primera mitad, seed 2 en la segunda
     expect(pos1).toBeLessThan(8)
     expect(pos2).toBeGreaterThanOrEqual(8)
   })
@@ -72,58 +72,56 @@ describe('firstRoundOpponentSeed', () => {
 })
 
 describe('usarLlaveCompacta', () => {
-  it('usa compacta solo cuando hay byes y n>4', () => {
-    expect(usarLlaveCompacta(4)).toBe(false) // potencia exacta
-    expect(usarLlaveCompacta(5)).toBe(true)
-    expect(usarLlaveCompacta(8)).toBe(false) // potencia exacta
-    expect(usarLlaveCompacta(9)).toBe(true)
-    expect(usarLlaveCompacta(2)).toBe(false)
-    expect(usarLlaveCompacta(3)).toBe(false) // n<=4 usa llave estándar
+  it('siempre false — CNU usa llave estándar', () => {
+    for (const n of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+      expect(usarLlaveCompacta(n)).toBe(false)
+    }
   })
 })
 
-const mkPart = (n, academia = null) =>
-  Array.from({ length: n }, (_, i) => ({ id_linea: i + 1, id_academia_campeonato: academia }))
+describe('buildSlotsCnu6', () => {
+  it('byes semillas 1 y 6; QF 2v3 y 4v5 (estilo PDF CNU)', () => {
+    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }]
+    const slots = buildSlotsCnu6(seeds)
+    expect(slots[0]).toEqual({ id: 1 })
+    expect(slots[1]).toBeNull()
+    expect(slots[2]).toEqual({ id: 2 })
+    expect(slots[3]).toEqual({ id: 3 })
+    expect(slots[4]).toEqual({ id: 4 })
+    expect(slots[5]).toEqual({ id: 5 })
+    expect(slots[6]).toEqual({ id: 6 })
+    expect(slots[7]).toBeNull()
+  })
+})
 
-describe('buildCompactSlots', () => {
-  it('con n par no genera byes', () => {
-    const { slots, bracketSize, byePlayers, fightCount } = buildCompactSlots(mkPart(6))
-    expect(byePlayers).toHaveLength(0)
-    expect(fightCount).toBe(3)
-    expect(bracketSize).toBe(8)
-    const ocupados = slots.filter(Boolean).length
-    expect(ocupados).toBe(6)
+describe('buildSlotsCnu', () => {
+  it('6 pers. usa layout CNU especial', () => {
+    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }]
+    const slots = buildSlotsCnu(seeds, 6)
+    expect(slots.filter(Boolean)).toHaveLength(6)
+    expect(slots[0].id).toBe(1)
+    expect(slots[6].id).toBe(6)
   })
 
-  it('con n impar genera exactamente 1 bye', () => {
-    const { byePlayers, fightCount } = buildCompactSlots(mkPart(9))
-    expect(byePlayers).toHaveLength(1)
-    expect(fightCount).toBe(4)
+  it('7 pers. usa orden estándar de 8 (bye semilla 1)', () => {
+    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }]
+    const slots = buildSlotsCnu(seeds, 7)
+    expect(slots[0]).toEqual({ id: 1 })
+    expect(slots[1]).toBeNull()
+    expect(slots.filter(Boolean)).toHaveLength(7)
   })
 
-  it('todos los participantes aparecen (en slots o en byes), sin duplicados', () => {
-    for (const n of [5, 7, 9, 11, 13, 15]) {
-      const { slots, byePlayers } = buildCompactSlots(mkPart(n))
-      const ids = [...slots.filter(Boolean).map((p) => p.id_linea), ...byePlayers.map((p) => p.id_linea)]
-      expect(new Set(ids).size).toBe(n)
-      expect(ids).toHaveLength(n)
-    }
-  })
-
-  it('los emparejamientos de primera ronda son consecutivos sin huecos', () => {
-    const { slots, fightCount } = buildCompactSlots(mkPart(10))
-    for (let m = 0; m < fightCount; m++) {
-      expect(slots[m * 2]).toBeTruthy()
-      expect(slots[m * 2 + 1]).toBeTruthy()
-    }
+  it('8 pers. llena los 8 slots estándar', () => {
+    const seeds = [null, ...Array.from({ length: 8 }, (_, i) => ({ id: i + 1 }))]
+    const slots = buildSlotsCnu(seeds, 8)
+    expect(slots.filter(Boolean)).toHaveLength(8)
   })
 })
 
 describe('buildSlots (llave estándar con seeds)', () => {
   it('coloca los participantes según el orden de seeds', () => {
-    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }] // index 0 vacío
+    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]
     const slots = buildSlots(seeds, 4)
-    // orden de 4 = [1,4,2,3]
     expect(slots[0]).toEqual({ id: 1 })
     expect(slots[1]).toEqual({ id: 4 })
     expect(slots[2]).toEqual({ id: 2 })

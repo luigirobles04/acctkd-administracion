@@ -9,7 +9,7 @@ export const RONDA_LABEL_EXPORT = {
 }
 
 export function combateEnBracket(m) {
-  return m && m.estado !== 'vacío' && m.estado !== 'bye'
+  return m && !m.es_bye && m.estado !== 'vacío' && m.estado !== 'bye'
 }
 
 /** @deprecated use combateEnBracket */
@@ -91,7 +91,7 @@ export function columnasBracket(porRonda) {
       .sort((a, b) => a.match_numero - b.match_numero)
       .map((m) => ({
         match_numero: m.match_numero,
-        numero_combate: m.orden_pista || '',
+        numero_combate: m.orden_bracket || m.orden_pista || '',
         es_bye: m.es_bye,
         chung: slotFromCompetidor(m.competidor1, m.color1 || 'azul'),
         hong: slotFromCompetidor(m.competidor2, m.color2 || 'rojo'),
@@ -189,6 +189,13 @@ export function hojaAreaHtmlExcel(camp, areaNum, categorias) {
   return html
 }
 
+function compararCategoriaExport(a, b) {
+  const oa = a.orden ?? 9999
+  const ob = b.orden ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
+}
+
 export function agruparPorArea(categorias) {
   const areas = { 1: [], 2: [], 3: [] }
   for (const cat of categorias || []) {
@@ -198,7 +205,13 @@ export function agruparPorArea(categorias) {
     else areas[1].push(cat)
   }
   for (const n of [1, 2, 3]) {
-    areas[n].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))
+    areas[n].sort(compararCategoriaExport)
   }
   return areas
+}
+
+/** Lista plana para PDF: Área 1 → 2 → 3, categorías ordenadas dentro de cada área */
+export function categoriasOrdenadasExport(categorias) {
+  const areas = agruparPorArea(categorias)
+  return [1, 2, 3].flatMap((n) => areas[n])
 }

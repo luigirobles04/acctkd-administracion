@@ -96,51 +96,40 @@ function buildSlots(seeds, bracketSize) {
   return slots
 }
 
-/** Primera ronda con máximo de peleas: empareja consecutivamente, mínimo de BYE */
+/**
+ * Llave de 6 pers. estilo CNU: byes semillas 1 (arriba) y 6 (abajo);
+ * QF centrales 2v3 y 4v5 (como PDF Campeonato Nacional Universitario).
+ */
+function buildSlotsCnu6(seeds) {
+  const slots = new Array(8).fill(null)
+  slots[0] = seeds[1] ?? null
+  slots[2] = seeds[2] ?? null
+  slots[3] = seeds[3] ?? null
+  slots[4] = seeds[4] ?? null
+  slots[5] = seeds[5] ?? null
+  slots[6] = seeds[6] ?? null
+  return slots
+}
+
+/** Coloca participantes en slots según estándar CNU (siempre llave potencia de 2). */
+function buildSlotsCnu(seeds, n) {
+  const bracketSize = bracketSizeFor(n)
+  if (n === 6) return buildSlotsCnu6(seeds)
+  return buildSlots(seeds, bracketSize)
+}
+
+/** @deprecated Llave compacta — ya no se usa; CNU siempre usa llave estándar. */
 function buildCompactSlots(participantes) {
   const n = participantes.length
   const bracketSize = bracketSizeFor(n)
-  const fightCount = Math.floor(n / 2)
-  const byeCount = n % 2
-  const shuffled = shuffleInPlace([...participantes])
-
-  // Bye al extremo inferior (convención CNU / FESTCUP)
-  const byePlayers = byeCount ? [shuffled[n - 1]] : []
-  let fighters = byeCount ? shuffled.slice(0, n - 1) : [...shuffled]
-
-  const counts = {}
-  for (const p of fighters) {
-    const ac = academyId(p)
-    if (ac) counts[ac] = (counts[ac] || 0) + 1
-  }
-  if (Object.values(counts).some((c) => c > 3) && fightCount >= 2) {
-    for (let attempt = 0; attempt < 40; attempt++) {
-      let ok = true
-      for (let m = 0; m < fightCount; m++) {
-        const a = academyId(fighters[m * 2])
-        const b = academyId(fighters[m * 2 + 1])
-        if (a && b && a === b) {
-          ok = false
-          const j = m * 2 + 1 + Math.floor(Math.random() * (fighters.length - m * 2 - 1))
-          if (j < fighters.length) [fighters[m * 2 + 1], fighters[j]] = [fighters[j], fighters[m * 2 + 1]]
-        }
-      }
-      if (ok) break
-    }
-  }
-
-  const slots = new Array(bracketSize).fill(null)
-  for (let m = 0; m < fightCount; m++) {
-    slots[m * 2] = fighters[m * 2]
-    slots[m * 2 + 1] = fighters[m * 2 + 1]
-  }
-
-  return { slots, bracketSize, byePlayers, fightCount }
+  const seeds = assignSeeds(participantes, bracketSize)
+  const slots = buildSlotsCnu(seeds, n)
+  return { slots, bracketSize, byePlayers: [], fightCount: Math.floor(n / 2) }
 }
 
-function usarLlaveCompacta(n) {
-  const b = bracketSizeFor(n)
-  return n < b && n > 4
+/** @deprecated Siempre false — CNU usa llave estándar para todos los tamaños. */
+function usarLlaveCompacta() {
+  return false
 }
 
 const CANCHAS_DEFAULT = 3
@@ -302,21 +291,9 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
   await sb.from('llave_kyorugi').delete().eq('id_categoria', idCategoria)
 
   const n = participantes.length
-  const compacta = usarLlaveCompacta(n)
-  let bracketSize
-  let slots
-  let byePlayers = []
-
-  if (compacta) {
-    const built = buildCompactSlots(participantes)
-    bracketSize = built.bracketSize
-    slots = built.slots
-    byePlayers = built.byePlayers
-  } else {
-    bracketSize = bracketSizeFor(n)
-    const seeds = assignSeeds(participantes, bracketSize)
-    slots = buildSlots(seeds, bracketSize)
-  }
+  const bracketSize = bracketSizeFor(n)
+  const seeds = assignSeeds(participantes, bracketSize)
+  const slots = buildSlotsCnu(seeds, n)
 
   const numRondas = Math.log2(bracketSize)
 
@@ -404,13 +381,6 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
   }
 
   await Promise.all([...sigUpdates, ...byeAdvances])
-
-  if (compacta && byePlayers.length === 1 && idsPorRonda.length >= 2) {
-    const bye = byePlayers[0]
-    const sfIds = idsPorRonda[idsPorRonda.length - 2]
-    const idSfBye = sfIds[sfIds.length - 1]
-    await sb.from('llave_kyorugi').update({ id_linea1: bye.id_linea, color1: COLOR_CHUNG, id_linea2: null, estado: 'pendiente', es_bye: true }).eq('id_llave', idSfBye)
-  }
 
   if (asignarCanchas) await asignarCanchasCampeonato(sb, idCampeonato)
 
@@ -554,6 +524,8 @@ export {
   firstRoundOpponentSeed,
   assignSeeds,
   buildSlots,
+  buildSlotsCnu6,
+  buildSlotsCnu,
   buildCompactSlots,
   usarLlaveCompacta,
   CANCHAS_DEFAULT,

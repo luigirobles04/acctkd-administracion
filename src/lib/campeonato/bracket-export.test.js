@@ -5,6 +5,7 @@ import {
   columnasBracket,
   combateEnBracket,
   ganadorNombre,
+  categoriasOrdenadasExport,
 } from '@/lib/campeonato/bracket-export'
 
 describe('labelRondaExport', () => {
@@ -82,6 +83,21 @@ describe('columnasBracket', () => {
     expect(cols[0].combates[1].match_numero).toBe(2)
   })
 
+  it('prefiere orden_bracket sobre orden_pista para el número de combate', () => {
+    const porRonda = {
+      1: [{
+        ronda: 1,
+        match_numero: 1,
+        estado: 'pendiente',
+        orden_pista: 99,
+        orden_bracket: 3,
+        competidor1: { nombres: 'A', id_linea: 1 },
+        competidor2: { nombres: 'B', id_linea: 2 },
+      }],
+    }
+    expect(columnasBracket(porRonda)[0].combates[0].numero_combate).toBe(3)
+  })
+
   it('asigna color azul a chung y rojo a hong por defecto', () => {
     const porRonda = {
       1: [{ ronda: 1, match_numero: 1, estado: 'pendiente', competidor1: { nombres: 'A', id_linea: 1 }, competidor2: { nombres: 'B', id_linea: 2 } }],
@@ -89,5 +105,18 @@ describe('columnasBracket', () => {
     const cols = columnasBracket(porRonda)
     expect(cols[0].combates[0].chung.color).toBe('azul')
     expect(cols[0].combates[0].hong.color).toBe('rojo')
+  })
+})
+
+describe('categoriasOrdenadasExport', () => {
+  it('agrupa por área y ordena por campo orden dentro de cada área', () => {
+    const cats = [
+      { id_categoria: 1, nombre: 'B -30kg', cancha: 2, tiene_llave: true, orden: 2 },
+      { id_categoria: 2, nombre: 'A -27kg', cancha: 1, tiene_llave: true, orden: 1 },
+      { id_categoria: 3, nombre: 'C -33kg', cancha: 1, tiene_llave: true, orden: 2 },
+      { id_categoria: 4, nombre: 'D -36kg', cancha: 2, tiene_llave: true, orden: 1 },
+    ]
+    const ids = categoriasOrdenadasExport(cats).map((c) => c.id_categoria)
+    expect(ids).toEqual([2, 3, 4, 1])
   })
 })
