@@ -97,8 +97,16 @@ function buildSlots(seeds, bracketSize) {
 }
 
 /**
- * Llave de 6 pers. estilo CNU: byes semillas 1 (arriba) y 6 (abajo);
- * QF centrales 2v3 y 4v5 (como PDF Campeonato Nacional Universitario).
+ * Llave de 8 slots — layout posicional WT/CNU (tournamentmgr 6-team).
+ *
+ *   s1 (bye) ───────────── SF1
+ *   s2 ──┐
+ *        ├─ QF1 ──────────┘
+ *   s3 ──┘
+ *   s4 ──┐
+ *        ├─ QF2 ──────┐
+ *   s5 ──┘            ├─ SF2
+ *   s6 (bye) ─────────┘
  */
 function buildSlotsCnu6(seeds) {
   const slots = new Array(8).fill(null)
@@ -111,10 +119,46 @@ function buildSlotsCnu6(seeds) {
   return slots
 }
 
+/**
+ * Llave de 8 slots — layout posicional WT/CNU (tournamentmgr 7-team).
+ *
+ *   s1 (bye) ───────────── SF1
+ *   s2 ──┐
+ *        ├─ QF1 ──────────┘
+ *   s3 ──┘
+ *   s4 ──┐
+ *        ├─ QF2 ──┐
+ *   s5 ──┘        ├─ SF2 ── FINAL
+ *   s6 ──┐        │
+ *        ├─ QF3 ──┘
+ *   s7 ──┘
+ */
+function buildSlotsCnu7(seeds) {
+  const slots = new Array(8).fill(null)
+  slots[0] = seeds[1] ?? null
+  slots[2] = seeds[2] ?? null
+  slots[3] = seeds[3] ?? null
+  slots[4] = seeds[4] ?? null
+  slots[5] = seeds[5] ?? null
+  slots[6] = seeds[6] ?? null
+  slots[7] = seeds[7] ?? null
+  return slots
+}
+
+/** Parejas de cuartos (índices de slot 0..7) para llave de 8. */
+export function qfPairsFromSlots(slots) {
+  const pairs = []
+  for (let i = 0; i < slots.length; i += 2) {
+    pairs.push([slots[i] ?? null, slots[i + 1] ?? null])
+  }
+  return pairs
+}
+
 /** Coloca participantes en slots según estándar CNU (siempre llave potencia de 2). */
 function buildSlotsCnu(seeds, n) {
   const bracketSize = bracketSizeFor(n)
   if (n === 6) return buildSlotsCnu6(seeds)
+  if (n === 7) return buildSlotsCnu7(seeds)
   return buildSlots(seeds, bracketSize)
 }
 
@@ -315,6 +359,9 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
       let ganador_id_linea = null
       let estado = 'pendiente'
 
+      let color1 = null
+      let color2 = null
+
       if (ri === 0) {
         const p1 = slots[(m - 1) * 2]
         const p2 = slots[(m - 1) * 2 + 1]
@@ -333,10 +380,13 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
           estado = 'saltado'
         } else if (!p1 && !p2) {
           estado = 'vacío'
+        } else {
+          ;({ color1, color2 } = coloresCombate(id_linea1, id_linea2))
         }
+        if (es_bye) color1 = (m - 1) % 2 === 0 ? COLOR_CHUNG : COLOR_HONG
+      } else {
+        ;({ color1, color2 } = coloresCombate(id_linea1, id_linea2))
       }
-
-      const { color1, color2 } = coloresCombate(id_linea1, id_linea2)
       const rowIdx = rowsToInsert.length
       rowsToInsert.push({ id_campeonato: idCampeonato, id_categoria: idCategoria, ronda, match_numero: m, id_linea1, id_linea2, es_bye, ganador_id_linea, estado, color1, color2 })
       rowMetaByRondaMatch[`${ronda}_${m}`] = { ri, mi: m - 1, rowIdx }
@@ -525,6 +575,7 @@ export {
   assignSeeds,
   buildSlots,
   buildSlotsCnu6,
+  buildSlotsCnu7,
   buildSlotsCnu,
   buildCompactSlots,
   usarLlaveCompacta,

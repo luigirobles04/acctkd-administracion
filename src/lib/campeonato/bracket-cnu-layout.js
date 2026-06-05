@@ -1,6 +1,6 @@
 /** Layout árbol CNU (Campeonato Nacional Universitario) — como PDF oficial */
 
-import { columnasBracket, rondasOrdenadas } from '@/lib/campeonato/bracket-export'
+import { columnasBracket, colorByeEnBloque, rondasOrdenadas } from '@/lib/campeonato/bracket-export'
 
 const ROWS_PER_MATCH = 4
 const COL_SEED = 0
@@ -14,9 +14,9 @@ function fmtCombate(num, cancha) {
   return cancha ? `${cancha}/${n}` : n
 }
 
-function slotFromRaw(c) {
-  if (!c?.nombres && !c?.id_linea) return { nombre: 'POR DEFINIR', academia: '', vacio: true }
-  return { nombre: (c.nombres || 'POR DEFINIR').toUpperCase(), academia: c.academia || '', vacio: false }
+function slotFromRaw(c, color = null) {
+  if (!c?.nombres && !c?.id_linea) return { nombre: 'POR DEFINIR', academia: '', vacio: true, color }
+  return { nombre: (c.nombres || 'POR DEFINIR').toUpperCase(), academia: c.academia || '', vacio: false, color }
 }
 
 /** Primera ronda completa: combates reales + byes (pasan directo a la siguiente ronda) */
@@ -44,9 +44,9 @@ export function entradasPrimeraRonda(porRonda) {
     out.push({
       es_bye: Boolean(m.es_bye),
       vacio: false,
-      numero_combate: m.orden_bracket || m.orden_pista || '',
-      chung: slotFromRaw(m.competidor1),
-      hong: m.es_bye ? null : slotFromRaw(m.competidor2),
+      numero_combate: m.es_bye ? '' : (m.orden_bracket || m.orden_pista || ''),
+      chung: slotFromRaw(m.competidor1, m.color1 || (m.es_bye ? colorByeEnBloque(mn) : 'azul')),
+      hong: m.es_bye ? null : slotFromRaw(m.competidor2, m.color2 || 'rojo'),
     })
   }
 
@@ -115,7 +115,8 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
 
     if (entry.es_bye) {
       const p = entry.chung?.vacio === false ? entry.chung : entry.hong
-      drawPlayer(rTop, p, seed++, { chung: true })
+      const hong = p?.color === 'rojo'
+      drawPlayer(rTop, p, seed++, { chung: !hong, hong })
       armFromPlayer(addBorder, center, COL_BRACKET)
       return
     }

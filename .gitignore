@@ -53,6 +53,8 @@ scripts/.batch*
 scripts/.b4*
 scripts/.catalogo*
 scripts/.validar*
+scripts/.prueba-llaves-bundle.mjs
+/tmp/
 scripts/.exec*
 scripts/.live*
 scripts/.out*

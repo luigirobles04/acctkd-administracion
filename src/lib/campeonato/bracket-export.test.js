@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   labelRondaExport,
+  labelColumnaBracket,
+  colorByeEnBloque,
   rondasOrdenadas,
   columnasBracket,
   combateEnBracket,
@@ -62,6 +64,25 @@ describe('ganadorNombre', () => {
     expect(ganadorNombre(c)).toBe('ANA')
     expect(ganadorNombre({ ...c, ganador_id_linea: 6 })).toBe('BETO')
     expect(ganadorNombre({ ...c, ganador_id_linea: null })).toBe('')
+  })
+})
+
+describe('colorByeEnBloque', () => {
+  it('bloque par = azul, impar = rojo', () => {
+    expect(colorByeEnBloque(1)).toBe('azul')
+    expect(colorByeEnBloque(2)).toBe('rojo')
+    expect(colorByeEnBloque(4)).toBe('rojo')
+  })
+})
+
+describe('labelColumnaBracket', () => {
+  it('llave parcial de 9 usa Rnd 1 en vez de R16', () => {
+    expect(labelColumnaBracket(4, { maxRonda: 4, inscritos: 9, numBlocks: 8 })).toBe('Rnd 1')
+    expect(labelColumnaBracket(3, { maxRonda: 4, inscritos: 9, numBlocks: 8 })).toBe('Q-Final')
+  })
+
+  it('llave llena de 16 mantiene R16', () => {
+    expect(labelColumnaBracket(4, { maxRonda: 4, inscritos: 16, numBlocks: 8 })).toBe('R16')
   })
 })
 

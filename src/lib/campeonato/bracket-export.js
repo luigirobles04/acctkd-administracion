@@ -12,6 +12,11 @@ export function combateEnBracket(m) {
   return m && !m.es_bye && m.estado !== 'vacío' && m.estado !== 'bye'
 }
 
+/** Color chung/hong del bye según posición en el árbol (bloque par = azul, impar = rojo). */
+export function colorByeEnBloque(matchNumero) {
+  return (matchNumero - 1) % 2 === 0 ? 'azul' : 'rojo'
+}
+
 /** @deprecated use combateEnBracket */
 export function combateExportable(m) {
   return combateEnBracket(m)
@@ -28,6 +33,18 @@ const RONDA_NOMBRE = { 1: 'Final', 2: 'S-Final', 3: 'Q-Final', 4: 'R16', 5: 'R32
 
 export function labelRondaExport(ronda) {
   return RONDA_NOMBRE[ronda] || `R${Math.pow(2, ronda)}`
+}
+
+/** Etiqueta de columna según tamaño real del bracket (Rnd 1/2 vs R16/R32 en llaves parciales). */
+export function labelColumnaBracket(ronda, { maxRonda, inscritos, numBlocks }) {
+  const bracketSize = numBlocks * 2
+  if (!maxRonda || inscritos >= bracketSize) return labelRondaExport(ronda)
+  const numRndCols = Math.max(0, maxRonda - 3)
+  const rndNumber = maxRonda - ronda + 1
+  if (ronda > 3 && rndNumber >= 1 && rndNumber <= numRndCols) {
+    return `Rnd ${rndNumber}`
+  }
+  return labelRondaExport(ronda)
 }
 
 function slotFromCompetidor(c, color = null) {
@@ -80,12 +97,14 @@ export function ganadorNombre(combate) {
   return ''
 }
 
-export function columnasBracket(porRonda) {
+export function columnasBracket(porRonda, { inscritos = null, numBlocks = null } = {}) {
   const rondas = rondasOrdenadas(porRonda)
   const maxR = rondas[0] || 1
+  const slots = numBlocks ?? 2 ** (maxR - 1)
+  const n = inscritos ?? slots * 2
   return rondas.map((r) => ({
     ronda: r,
-    label: labelRondaExport(r),
+    label: labelColumnaBracket(r, { maxRonda: maxR, inscritos: n, numBlocks: slots }),
     combates: (porRonda[r] || [])
       .filter(combateEnBracket)
       .sort((a, b) => a.match_numero - b.match_numero)

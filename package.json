@@ -12,7 +12,8 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "supabase:reset": "supabase db reset"
+    "supabase:reset": "supabase db reset",
+    "seed:prueba-llaves": "node scripts/crear-campeonato-prueba-llaves.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.3",

@@ -6,7 +6,9 @@ import {
   firstRoundOpponentSeed,
   buildSlots,
   buildSlotsCnu6,
+  buildSlotsCnu7,
   buildSlotsCnu,
+  qfPairsFromSlots,
   usarLlaveCompacta,
 } from '@/lib/campeonato/llaves-kyorugi'
 
@@ -80,7 +82,7 @@ describe('usarLlaveCompacta', () => {
 })
 
 describe('buildSlotsCnu6', () => {
-  it('byes semillas 1 y 6; QF 2v3 y 4v5 (estilo PDF CNU)', () => {
+  it('byes semillas 1 y 6; QF 2v3 y 4v5 (estilo PDF CNU / tournamentmgr)', () => {
     const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }]
     const slots = buildSlotsCnu6(seeds)
     expect(slots[0]).toEqual({ id: 1 })
@@ -91,6 +93,33 @@ describe('buildSlotsCnu6', () => {
     expect(slots[5]).toEqual({ id: 5 })
     expect(slots[6]).toEqual({ id: 6 })
     expect(slots[7]).toBeNull()
+
+    const qf = qfPairsFromSlots(slots)
+    expect(qf[0]).toEqual([{ id: 1 }, null])
+    expect(qf[1]).toEqual([{ id: 2 }, { id: 3 }])
+    expect(qf[2]).toEqual([{ id: 4 }, { id: 5 }])
+    expect(qf[3]).toEqual([{ id: 6 }, null])
+  })
+})
+
+describe('buildSlotsCnu7', () => {
+  it('bye semilla 1; QF 2v3, 4v5 y 6v7 (estilo PDF / tournamentmgr)', () => {
+    const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }]
+    const slots = buildSlotsCnu7(seeds)
+    expect(slots[0]).toEqual({ id: 1 })
+    expect(slots[1]).toBeNull()
+    expect(slots[2]).toEqual({ id: 2 })
+    expect(slots[3]).toEqual({ id: 3 })
+    expect(slots[4]).toEqual({ id: 4 })
+    expect(slots[5]).toEqual({ id: 5 })
+    expect(slots[6]).toEqual({ id: 6 })
+    expect(slots[7]).toEqual({ id: 7 })
+
+    const qf = qfPairsFromSlots(slots)
+    expect(qf[0]).toEqual([{ id: 1 }, null])
+    expect(qf[1]).toEqual([{ id: 2 }, { id: 3 }])
+    expect(qf[2]).toEqual([{ id: 4 }, { id: 5 }])
+    expect(qf[3]).toEqual([{ id: 6 }, { id: 7 }])
   })
 })
 
@@ -103,18 +132,44 @@ describe('buildSlotsCnu', () => {
     expect(slots[6].id).toBe(6)
   })
 
-  it('7 pers. usa orden estándar de 8 (bye semilla 1)', () => {
+  it('7 pers. usa layout posicional (no orden estándar 4v5 / 2v7)', () => {
     const seeds = [null, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }]
     const slots = buildSlotsCnu(seeds, 7)
-    expect(slots[0]).toEqual({ id: 1 })
-    expect(slots[1]).toBeNull()
-    expect(slots.filter(Boolean)).toHaveLength(7)
+    expect(slots).toEqual(buildSlotsCnu7(seeds))
+    expect(qfPairsFromSlots(slots)[1]).toEqual([{ id: 2 }, { id: 3 }])
+    expect(qfPairsFromSlots(slots)[3]).toEqual([{ id: 6 }, { id: 7 }])
   })
 
   it('8 pers. llena los 8 slots estándar', () => {
     const seeds = [null, ...Array.from({ length: 8 }, (_, i) => ({ id: i + 1 }))]
     const slots = buildSlotsCnu(seeds, 8)
     expect(slots.filter(Boolean)).toHaveLength(8)
+  })
+
+  it('10 pers. en llave de 16: 6 byes y play-ins X8vX9 y X7vX10 (orden WT)', () => {
+    const seeds = [null, ...Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }))]
+    const slots = buildSlotsCnu(seeds, 10)
+    const qf = qfPairsFromSlots(slots)
+    const fights = qf.filter(([a, b]) => a && b)
+    const byes = qf.filter(([a, b]) => (a && !b) || (!a && b))
+    expect(fights).toHaveLength(2)
+    expect(byes).toHaveLength(6)
+    expect(fights[0]).toEqual([{ id: 8 }, { id: 9 }])
+    expect(fights[1]).toEqual([{ id: 7 }, { id: 10 }])
+  })
+
+  it('9 pers. en llave de 16: 7 byes y único play-in X8 vs X9 (orden WT)', () => {
+    const seeds = [null, ...Array.from({ length: 9 }, (_, i) => ({ id: i + 1 }))]
+    const slots = buildSlotsCnu(seeds, 9)
+    expect(slots).toHaveLength(16)
+    expect(slots.filter(Boolean)).toHaveLength(9)
+    const qf = qfPairsFromSlots(slots)
+    const fights = qf.filter(([a, b]) => a && b)
+    const byes = qf.filter(([a, b]) => (a && !b) || (!a && b))
+    expect(fights).toHaveLength(1)
+    expect(byes).toHaveLength(7)
+    expect(fights[0]).toEqual([{ id: 8 }, { id: 9 }])
+    expect(qf[0]).toEqual([{ id: 1 }, null])
   })
 })
 

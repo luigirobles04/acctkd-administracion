@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { layoutCnuBracket } from '@/lib/campeonato/bracket-cnu-layout'
+import { layoutCnuBracket, entradasPrimeraRonda } from '@/lib/campeonato/bracket-cnu-layout'
 
 function porRonda8() {
   // 4 combates ronda 3 (Q-Final como primera con 8), 2 ronda 2, 1 final
@@ -135,7 +135,7 @@ describe('layoutCnuBracket', () => {
           estado: 'saltado',
           competidor1: { id_linea: 6, nombres: 'P6', academia: 'B' },
           competidor2: null,
-          color1: 'azul',
+          color1: 'rojo',
         },
       ],
       2: [
@@ -190,5 +190,49 @@ describe('layoutCnuBracket', () => {
     const layout = layoutCnuBracket(porRonda, { cancha: 1 })
     expect(layout).toBeTruthy()
     expect(layout.cells.get('1,5')?.border?.right).toBe(true)
+  })
+
+  it('bye sin número de pelea y con color según bloque', () => {
+    const porRonda = {
+      2: [
+        {
+          ronda: 2,
+          match_numero: 1,
+          orden_pista: 1,
+          es_bye: true,
+          estado: 'saltado',
+          competidor1: { id_linea: 1, nombres: 'X1', academia: 'A' },
+          competidor2: null,
+          color1: 'azul',
+        },
+        {
+          ronda: 2,
+          match_numero: 2,
+          orden_pista: 2,
+          estado: 'pendiente',
+          competidor1: { id_linea: 2, nombres: 'X2', academia: 'B' },
+          competidor2: { id_linea: 3, nombres: 'X3', academia: 'C' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+      1: [
+        {
+          ronda: 1,
+          match_numero: 1,
+          orden_pista: 3,
+          estado: 'pendiente',
+          competidor1: null,
+          competidor2: null,
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+    }
+    const entradas = entradasPrimeraRonda(porRonda)
+    expect(entradas[0].es_bye).toBe(true)
+    expect(entradas[0].numero_combate).toBe('')
+    expect(entradas[0].chung.color).toBe('azul')
+    expect(entradas[1].numero_combate).toBe(2)
   })
 })

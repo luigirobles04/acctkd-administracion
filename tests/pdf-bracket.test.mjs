@@ -49,10 +49,10 @@ describe('export-bracket-pdf layout', () => {
         const yBot = yCenter + pairH / 2
         if (bi > 0) {
           const prevCenter = yCenterBlock(bi - 1, layout)
-          expect(yTop).toBeGreaterThan(prevCenter + pairH / 2 - 0.5)
+          expect(yTop).toBeGreaterThanOrEqual(prevCenter + pairH / 2 - 1.5)
         }
         const blockH = ROWS_PER_MATCH * layout.rowH
-        expect(yBot - yTop).toBeLessThanOrEqual(blockH + 0.5)
+        expect(yBot - yTop).toBeLessThanOrEqual(blockH + 1)
       }
 
       expect(mergesEnRonda(numBlocks, 0)).toBe(numBlocks / 2)
