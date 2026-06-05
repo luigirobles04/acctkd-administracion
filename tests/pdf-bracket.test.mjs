@@ -22,33 +22,45 @@ function makePorRonda({ rondas }) {
 }
 
 describe('export-bracket-pdf layout', () => {
-  it('cada bloque de la 1.ª ronda tiene altura suficiente (sin solapamiento)', async () => {
-    const { calcLayout, yCenterBlock, yCenterMerge, mergesEnRonda } = await import('@/lib/campeonato/export-bracket-pdf')
+  it('usa geometría CNU (4 filas por bloque) sin solapamiento', async () => {
+    const { calcLayout, yCenterBlock, yCenterMerge, mergesEnRonda, buildRowMap } = await import('@/lib/campeonato/export-bracket-pdf')
+    const { ROWS_PER_MATCH } = await import('@/lib/campeonato/bracket-cnu-layout')
 
-    for (const { numBlocks, numBlocksLayout } of [
-      { numBlocks: 8, numBlocksLayout: 4 },
-      { numBlocks: 16, numBlocksLayout: 8 },
-      { numBlocks: 32, numBlocksLayout: 11 },
-    ]) {
+    for (const numBlocks of [4, 8, 16]) {
       const cols = Array.from({ length: Math.log2(numBlocks) }, (_, i) => ({
         label: `R${i}`,
         combates: Array.from({ length: numBlocks / 2 ** (i + 1) }, () => ({})),
       }))
-      const layout = calcLayout(cols, numBlocks, numBlocksLayout, 297, 210)
+      const entradas = Array.from({ length: numBlocks }, () => ({
+        vacio: false,
+        es_bye: false,
+        chung: { nombre: 'A', vacio: false },
+        hong: { nombre: 'B', vacio: false },
+      }))
+      const layout = calcLayout(cols, numBlocks, entradas, 297, 210)
       const pairH = layout.boxH * 2 + layout.pairGap
 
-      for (let bi = 0; bi < numBlocks; bi += Math.max(1, Math.floor(numBlocks / numBlocksLayout))) {
+      expect(layout.totalRows).toBe(buildRowMap(entradas).totalRows)
+      expect(layout.pairGap).toBeGreaterThanOrEqual(2)
+
+      for (let bi = 0; bi < numBlocks; bi++) {
         const yCenter = yCenterBlock(bi, layout)
         const yTop = yCenter - pairH / 2
         const yBot = yCenter + pairH / 2
-        expect(yBot - yTop).toBeLessThanOrEqual(layout.blockSpan + 0.01)
+        if (bi > 0) {
+          const prevCenter = yCenterBlock(bi - 1, layout)
+          expect(yTop).toBeGreaterThan(prevCenter + pairH / 2 - 0.5)
+        }
+        const blockH = ROWS_PER_MATCH * layout.rowH
+        expect(yBot - yTop).toBeLessThanOrEqual(blockH + 0.5)
       }
 
       expect(mergesEnRonda(numBlocks, 0)).toBe(numBlocks / 2)
-      const qf0 = yCenterMerge(numBlocks, 0, 0, layout)
-      const qf1 = yCenterMerge(numBlocks, 0, 1, layout)
-      expect(qf1 - qf0).toBeGreaterThan(layout.boxH)
-      expect(layout.pairGap).toBeGreaterThanOrEqual(2)
+      if (numBlocks >= 8) {
+        const qf0 = yCenterMerge(1, 0, layout)
+        const qf1 = yCenterMerge(1, 1, layout)
+        expect(qf1 - qf0).toBeGreaterThan(layout.boxH)
+      }
     }
   })
 })
@@ -125,6 +137,49 @@ describe('export-bracket-pdf (smoke)', () => {
         doc,
         { nombre: 'Test Cup' },
         { nombre: 'Compacta 3', cancha: 1, inscritos: 3, porRonda },
+        { pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight() }
+      )
+    ).not.toThrow()
+  })
+
+  it('no lanza con llave parcial (slots vacíos en bracket de 8)', async () => {
+    const { jsPDF } = await import('jspdf')
+    const { dibujarBracketCategoriaPdf } = await import('@/lib/campeonato/export-bracket-pdf')
+    const { entradasPrimeraRonda } = await import('@/lib/campeonato/bracket-cnu-layout')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const porRonda = {
+      3: [
+        {
+          ronda: 3,
+          match_numero: 1,
+          orden_pista: 1,
+          estado: 'pendiente',
+          competidor1: { id_linea: 1, nombres: 'A1', academia: 'X' },
+          competidor2: { id_linea: 2, nombres: 'A2', academia: 'Y' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+        {
+          ronda: 3,
+          match_numero: 2,
+          orden_pista: 2,
+          estado: 'pendiente',
+          competidor1: { id_linea: 3, nombres: 'A3', academia: 'X' },
+          competidor2: { id_linea: 4, nombres: 'A4', academia: 'Y' },
+          color1: 'azul',
+          color2: 'rojo',
+        },
+      ],
+      2: [{ ronda: 2, match_numero: 1, orden_pista: 3, estado: 'pendiente', competidor1: null, competidor2: null, color1: 'azul', color2: 'rojo' }],
+      1: [{ ronda: 1, match_numero: 1, orden_pista: 4, estado: 'pendiente', competidor1: null, competidor2: null, color1: 'azul', color2: 'rojo' }],
+    }
+    const entradas = entradasPrimeraRonda(porRonda)
+    expect(entradas.some((e) => e.vacio)).toBe(true)
+    expect(() =>
+      dibujarBracketCategoriaPdf(
+        doc,
+        { nombre: 'Test Cup' },
+        { nombre: 'Parcial 4 de 8', cancha: 1, inscritos: 4, porRonda },
         { pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight() }
       )
     ).not.toThrow()

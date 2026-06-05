@@ -206,4 +206,10 @@ export function participantesPrimeraRonda(porRonda) {
   return out
 }
 
+/** Fila central de un bloque o merge (misma fórmula que layoutCnuBracket) */
+export function outRowCenter(roundIdx, mi) {
+  const span = ROWS_PER_MATCH * 2 ** roundIdx
+  return mi * span + span / 2 - 1
+}
+
 export { ROWS_PER_MATCH }

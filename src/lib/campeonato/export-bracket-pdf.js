@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport } from '@/lib/campeonato/bracket-export'
-import { entradasPrimeraRonda } from '@/lib/campeonato/bracket-cnu-layout'
+import { entradasPrimeraRonda, ROWS_PER_MATCH } from '@/lib/campeonato/bracket-cnu-layout'
 
 const GRAY = [100, 116, 139]
 const DARK = [17, 17, 17]
@@ -8,7 +8,7 @@ const GOLD = [180, 83, 9]
 const GOLD_LIGHT = [255, 251, 235]
 const CHUNG = [29, 78, 216]
 const HONG = [220, 38, 38]
-const LAYOUT_VERSION = 'v4'
+const LAYOUT_VERSION = 'v5'
 
 function trunc(doc, text, maxW) {
   let s = String(text || '')
@@ -40,15 +40,20 @@ function mergeTieneJugadores(entradas, roundIdx, mergeIdx) {
   return false
 }
 
-function numBloquesLayout(entradas, inscritos) {
-  const n = inscritos || entradas.filter(blockTieneJugador).length || 2
-  return Math.max(2, Math.ceil(n / 2))
+function feederActivo(roundIdx, feedMi, entradas, numBlocks) {
+  if (roundIdx === 1) {
+    return feedMi < numBlocks && blockTieneJugador(entradas[feedMi])
+  }
+  return mergeTieneJugadores(entradas, roundIdx - 2, feedMi)
 }
 
-/** Escala índice de bloque del bracket (potencia de 2) a posición visual compacta */
-function blockVisualIndex(bi, numBlocks, numBlocksLayout) {
-  if (numBlocks <= 1) return 0
-  return (bi / (numBlocks - 1)) * (numBlocksLayout - 1)
+function roundMatchActivo(roundIdx, mi, entradas, numBlocks) {
+  const feedA = mi * 2
+  const feedB = mi * 2 + 1
+  const levelPrev = numBlocks / 2 ** (roundIdx - 1)
+  const topA = feederActivo(roundIdx, feedA, entradas, numBlocks)
+  const botA = feedB < levelPrev && feederActivo(roundIdx, feedB, entradas, numBlocks)
+  return topA || botA
 }
 
 function drawHeader(doc, campeonato, cat, pageW) {
@@ -119,7 +124,7 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
 
   const nameX = x + barW + 2
   doc.setFont('helvetica', 'bold')
-  const hasAcademia = !vacio && slot?.academia && h >= 8
+  const hasAcademia = !vacio && slot?.academia && h >= 7
   const nameSize = Math.max(5.5, h * (hasAcademia ? 0.38 : 0.46))
   doc.setFontSize(nameSize)
   if (side === 'azul') doc.setTextColor(...CHUNG)
@@ -141,96 +146,86 @@ function line(doc, x1, y1, x2, y2) {
   doc.line(x1, y1, x2, y2)
 }
 
-export function yCenterBlock(bi, layout) {
-  const vi = blockVisualIndex(bi, layout.numBlocks, layout.numBlocksLayout)
-  const { treeTop, blockSpan, blockStep } = layout
-  return treeTop + vi * blockStep + blockSpan / 2
+function rowsEnBloque(entry) {
+  return blockTieneJugador(entry) ? ROWS_PER_MATCH : 1
 }
 
-export function yCenterMerge(numBlocks, roundIdx, mergeIdx, layout) {
-  const spanBlocks = 2 ** (roundIdx + 1)
-  const firstBlock = mergeIdx * spanBlocks
-  const lastBlock = Math.min(firstBlock + spanBlocks - 1, numBlocks - 1)
-  const yFirst = yCenterBlock(firstBlock, layout)
-  const yLast = yCenterBlock(lastBlock, layout)
-  return (yFirst + yLast) / 2
-}
-
-export function feederCenters(numBlocks, roundIdx, mergeIdx, layout, entradas) {
-  if (roundIdx === 0) {
-    const bi = mergeIdx * 2
-    const bi2 = Math.min(bi + 1, numBlocks - 1)
-    const topOk = blockTieneJugador(entradas[bi])
-    const botOk = blockTieneJugador(entradas[bi2])
-    const yA = yCenterBlock(bi, layout)
-    const yB = yCenterBlock(bi2, layout)
-    if (topOk && botOk) return { yA, yB, single: false }
-    if (topOk) return { yA, yB: yA, single: true }
-    if (botOk) return { yA: yB, yB, single: true }
-    return { yA, yB, single: true }
+export function buildRowMap(entradas) {
+  const blockStartRow = []
+  let total = 0
+  for (let bi = 0; bi < entradas.length; bi++) {
+    blockStartRow[bi] = total
+    total += rowsEnBloque(entradas[bi])
   }
+  return { blockStartRow, totalRows: total }
+}
 
-  const topOk = mergeTieneJugadores(entradas, roundIdx - 1, mergeIdx * 2)
-  const botOk = mergeTieneJugadores(entradas, roundIdx - 1, mergeIdx * 2 + 1)
-  const yA = yCenterMerge(numBlocks, roundIdx - 1, mergeIdx * 2, layout)
-  const yB = yCenterMerge(numBlocks, roundIdx - 1, mergeIdx * 2 + 1, layout)
-  if (topOk && botOk) return { yA, yB, single: false }
-  if (topOk) return { yA, yB: yA, single: true }
-  if (botOk) return { yA: yB, yB, single: true }
-  return { yA, yB, single: true }
+export function yFromRow(row, layout) {
+  return layout.treeTop + (row + 0.5) * layout.rowH
+}
+
+export function yCenterBlock(bi, layout) {
+  const start = layout.blockStartRow[bi]
+  const span = rowsEnBloque(layout.entradas[bi])
+  return yFromRow(start + span / 2 - 0.5, layout)
+}
+
+export function yCenterMerge(roundIdx, mi, layout) {
+  const spanBlocks = 2 ** roundIdx
+  const first = mi * spanBlocks
+  const last = Math.min(first + spanBlocks - 1, layout.numBlocks - 1)
+  if (first > last) return yCenterBlock(first, layout)
+  const start = layout.blockStartRow[first]
+  const end = layout.blockStartRow[last] + rowsEnBloque(layout.entradas[last])
+  return yFromRow((start + end) / 2 - 0.5, layout)
 }
 
 export function mergesEnRonda(numBlocks, roundIdx) {
   return Math.max(1, numBlocks / 2 ** (roundIdx + 1))
 }
 
-export function calcLayout(cols, numBlocks, numBlocksLayout, pageW, pageH) {
-  const marginT = 28
-  const marginB = 12
+export function calcLayout(cols, numBlocks, entradas, pageW, pageH) {
+  const marginT = 26
+  const marginB = 10
   const availH = pageH - marginT - marginB
+  const { blockStartRow, totalRows } = buildRowMap(entradas)
   const numRounds = cols.length
 
-  let boxH = 11
-  let pairGap = 3.5
-  let interBlock = 7
+  let rowH = availH / totalRows
+  while (rowH * totalRows > availH && rowH > 2.6) rowH *= 0.92
 
-  const blockSpan = () => boxH * 2 + pairGap
-  const blockStep = () => blockSpan() + interBlock
-  const treeH = () => numBlocksLayout * blockSpan() + Math.max(0, numBlocksLayout - 1) * interBlock
-
-  while (treeH() > availH && boxH > 4) {
-    boxH = Math.max(4, boxH * 0.9)
-    pairGap = Math.max(2, pairGap * 0.9)
-    interBlock = Math.max(3, interBlock * 0.9)
+  const maxPairH = ROWS_PER_MATCH * rowH * 0.92
+  let pairGap = Math.max(2.5, rowH * 0.5)
+  let boxH = Math.min(Math.max(4.5, (maxPairH - pairGap) / 2), 11)
+  if (boxH * 2 + pairGap > maxPairH) {
+    boxH = Math.max(4.5, (maxPairH - 2) / 2)
+    pairGap = Math.max(2, maxPairH - boxH * 2)
   }
 
-  const bs = blockSpan()
-  const bst = blockStep()
-  const treeTop = marginT + Math.max(0, (availH - treeH()) / 2)
+  const treeH = totalRows * rowH
+  const treeTop = marginT + Math.max(0, (availH - treeH) / 2)
 
   const marginL = 10
-  const winW = 46
-  const nameColW = 56
+  const winW = 44
+  const nameColW = 54
   const availW = pageW - marginL - 10
-  const roundColW = Math.max(18, (availW - nameColW - winW - 8) / numRounds)
+  const roundColW = Math.max(16, (availW - nameColW - winW - 6) / (numRounds + 0.5))
   const boxW = nameColW - 4
 
   const nameX = marginL
-  const stubX = nameX + boxW + 5
-  const roundX = Array.from({ length: numRounds }, (_, i) => stubX + 8 + roundColW * (i + 0.5))
-  const winnerX = stubX + 8 + roundColW * numRounds + 4
-  const fightFont = numBlocksLayout > 12 ? 7 : numBlocksLayout > 8 ? 8 : 9
+  const stubX = nameX + boxW + 4
+  const roundX = Array.from({ length: numRounds }, (_, i) => stubX + 10 + roundColW * (i + 0.55))
+  const winnerX = stubX + 10 + roundColW * (numRounds + 0.35)
+  const fightFont = numBlocks > 12 ? 7 : numBlocks > 8 ? 8 : 9
 
   return {
     marginL,
     marginT,
     treeTop,
+    rowH,
     boxW,
     boxH,
     pairGap,
-    blockSpan: bs,
-    blockStep: bst,
-    interBlock,
     roundColW,
     nameX,
     stubX,
@@ -239,23 +234,31 @@ export function calcLayout(cols, numBlocks, numBlocksLayout, pageW, pageH) {
     winW,
     fightFont,
     numBlocks,
-    numBlocksLayout,
     numRounds,
+    totalRows,
+    blockStartRow,
+    entradas,
   }
 }
 
-function drawTreeConnector(doc, xFrom, yA, yB, xMid, xTo, yOut, { single = false } = {}) {
-  if (single || Math.abs(yA - yB) < 0.6) {
-    const y = (yA + yB) / 2
-    line(doc, xFrom, y, xMid, y)
-    line(doc, xMid, y, xTo, yOut)
+/** Conector estilo CNU / tournamentmgr: horizontales + vertical solo entre dos feeders activos */
+function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, { topA, botA }) {
+  if (!topA && !botA) return
+
+  const ySingle = topA ? yTop : yBot
+  const pareja = topA && botA && Math.abs(yTop - yBot) > 0.6
+
+  if (!pareja) {
+    line(doc, xPrev, ySingle, xNext, ySingle)
     return
   }
-  const yMid = (yA + yB) / 2
-  line(doc, xFrom, yA, xMid, yA)
-  line(doc, xFrom, yB, xMid, yB)
-  line(doc, xMid, yA, xMid, yB)
-  line(doc, xMid, yMid, xTo, yOut)
+
+  line(doc, xPrev, yTop, xGap, yTop)
+  line(doc, xPrev, yBot, xGap, yBot)
+  line(doc, xGap, yTop, xVert, yTop)
+  line(doc, xVert, yTop, xVert, yBot)
+  line(doc, xGap, yBot, xVert, yBot)
+  line(doc, xVert, yMid, xNext, yMid)
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
@@ -295,39 +298,46 @@ function drawWinnerBox(doc, x, yCenter, layout, nombre) {
   doc.text(trunc(doc, label, winW - 10), x + winW / 2, yWin + winH / 2 + 3, { align: 'center' })
 }
 
-function pairFeederYs(bi, layout, entradas) {
+function blockPlayerYs(bi, layout) {
+  const start = layout.blockStartRow[bi]
+  const span = rowsEnBloque(layout.entradas[bi])
+  const blockTop = layout.treeTop + start * layout.rowH
+  const blockH = span * layout.rowH
   const { boxH, pairGap } = layout
-  const yC = yCenterBlock(bi, layout)
-  const entry = entradas[bi]
-  if (entry?.es_bye || entry?.vacio) return { yTop: yC, yBot: yC }
   const pairH = boxH * 2 + pairGap
-  const yChung = yC - pairH / 2
+  const yChung = blockTop + (blockH - pairH) / 2
+  const yMid = yCenterBlock(bi, layout)
   return {
     yTop: yChung + boxH / 2,
     yBot: yChung + boxH + pairGap + boxH / 2,
+    yMid,
+    yChung,
+    pairH,
   }
 }
 
 function drawBlockArms(doc, bi, layout, entradas, cat, fightFont) {
-  const { nameX, boxW, stubX } = layout
+  const { nameX, boxW, stubX, roundX } = layout
   const entry = entradas[bi]
   if (!blockTieneJugador(entry)) return
 
-  const yC = yCenterBlock(bi, layout)
-  const pair = pairFeederYs(bi, layout, entradas)
-  const armEnd = stubX + 3
+  const { yTop, yBot, yMid } = blockPlayerYs(bi, layout)
+  const xVert = roundX[0]
+  const xArmEnd = stubX + 3
 
   if (entry.es_bye) {
-    line(doc, nameX + boxW, yC, armEnd, yC)
+    line(doc, nameX + boxW, yMid, xVert, yMid)
     return
   }
 
-  line(doc, nameX + boxW, pair.yTop, armEnd, pair.yTop)
-  line(doc, nameX + boxW, pair.yBot, armEnd, pair.yBot)
-  line(doc, armEnd, pair.yTop, armEnd, pair.yBot)
+  line(doc, nameX + boxW, yTop, xArmEnd, yTop)
+  line(doc, nameX + boxW, yBot, xArmEnd, yBot)
+  line(doc, xArmEnd, yTop, xVert, yTop)
+  line(doc, xVert, yTop, xVert, yBot)
+  line(doc, xArmEnd, yBot, xVert, yBot)
 
   if (entry.numero_combate) {
-    drawFightBadge(doc, stubX + 7, yC, cat.cancha, entry.numero_combate, fightFont)
+    drawFightBadge(doc, xVert - layout.roundColW * 0.12, yMid, cat.cancha, entry.numero_combate, fightFont)
   }
 }
 
@@ -338,66 +348,70 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   if (!cols.length || !rondas.length || !entradas.length) return
 
   const numBlocks = entradas.length
-  const numBlocksLayout = numBloquesLayout(entradas, cat.inscritos)
 
   drawHeader(doc, campeonato, cat, pageW)
-  const layout = calcLayout(cols, numBlocks, numBlocksLayout, pageW, pageH)
-  const { nameX, boxW, boxH, pairGap, stubX, roundX, winnerX, fightFont } = layout
+  const layout = calcLayout(cols, numBlocks, entradas, pageW, pageH)
+  const { nameX, boxW, boxH, pairGap, roundX, winnerX, fightFont } = layout
 
   drawColumnHeaders(doc, cols, layout, layout.marginT - 4)
-
-  const xFromR0 = stubX + 10
-
-  for (let roundIdx = 0; roundIdx < cols.length; roundIdx++) {
-    const nMerges = mergesEnRonda(numBlocks, roundIdx)
-    const xMid = roundX[roundIdx]
-    const xTo = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.3 : winnerX - 2
-    const xFrom = roundIdx === 0 ? xFromR0 : roundX[roundIdx - 1] + layout.roundColW * 0.25
-
-    for (let mi = 0; mi < nMerges; mi++) {
-      if (!mergeTieneJugadores(entradas, roundIdx, mi)) continue
-
-      const feeders = feederCenters(numBlocks, roundIdx, mi, layout, entradas)
-      const yOut = yCenterMerge(numBlocks, roundIdx, mi, layout)
-      drawTreeConnector(doc, xFrom, feeders.yA, feeders.yB, xMid, xTo, yOut, { single: feeders.single })
-
-      if (roundIdx > 0) {
-        const combate = cols[roundIdx]?.combates[mi]
-        if (combate?.numero_combate) {
-          drawFightBadge(doc, xMid, yOut, cat.cancha, combate.numero_combate, fightFont)
-        }
-      }
-    }
-  }
 
   for (let bi = 0; bi < numBlocks; bi++) {
     drawBlockArms(doc, bi, layout, entradas, cat, fightFont)
   }
 
+  for (let roundIdx = 1; roundIdx < cols.length; roundIdx++) {
+    const col = cols[roundIdx]
+    const levelPrev = numBlocks / 2 ** (roundIdx - 1)
+    const xPrev = roundX[roundIdx - 1]
+    const xGap = roundX[roundIdx] - layout.roundColW * 0.35
+    const xVert = roundX[roundIdx]
+    const xNext = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.35 : winnerX
+
+    col.combates.forEach((combate, mi) => {
+      if (!roundMatchActivo(roundIdx, mi, entradas, numBlocks)) return
+
+      const feedA = mi * 2
+      const feedB = mi * 2 + 1
+      const yTop = roundIdx === 1 ? yCenterBlock(feedA, layout) : yCenterMerge(roundIdx - 1, feedA, layout)
+      const yBot = feedB < levelPrev
+        ? (roundIdx === 1 ? yCenterBlock(feedB, layout) : yCenterMerge(roundIdx - 1, feedB, layout))
+        : yTop
+      const yMid = yCenterMerge(roundIdx, mi, layout)
+      const topA = feederActivo(roundIdx, feedA, entradas, numBlocks)
+      const botA = feedB < levelPrev && feederActivo(roundIdx, feedB, entradas, numBlocks)
+
+      drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, { topA, botA })
+
+      if (combate?.numero_combate) {
+        drawFightBadge(doc, xVert, yMid, cat.cancha, combate.numero_combate, fightFont)
+      }
+    })
+  }
+
   entradas.forEach((entry, bi) => {
     if (!blockTieneJugador(entry)) return
-    const yC = yCenterBlock(bi, layout)
-    const pairH = boxH * 2 + pairGap
+    const { yChung, pairH, yMid } = blockPlayerYs(bi, layout)
 
     if (entry.es_bye) {
       const player = entry.chung?.vacio === false ? entry.chung : entry.hong
       if (player && !player.vacio) {
-        drawCompetidorBox(doc, nameX, yC - boxH / 2, boxW, boxH, player, { colorSide: player.color || 'azul' })
+        drawCompetidorBox(doc, nameX, yMid - boxH / 2, boxW, boxH, player, { colorSide: player.color || 'azul' })
       }
       return
     }
 
     if (entry.chung && !entry.chung.vacio) {
-      drawCompetidorBox(doc, nameX, yC - pairH / 2, boxW, boxH, entry.chung, { colorSide: entry.chung.color || 'azul' })
+      drawCompetidorBox(doc, nameX, yChung, boxW, boxH, entry.chung, { colorSide: entry.chung.color || 'azul' })
     }
     if (entry.hong && !entry.hong.vacio) {
-      drawCompetidorBox(doc, nameX, yC - pairH / 2 + boxH + pairGap, boxW, boxH, entry.hong, { colorSide: entry.hong.color || 'rojo' })
+      drawCompetidorBox(doc, nameX, yChung + boxH + pairGap, boxW, boxH, entry.hong, { colorSide: entry.hong.color || 'rojo' })
     }
   })
 
-  if (mergeTieneJugadores(entradas, cols.length - 1, 0)) {
-    const finalMatch = cols[cols.length - 1]?.combates[0]
-    const yFinal = yCenterMerge(numBlocks, cols.length - 1, 0, layout)
+  const finalIdx = cols.length - 1
+  if (roundMatchActivo(finalIdx, 0, entradas, numBlocks)) {
+    const finalMatch = cols[finalIdx]?.combates[0]
+    const yFinal = yCenterMerge(finalIdx, 0, layout)
     drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
   }
 
@@ -407,7 +421,6 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 }
 
 export function buildBracketPdfBuffer(data, { idCategoria = null } = {}) {
-  const camp = data.campeonato?.nombre || 'Campeonato'
   let cats = categoriasOrdenadasExport(data.categorias || [])
   if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
   if (!cats.length) throw new Error('No hay llaves generadas para exportar')
