@@ -1,5 +1,3 @@
-'use client'
-
 import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport } from '@/lib/campeonato/bracket-export'
 import { entradasPrimeraRonda } from '@/lib/campeonato/bracket-cnu-layout'
@@ -10,6 +8,7 @@ const GOLD = [180, 83, 9]
 const GOLD_LIGHT = [255, 251, 235]
 const CHUNG = [29, 78, 216]
 const HONG = [220, 38, 38]
+const LAYOUT_VERSION = 'v3'
 
 function trunc(doc, text, maxW) {
   let s = String(text || '')
@@ -48,8 +47,8 @@ function drawFightBadge(doc, x, y, area, num, fontSize = 9) {
   const label = area ? `${area}/${String(num).padStart(2, '0')}` : String(num)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(fontSize)
-  const w = Math.max(13, doc.getTextWidth(label) + 5)
-  const h = fontSize * 0.55 + 3.5
+  const w = Math.max(14, doc.getTextWidth(label) + 6)
+  const h = fontSize * 0.55 + 4
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(17, 17, 17)
   doc.setLineWidth(0.5)
@@ -69,14 +68,11 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
   const label = (slot?.nombre || 'POR DEFINIR').toUpperCase()
   const side = colorSide || colorSideFrom(slot)
   const barW = Math.min(3.2, w * 0.06)
-  const fill = vacio ? [250, 251, 252] : [255, 255, 255]
 
-  doc.setFillColor(...fill)
-  doc.setDrawColor(vacio ? 180 : 120, vacio ? 185 : 120, vacio ? 195 : 120)
+  doc.setFillColor(255, 255, 255)
+  doc.setDrawColor(120, 120, 120)
   doc.setLineWidth(0.35)
-  if (vacio && doc.setLineDashPattern) doc.setLineDashPattern([1.2, 1.2], 0)
-  doc.roundedRect(x, y, w, h, 1.2, 1.2, vacio ? 'S' : 'FD')
-  if (vacio && doc.setLineDashPattern) doc.setLineDashPattern([], 0)
+  doc.roundedRect(x, y, w, h, 1.2, 1.2, 'FD')
 
   if (!vacio && side === 'azul') {
     doc.setFillColor(...CHUNG)
@@ -87,12 +83,11 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
   }
 
   const nameX = x + barW + 2
-  doc.setFont('helvetica', vacio ? 'italic' : 'bold')
+  doc.setFont('helvetica', 'bold')
   const hasAcademia = !vacio && slot?.academia && h >= 8
-  const nameSize = vacio ? Math.max(5, h * 0.4) : Math.max(5.5, h * (hasAcademia ? 0.4 : 0.48))
+  const nameSize = Math.max(5.5, h * (hasAcademia ? 0.4 : 0.48))
   doc.setFontSize(nameSize)
-  if (vacio) doc.setTextColor(...GRAY)
-  else if (side === 'azul') doc.setTextColor(...CHUNG)
+  if (side === 'azul') doc.setTextColor(...CHUNG)
   else if (side === 'rojo') doc.setTextColor(...HONG)
   else doc.setTextColor(...DARK)
   doc.text(trunc(doc, label, w - barW - 4), nameX, y + (hasAcademia ? h * 0.4 : h * 0.62))
@@ -105,13 +100,17 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
   }
 }
 
-/** Centro Y del bloque bi de la 1.ª ronda */
+function line(doc, x1, y1, x2, y2) {
+  doc.setDrawColor(35, 35, 35)
+  doc.setLineWidth(0.45)
+  doc.line(x1, y1, x2, y2)
+}
+
 export function yCenterBlock(bi, layout) {
   const { treeTop, blockSpan, blockStep } = layout
   return treeTop + bi * blockStep + blockSpan / 2
 }
 
-/** Centro Y de la salida del merge mi en la ronda roundIdx (0 = primera fusión tras nombres) */
 export function yCenterMerge(numBlocks, roundIdx, mergeIdx, layout) {
   const spanBlocks = 2 ** (roundIdx + 1)
   const firstBlock = mergeIdx * spanBlocks
@@ -121,7 +120,6 @@ export function yCenterMerge(numBlocks, roundIdx, mergeIdx, layout) {
   return (yFirst + yLast) / 2
 }
 
-/** Y de los dos feeders que alimentan el merge mi en roundIdx */
 export function feederCenters(numBlocks, roundIdx, mergeIdx, layout) {
   if (roundIdx === 0) {
     const bi = mergeIdx * 2
@@ -142,15 +140,13 @@ export function mergesEnRonda(numBlocks, roundIdx) {
 
 export function calcLayout(cols, numBlocks, pageW, pageH) {
   const marginT = 28
-  const marginB = 10
+  const marginB = 12
   const availH = pageH - marginT - marginB
   const numRounds = cols.length
 
-  let boxH = 13
+  let boxH = 12
   let gap = 2
   let interBlock = 3
-  let boxW = 52
-  let roundColW = 20
 
   const blockSpan = () => boxH * 2 + gap
   const blockStep = () => blockSpan() + interBlock
@@ -164,22 +160,19 @@ export function calcLayout(cols, numBlocks, pageW, pageH) {
 
   const bs = blockSpan()
   const bst = blockStep()
-  const totalH = treeH()
-  const treeTop = marginT + Math.max(0, (availH - totalH) / 2)
+  const treeTop = marginT + Math.max(0, (availH - treeH()) / 2)
 
-  const winW = boxW + 12
-  const totalW = boxW + numRounds * roundColW + winW + 16
-  const availW = pageW - 16
-  if (totalW > availW) {
-    const scale = availW / totalW
-    boxW = Math.max(36, boxW * scale)
-    roundColW = Math.max(14, roundColW * scale)
-  }
+  const marginL = 10
+  const winW = 46
+  const nameColW = 56
+  const availW = pageW - marginL - 10
+  const roundColW = Math.max(18, (availW - nameColW - winW - 8) / numRounds)
+  const boxW = nameColW - 4
 
-  const marginL = Math.max(6, (pageW - (boxW + numRounds * roundColW + winW + 16)) / 2)
   const nameX = marginL
-  const roundX = Array.from({ length: numRounds }, (_, i) => marginL + boxW + i * roundColW + roundColW * 0.55)
-  const winnerX = marginL + boxW + numRounds * roundColW + 6
+  const stubX = nameX + boxW + 5
+  const roundX = Array.from({ length: numRounds }, (_, i) => stubX + 8 + roundColW * (i + 0.5))
+  const winnerX = stubX + 8 + roundColW * numRounds + 4
   const fightFont = numBlocks > 12 ? 7 : numBlocks > 8 ? 8 : 9
 
   return {
@@ -191,10 +184,10 @@ export function calcLayout(cols, numBlocks, pageW, pageH) {
     gap,
     blockSpan: bs,
     blockStep: bst,
-    totalH,
     interBlock,
     roundColW,
     nameX,
+    stubX,
     roundX,
     winnerX,
     winW,
@@ -205,32 +198,23 @@ export function calcLayout(cols, numBlocks, pageW, pageH) {
 }
 
 function drawMergeConnector(doc, xFrom, yA, yB, xMid, xTo, yOut) {
-  doc.setDrawColor(35, 35, 35)
-  doc.setLineWidth(0.5)
   const yMid = (yA + yB) / 2
-  doc.line(xFrom, yA, xMid, yA)
-  doc.line(xFrom, yB, xMid, yB)
-  doc.line(xMid, yA, xMid, yB)
-  doc.line(xMid, yMid, xTo, yOut)
-}
-
-function drawSingleConnector(doc, xFrom, y, xMid, xTo, yOut) {
-  doc.setDrawColor(35, 35, 35)
-  doc.setLineWidth(0.5)
-  doc.line(xFrom, y, xMid, y)
-  doc.line(xMid, y, xTo, yOut)
+  line(doc, xFrom, yA, xMid, yA)
+  line(doc, xFrom, yB, xMid, yB)
+  line(doc, xMid, yA, xMid, yB)
+  line(doc, xMid, yMid, xTo, yOut)
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
-  const { nameX, roundX, winnerX, boxW } = layout
+  const { nameX, roundX, winnerX } = layout
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7)
   doc.setTextColor(...GRAY)
   doc.text('Name / Team', nameX, y)
   cols.forEach((col, i) => {
-    doc.text(col.label, roundX[i] - 4, y)
+    doc.text(col.label, roundX[i] - 6, y)
   })
-  doc.text('Winner', winnerX + boxW * 0.15, y)
+  doc.text('Winner', winnerX + 4, y)
 }
 
 function drawWinnerBox(doc, x, yCenter, layout, nombre) {
@@ -262,13 +246,36 @@ function pairFeederYs(bi, layout, entradas) {
   const { boxH, gap } = layout
   const yC = yCenterBlock(bi, layout)
   const entry = entradas[bi]
-  if (entry?.es_bye) return { yTop: yC, yBot: yC, single: true }
+  if (entry?.es_bye || entry?.vacio) return { yTop: yC, yBot: yC }
   const pairH = boxH * 2 + gap
   const yChung = yC - pairH / 2
   return {
     yTop: yChung + boxH / 2,
     yBot: yChung + boxH + gap + boxH / 2,
-    single: false,
+  }
+}
+
+/** Brazo individual por bloque (sin columna vertical compartida que amontona todo) */
+function drawBlockArms(doc, bi, layout, entradas, cat, fightFont) {
+  const { nameX, boxW, stubX } = layout
+  const entry = entradas[bi]
+  if (entry?.vacio) return
+
+  const yC = yCenterBlock(bi, layout)
+  const pair = pairFeederYs(bi, layout, entradas)
+  const armEnd = stubX + 3
+
+  if (entry.es_bye) {
+    line(doc, nameX + boxW, yC, armEnd, yC)
+    return
+  }
+
+  line(doc, nameX + boxW, pair.yTop, armEnd, pair.yTop)
+  line(doc, nameX + boxW, pair.yBot, armEnd, pair.yBot)
+  line(doc, armEnd, pair.yTop, armEnd, pair.yBot)
+
+  if (entry.numero_combate) {
+    drawFightBadge(doc, stubX + 7, yC, cat.cancha, entry.numero_combate, fightFont)
   }
 }
 
@@ -282,29 +289,18 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
   drawHeader(doc, campeonato, cat, pageW)
   const layout = calcLayout(cols, numBlocks, pageW, pageH)
-  const { nameX, boxW, boxH, gap, roundX, winnerX, fightFont } = layout
+  const { nameX, boxW, boxH, gap, stubX, roundX, winnerX, fightFont } = layout
 
   drawColumnHeaders(doc, cols, layout, layout.marginT - 4)
 
-  const stubX = nameX + boxW + Math.min(8, layout.roundColW * 0.35)
+  const xFromR0 = stubX + 10
 
-  // Brazos desde cada jugador hacia el primer poste del árbol
-  entradas.forEach((entry, bi) => {
-    const yC = yCenterBlock(bi, layout)
-    if (entry?.es_bye) {
-      drawSingleConnector(doc, nameX + boxW, yC, stubX, stubX, yC)
-      return
-    }
-    const pair = pairFeederYs(bi, layout, entradas)
-    drawMergeConnector(doc, nameX + boxW, pair.yTop, pair.yBot, stubX, stubX, yC)
-  })
-
-  // ── Un merge por pareja de feeders (evita líneas duplicadas/amontonadas) ──
+  // 1) Conectores entre rondas (un merge por pareja)
   for (let roundIdx = 0; roundIdx < cols.length; roundIdx++) {
     const nMerges = mergesEnRonda(numBlocks, roundIdx)
     const xMid = roundX[roundIdx]
-    const xTo = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.25 : winnerX
-    const xFrom = roundIdx === 0 ? stubX : roundX[roundIdx - 1] + 2
+    const xTo = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.3 : winnerX - 2
+    const xFrom = roundIdx === 0 ? xFromR0 : roundX[roundIdx - 1] + layout.roundColW * 0.25
 
     for (let mi = 0; mi < nMerges; mi++) {
       const { yA, yB } = feederCenters(numBlocks, roundIdx, mi, layout)
@@ -319,26 +315,30 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     }
   }
 
-  // ── Solo la 1.ª columna lleva cajas de jugadores ──
+  // 2) Brazos desde cada bloque hacia el árbol (sin columna única compartida)
+  for (let bi = 0; bi < numBlocks; bi++) {
+    drawBlockArms(doc, bi, layout, entradas, cat, fightFont)
+  }
+
+  // 3) Solo cajas de jugadores en Name/Team (nunca POR DEFINIR en rondas siguientes)
   entradas.forEach((entry, bi) => {
+    if (entry.vacio) return
     const yC = yCenterBlock(bi, layout)
     const pairH = boxH * 2 + gap
 
     if (entry.es_bye) {
       const player = entry.chung?.vacio === false ? entry.chung : entry.hong
-      drawCompetidorBox(doc, nameX, yC - boxH / 2, boxW, boxH, player, {
-        colorSide: player?.color || 'azul',
-      })
+      if (player && !player.vacio) {
+        drawCompetidorBox(doc, nameX, yC - boxH / 2, boxW, boxH, player, { colorSide: player.color || 'azul' })
+      }
       return
     }
 
-    const yChung = yC - pairH / 2
-    drawCompetidorBox(doc, nameX, yChung, boxW, boxH, entry.chung, { colorSide: entry.chung?.color || 'azul' })
-    drawCompetidorBox(doc, nameX, yChung + boxH + gap, boxW, boxH, entry.hong, { colorSide: entry.hong?.color || 'rojo' })
-
-    if (entry.numero_combate) {
-      const badgeX = stubX + (roundX[0] - stubX) * 0.45
-      drawFightBadge(doc, badgeX, yC, cat.cancha, entry.numero_combate, fightFont)
+    if (entry.chung && !entry.chung.vacio) {
+      drawCompetidorBox(doc, nameX, yC - pairH / 2, boxW, boxH, entry.chung, { colorSide: entry.chung.color || 'azul' })
+    }
+    if (entry.hong && !entry.hong.vacio) {
+      drawCompetidorBox(doc, nameX, yC - pairH / 2 + boxH + gap, boxW, boxH, entry.hong, { colorSide: entry.hong.color || 'rojo' })
     }
   })
 
@@ -346,14 +346,15 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   const yFinal = yCenterMerge(numBlocks, cols.length - 1, 0, layout)
   drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
 
-  doc.setFontSize(7)
+  doc.setFontSize(6)
   doc.setTextColor(...GRAY)
-  doc.text('ACCTKD · World Taekwondo', pageW / 2, pageH - 6, { align: 'center' })
+  doc.text(`ACCTKD · World Taekwondo · ${LAYOUT_VERSION}`, pageW / 2, pageH - 6, { align: 'center' })
 }
 
-export function descargarLlavesBracketPdf(data) {
+export function buildBracketPdfBuffer(data, { idCategoria = null } = {}) {
   const camp = data.campeonato?.nombre || 'Campeonato'
-  const cats = categoriasOrdenadasExport(data.categorias || [])
+  let cats = categoriasOrdenadasExport(data.categorias || [])
+  if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
   if (!cats.length) throw new Error('No hay llaves generadas para exportar')
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -365,6 +366,13 @@ export function descargarLlavesBracketPdf(data) {
     dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH })
   })
 
+  return Buffer.from(doc.output('arraybuffer'))
+}
+
+/** @deprecated Usar API servidor; conservado para tests */
+export function descargarLlavesBracketPdf(data) {
+  const buffer = buildBracketPdfBuffer(data)
+  const camp = data.campeonato?.nombre || 'Campeonato'
   const slug = (camp || 'campeonato')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -373,23 +381,29 @@ export function descargarLlavesBracketPdf(data) {
     .toLowerCase()
     .slice(0, 40)
 
-  doc.save(`llaves-graficas-${slug}.pdf`)
+  const blob = new Blob([buffer], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `llaves-graficas-${slug}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export function descargarCategoriaBracketPdf(data, idCategoria) {
+  const buffer = buildBracketPdfBuffer(data, { idCategoria })
   const cat = (data.categorias || []).find((c) => c.id_categoria === idCategoria)
-  if (!cat?.porRonda) throw new Error('Categoría sin llave')
-
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-  dibujarBracketCategoriaPdf(doc, data.campeonato, cat, {
-    pageW: doc.internal.pageSize.getWidth(),
-    pageH: doc.internal.pageSize.getHeight(),
-  })
-
-  const slug = cat.nombre
+  const slug = (cat?.nombre || 'categoria')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .slice(0, 40)
-  doc.save(`llave-${slug}.pdf`)
+
+  const blob = new Blob([buffer], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `llave-${slug}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
 }

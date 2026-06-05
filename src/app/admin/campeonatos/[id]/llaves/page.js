@@ -182,9 +182,8 @@ export default function CampeonatoLlavesPage() {
   async function exportar(formato) {
     setExportando(formato)
     try {
-      const data = await fetchExportLlaves(idCampeonato)
       if (formato === 'xlsx') await descargarLlavesExcel(idCampeonato, campeonato?.nombre)
-      else await descargarLlavesPdf(data)
+      else await descargarLlavesPdf(idCampeonato, campeonato?.nombre)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -196,8 +195,7 @@ export default function CampeonatoLlavesPage() {
     if (!selCat) return
     setExportando('pdf-cat')
     try {
-      const data = await fetchExportLlaves(idCampeonato)
-      await descargarCategoriaBracketPdf(data, selCat.id_categoria)
+      await descargarCategoriaBracketPdf(idCampeonato, selCat.id_categoria, selCat.nombre)
     } catch (e) {
       alert(e.message)
     } finally {

@@ -24,25 +24,33 @@ export function entradasPrimeraRonda(porRonda) {
   const rondas = rondasOrdenadas(porRonda)
   if (!rondas.length) return []
   const maxR = rondas[0]
-  return (porRonda[maxR] || [])
-    .sort((a, b) => a.match_numero - b.match_numero)
-    .map((m) => {
-      if (m.estado === 'vacío') {
-        return {
-          es_bye: false,
-          vacio: true,
-          numero_combate: '',
-          chung: slotFromRaw(null),
-          hong: slotFromRaw(null),
-        }
-      }
-      return {
-        es_bye: Boolean(m.es_bye),
-        numero_combate: m.orden_bracket || m.orden_pista || '',
-        chung: slotFromRaw(m.competidor1),
-        hong: m.es_bye ? null : slotFromRaw(m.competidor2),
-      }
+  const lista = (porRonda[maxR] || []).sort((a, b) => a.match_numero - b.match_numero)
+  const expectedSlots = Math.pow(2, maxR - 1)
+  const byMatch = new Map(lista.map((m) => [m.match_numero, m]))
+  const out = []
+
+  for (let mn = 1; mn <= expectedSlots; mn++) {
+    const m = byMatch.get(mn)
+    if (!m || m.estado === 'vacío') {
+      out.push({
+        es_bye: false,
+        vacio: true,
+        numero_combate: '',
+        chung: slotFromRaw(null),
+        hong: slotFromRaw(null),
+      })
+      continue
+    }
+    out.push({
+      es_bye: Boolean(m.es_bye),
+      vacio: false,
+      numero_combate: m.orden_bracket || m.orden_pista || '',
+      chung: slotFromRaw(m.competidor1),
+      hong: m.es_bye ? null : slotFromRaw(m.competidor2),
     })
+  }
+
+  return out
 }
 
 /** Brazo horizontal desde la fila del jugador hacia la columna del conector */
