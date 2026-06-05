@@ -43,5 +43,14 @@ while (!completo) {
   offset = r.siguiente_offset
 }
 
-console.log('→ finalizar (dorsales, pagos, llaves)…')
-console.log(JSON.stringify(await post({ fase: 'finalizar' }), null, 2))
+for (const fase of ['dorsales', 'poomsae']) {
+  let pend = 1
+  while (pend > 0) {
+    const r = await post({ fase, limit: 250 })
+    console.log(`→ ${fase}`, r)
+    pend = r.pendientes ?? 0
+  }
+}
+console.log('→ pesaje', await post({ fase: 'pesaje' }))
+console.log('→ pagos', await post({ fase: 'pagos' }))
+console.log('→ llaves', JSON.stringify(await post({ fase: 'llaves' }), null, 2))

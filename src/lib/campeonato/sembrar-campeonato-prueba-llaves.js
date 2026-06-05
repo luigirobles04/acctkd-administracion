@@ -221,32 +221,52 @@ async function llenarCategoriasLote(sb, idCampeonato, categorias, academias, glo
   return { added: perfiles.length, nextSeq: seq }
 }
 
-async function aprobarTodasLasLineas(sb, idCampeonato) {
+async function aprobarDorsalesLote(sb, idCampeonato, limit = 250) {
   const { data: lineas } = await sb
     .from('linea_inscripcion')
-    .select('id_linea, modalidad, dorsal_numero, estado')
+    .select('id_linea')
     .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
     .neq('estado', 'anulado')
+    .is('dorsal_numero', null)
+    .limit(limit)
 
   let dorsales = 0
-  let poomsae = 0
   for (const l of lineas || []) {
-    if (l.modalidad === 'kyorugi_individual') {
-      if (!l.dorsal_numero) {
-        await asignarDorsalLinea(sb, l.id_linea)
-        dorsales++
-      } else if (l.estado !== 'aprobado') {
-        await asignarDorsalLinea(sb, l.id_linea)
-      }
-    } else if (l.estado !== 'aprobado') {
-      await sb
-        .from('linea_inscripcion')
-        .update({ estado: 'aprobado', updated_at: new Date().toISOString() })
-        .eq('id_linea', l.id_linea)
-      poomsae++
-    }
+    await asignarDorsalLinea(sb, l.id_linea)
+    dorsales++
   }
-  return { dorsales, poomsae }
+  const { count: pendientes } = await sb
+    .from('linea_inscripcion')
+    .select('*', { count: 'exact', head: true })
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .is('dorsal_numero', null)
+  return { dorsales, pendientes: pendientes || 0 }
+}
+
+async function aprobarPoomsaeLote(sb, idCampeonato, limit = 500) {
+  const { data: lineas } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea')
+    .eq('id_campeonato', idCampeonato)
+    .like('modalidad', 'poomsae%')
+    .in('estado', ['pagado', 'pendiente_pago', 'borrador'])
+    .limit(limit)
+
+  for (const l of lineas || []) {
+    await sb
+      .from('linea_inscripcion')
+      .update({ estado: 'aprobado', updated_at: new Date().toISOString() })
+      .eq('id_linea', l.id_linea)
+  }
+  const { count: pendientes } = await sb
+    .from('linea_inscripcion')
+    .select('*', { count: 'exact', head: true })
+    .eq('id_campeonato', idCampeonato)
+    .like('modalidad', 'poomsae%')
+    .in('estado', ['pagado', 'pendiente_pago', 'borrador'])
+  return { poomsae: (lineas || []).length, pendientes: pendientes || 0 }
 }
 
 async function aplicarPesaje(sb, idCampeonato) {
@@ -340,11 +360,16 @@ async function obtenerOCrearCampeonato(sb, { reset = false } = {}) {
   return id
 }
 
-/** Fases: setup | inscripciones | finalizar | todo */
+/** Fases: setup | inscripciones | dorsales | poomsae | pesaje | pagos | llaves | finalizar | todo */
 export async function sembrarCampeonatoPruebaLlaves(sb, { onProgress, fase = 'todo', offset = 0, limit = 60, reset = false } = {}) {
   const runSetup = fase === 'todo' || fase === 'setup'
   const runInscripciones = fase === 'todo' || fase === 'inscripciones'
   const runFinalizar = fase === 'todo' || fase === 'finalizar'
+  const runDorsales = runFinalizar || fase === 'dorsales'
+  const runPoomsae = runFinalizar || fase === 'poomsae'
+  const runPesaje = runFinalizar || fase === 'pesaje'
+  const runPagos = runFinalizar || fase === 'pagos'
+  const runLlaves = runFinalizar || fase === 'llaves'
 
   let id = null
   let academias = []
@@ -421,16 +446,51 @@ export async function sembrarCampeonatoPruebaLlaves(sb, { onProgress, fase = 'to
     }
   }
 
-  if (runFinalizar) {
-    onProgress?.('dorsales')
-    const aprob = await aprobarTodasLasLineas(sb, id)
-    onProgress?.('pesaje')
-    const pesaje = await aplicarPesaje(sb, id)
-    onProgress?.('pagos')
-    const pagadas = await liquidarPagos(sb, id)
-    onProgress?.('llaves')
-    await sb.from('llave_kyorugi').delete().eq('id_campeonato', id)
-    const llaves = await generarTodasLasLlaves(sb, id)
+  if (runDorsales || runPoomsae || runPesaje || runPagos || runLlaves) {
+    let dorsales = { dorsales: 0, pendientes: 0 }
+    let poomsae = { poomsae: 0, pendientes: 0 }
+    let pesaje = 0
+    let pagadas = 0
+    let llaves = { generadas: 0, errores: [] }
+
+    if (runDorsales) {
+      onProgress?.('dorsales')
+      dorsales = await aprobarDorsalesLote(sb, id, limit || 250)
+      if (fase === 'dorsales') {
+        return { id_campeonato: id, slug: SLUG_PRUEBA_LLAVES, fase, ...dorsales, completo: dorsales.pendientes === 0 }
+      }
+    }
+    if (runPoomsae) {
+      onProgress?.('poomsae')
+      poomsae = await aprobarPoomsaeLote(sb, id, limit || 500)
+      if (fase === 'poomsae') {
+        return { id_campeonato: id, slug: SLUG_PRUEBA_LLAVES, fase, ...poomsae, completo: poomsae.pendientes === 0 }
+      }
+    }
+    if (runPesaje) {
+      onProgress?.('pesaje')
+      pesaje = await aplicarPesaje(sb, id)
+      if (fase === 'pesaje') return { id_campeonato: id, slug: SLUG_PRUEBA_LLAVES, fase, pesaje_ok: pesaje }
+    }
+    if (runPagos) {
+      onProgress?.('pagos')
+      pagadas = await liquidarPagos(sb, id)
+      if (fase === 'pagos') return { id_campeonato: id, slug: SLUG_PRUEBA_LLAVES, fase, academias_pagadas: pagadas }
+    }
+    if (runLlaves) {
+      onProgress?.('llaves')
+      if (fase === 'llaves') await sb.from('llave_kyorugi').delete().eq('id_campeonato', id)
+      llaves = await generarTodasLasLlaves(sb, id)
+      if (fase === 'llaves') {
+        return {
+          id_campeonato: id,
+          slug: SLUG_PRUEBA_LLAVES,
+          fase,
+          llaves_generadas: llaves.generadas,
+          errores_llaves: llaves.errores?.length || 0,
+        }
+      }
+    }
 
     const { count: lineasKy } = await sb
       .from('linea_inscripcion')
@@ -457,7 +517,9 @@ export async function sembrarCampeonatoPruebaLlaves(sb, { onProgress, fase = 'to
       lineas_creadas: totalLineas,
       kyorugi_aprobados: lineasKy || 0,
       poomsae_aprobados: lineasPm || 0,
-      dorsales_asignados: aprob.dorsales,
+      dorsales_asignados: dorsales.dorsales,
+      dorsales_pendientes: dorsales.pendientes,
+      poomsae_aprobados_lote: poomsae.poomsae,
       pesaje_ok: pesaje,
       academias_pagadas: pagadas,
       llaves_generadas: llaves.generadas,
