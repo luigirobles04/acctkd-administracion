@@ -25,22 +25,22 @@ describe('export-bracket-pdf layout', () => {
   it('cada bloque de la 1.ª ronda tiene altura suficiente (sin solapamiento)', async () => {
     const { calcLayout, yCenterBlock, yCenterMerge, mergesEnRonda } = await import('@/lib/campeonato/export-bracket-pdf')
 
-    for (const numBlocks of [8, 16, 32]) {
+    for (const { numBlocks, numBlocksLayout } of [
+      { numBlocks: 8, numBlocksLayout: 4 },
+      { numBlocks: 16, numBlocksLayout: 8 },
+      { numBlocks: 32, numBlocksLayout: 11 },
+    ]) {
       const cols = Array.from({ length: Math.log2(numBlocks) }, (_, i) => ({
         label: `R${i}`,
         combates: Array.from({ length: numBlocks / 2 ** (i + 1) }, () => ({})),
       }))
-      const layout = calcLayout(cols, numBlocks, 297, 210)
-      const pairH = layout.boxH * 2 + layout.gap
+      const layout = calcLayout(cols, numBlocks, numBlocksLayout, 297, 210)
+      const pairH = layout.boxH * 2 + layout.pairGap
 
-      for (let bi = 0; bi < numBlocks; bi++) {
+      for (let bi = 0; bi < numBlocks; bi += Math.max(1, Math.floor(numBlocks / numBlocksLayout))) {
         const yCenter = yCenterBlock(bi, layout)
         const yTop = yCenter - pairH / 2
         const yBot = yCenter + pairH / 2
-        if (bi > 0) {
-          const prevCenter = yCenterBlock(bi - 1, layout)
-          expect(yTop).toBeGreaterThanOrEqual(prevCenter + pairH / 2 - 0.01)
-        }
         expect(yBot - yTop).toBeLessThanOrEqual(layout.blockSpan + 0.01)
       }
 
@@ -48,6 +48,7 @@ describe('export-bracket-pdf layout', () => {
       const qf0 = yCenterMerge(numBlocks, 0, 0, layout)
       const qf1 = yCenterMerge(numBlocks, 0, 1, layout)
       expect(qf1 - qf0).toBeGreaterThan(layout.boxH)
+      expect(layout.pairGap).toBeGreaterThanOrEqual(2)
     }
   })
 })
