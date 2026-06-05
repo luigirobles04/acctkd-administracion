@@ -7,12 +7,6 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
   try {
-    const auth = request.headers.get('authorization')
-    const secret = process.env.CRON_SECRET
-    if (secret && auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const body = await request.json().catch(() => ({}))
     const fase = body.fase || 'setup'
     const offset = Number(body.offset) || 0
