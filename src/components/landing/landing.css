@@ -197,8 +197,8 @@
 
 /* Gallery */
 .lp-gallery {
-  display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 200px;
-  gap: 12px; margin-top: 44px;
+  display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 180px;
+  gap: 10px; margin-top: 44px;
 }
 .lp-gallery-item {
   position: relative; border: none; padding: 0; cursor: pointer; border-radius: 16px; overflow: hidden;
