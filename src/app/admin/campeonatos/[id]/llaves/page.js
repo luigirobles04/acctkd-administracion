@@ -11,6 +11,7 @@ import { readJsonResponse } from '@/lib/public-app-url'
 import {
   descargarLlavesExcel,
   descargarLlavesPdf,
+  descargarLlavesPdfPorCancha,
   descargarCategoriaBracketPdf,
   fetchExportLlaves,
   apiError,
@@ -183,7 +184,11 @@ export default function CampeonatoLlavesPage() {
     setExportando(formato)
     try {
       if (formato === 'xlsx') await descargarLlavesExcel(idCampeonato, campeonato?.nombre)
-      else await descargarLlavesPdf(idCampeonato, campeonato?.nombre)
+      else if (formato === 'pdf') await descargarLlavesPdf(idCampeonato, campeonato?.nombre)
+      else if (formato.startsWith('pdf-area-')) {
+        const cancha = Number(formato.replace('pdf-area-', ''))
+        await descargarLlavesPdfPorCancha(idCampeonato, campeonato?.nombre, cancha)
+      }
     } catch (e) {
       alert(e.message)
     } finally {
@@ -268,6 +273,17 @@ export default function CampeonatoLlavesPage() {
             >
               {exportando === 'pdf' ? 'Exportando…' : 'PDF gráficas (todas)'}
             </button>
+            {[1, 2, 3].map((area) => (
+              <button
+                key={area}
+                type="button"
+                className="ios-btn ios-btn-secondary"
+                disabled={bloqueado || exportando}
+                onClick={() => exportar(`pdf-area-${area}`)}
+              >
+                {exportando === `pdf-area-${area}` ? 'Exportando…' : `PDF Área ${area}`}
+              </button>
+            ))}
             <button
               type="button"
               className="ios-btn ios-btn-secondary"

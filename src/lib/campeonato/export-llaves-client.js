@@ -47,6 +47,14 @@ export async function descargarLlavesPdf(idCampeonato, nombreCamp) {
   )
 }
 
+export async function descargarLlavesPdfPorCancha(idCampeonato, nombreCamp, cancha) {
+  const slug = slugArchivo(nombreCamp || 'campeonato')
+  await descargarPdfDesdeApi(
+    `/api/admin/campeonatos/${idCampeonato}/llaves/export/pdf?cancha=${cancha}`,
+    `llaves-graficas-area-${cancha}-${slug}.pdf`
+  )
+}
+
 export async function descargarCategoriaBracketPdf(idCampeonato, idCategoria, nombreCategoria) {
   const slug = slugArchivo(nombreCategoria || 'categoria')
   await descargarPdfDesdeApi(

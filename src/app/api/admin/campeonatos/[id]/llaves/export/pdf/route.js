@@ -16,10 +16,14 @@ export async function GET(request, { params }) {
 
     const { searchParams } = new URL(request.url)
     const idCategoria = searchParams.get('categoria') ? Number(searchParams.get('categoria')) : null
+    const cancha = searchParams.get('cancha') ? Number(searchParams.get('cancha')) : null
 
     const sb = getSupabaseAdmin()
     const data = await buildExportLlaves(sb, idCampeonato)
-    const buffer = buildBracketPdfBuffer(data, { idCategoria: idCategoria || undefined })
+    const buffer = buildBracketPdfBuffer(data, {
+      idCategoria: idCategoria || undefined,
+      cancha: cancha || undefined,
+    })
 
     const camp = data.campeonato?.nombre || 'Campeonato'
     const cat = idCategoria
@@ -27,7 +31,9 @@ export async function GET(request, { params }) {
       : null
     const base = cat
       ? `llave-${slugArchivo(cat.nombre)}`
-      : `llaves-graficas-${slugArchivo(camp)}`
+      : cancha
+        ? `llaves-graficas-area-${cancha}-${slugArchivo(camp)}`
+        : `llaves-graficas-${slugArchivo(camp)}`
     const filename = `${base}.pdf`
 
     return new NextResponse(buffer, {

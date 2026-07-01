@@ -104,7 +104,7 @@ describe('columnasBracket', () => {
     expect(cols[0].combates[1].match_numero).toBe(2)
   })
 
-  it('prefiere orden_bracket sobre orden_pista para el número de combate', () => {
+  it('prefiere orden_pista (secuencial por área) sobre orden_bracket local', () => {
     const porRonda = {
       1: [{
         ronda: 1,
@@ -116,7 +116,7 @@ describe('columnasBracket', () => {
         competidor2: { nombres: 'B', id_linea: 2 },
       }],
     }
-    expect(columnasBracket(porRonda)[0].combates[0].numero_combate).toBe(3)
+    expect(columnasBracket(porRonda)[0].combates[0].numero_combate).toBe(99)
   })
 
   it('asigna color azul a chung y rojo a hong por defecto', () => {

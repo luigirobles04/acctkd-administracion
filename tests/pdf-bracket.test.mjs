@@ -142,6 +142,68 @@ describe('export-bracket-pdf (smoke)', () => {
     ).not.toThrow()
   })
 
+  it('filtra por cancha y omite categorías sin árbol dibujable', async () => {
+    const { buildBracketPdfBuffer } = await import('@/lib/campeonato/export-bracket-pdf')
+    const data = {
+      campeonato: { nombre: 'Test Cup', fecha_inicio: '2026-08-15' },
+      categorias: [
+        {
+          id_categoria: 1,
+          nombre: 'Cat A',
+          cancha: 1,
+          inscritos: 2,
+          tiene_llave: true,
+          orden: 1,
+          porRonda: {
+            1: [{
+              ronda: 1,
+              match_numero: 1,
+              orden_pista: 1,
+              estado: 'pendiente',
+              competidor1: { id_linea: 1, nombres: 'A', academia: 'X' },
+              competidor2: { id_linea: 2, nombres: 'B', academia: 'Y' },
+              color1: 'azul',
+              color2: 'rojo',
+            }],
+          },
+        },
+        {
+          id_categoria: 2,
+          nombre: 'Cat B',
+          cancha: 2,
+          inscritos: 2,
+          tiene_llave: true,
+          orden: 1,
+          porRonda: {
+            1: [{
+              ronda: 1,
+              match_numero: 1,
+              orden_pista: 50,
+              estado: 'pendiente',
+              competidor1: { id_linea: 3, nombres: 'C', academia: 'X' },
+              competidor2: { id_linea: 4, nombres: 'D', academia: 'Y' },
+              color1: 'azul',
+              color2: 'rojo',
+            }],
+          },
+        },
+        {
+          id_categoria: 3,
+          nombre: 'Vacía',
+          cancha: 1,
+          inscritos: 0,
+          tiene_llave: true,
+          orden: 2,
+          porRonda: {},
+        },
+      ],
+    }
+    const bufArea1 = buildBracketPdfBuffer(data, { cancha: 1 })
+    expect(bufArea1.byteLength).toBeGreaterThan(500)
+    const bufAll = buildBracketPdfBuffer(data)
+    expect(bufAll.byteLength).toBeGreaterThan(bufArea1.byteLength)
+  })
+
   it('no lanza con llave parcial (slots vacíos en bracket de 8)', async () => {
     const { jsPDF } = await import('jspdf')
     const { dibujarBracketCategoriaPdf } = await import('@/lib/campeonato/export-bracket-pdf')

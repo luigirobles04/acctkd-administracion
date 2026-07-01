@@ -343,6 +343,22 @@ function blockPlayerYs(bi, layout) {
   }
 }
 
+/** Altura del conector según bloque real (bye = centro; pareja = yTop/yBot del jugador). */
+function feederJoinY(roundIdx, feedMi, layout, role) {
+  if (roundIdx !== 1) return yCenterMerge(roundIdx - 1, feedMi, layout)
+  const entry = layout.entradas[feedMi]
+  const { yTop, yBot, yMid } = blockPlayerYs(feedMi, layout)
+  if (entry?.es_bye) return yMid
+  return role === 'top' ? yTop : yBot
+}
+
+export function categoriaExportablePdf(cat) {
+  const entradas = entradasPrimeraRonda(cat?.porRonda)
+  const rondas = rondasOrdenadas(cat?.porRonda)
+  if (!rondas.length || !entradas.length) return false
+  return entradas.some((e) => blockTieneJugador(e))
+}
+
 function drawBlockArms(doc, bi, layout, entradas) {
   const { nameX, boxW, stubX, roundX } = layout
   const entry = entradas[bi]
@@ -372,11 +388,11 @@ function drawBlockArms(doc, bi, layout, entradas) {
 export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, pageH = 210 } = {}) {
   const entradas = entradasPrimeraRonda(cat.porRonda)
   const rondas = rondasOrdenadas(cat.porRonda)
-  if (!rondas.length || !entradas.length) return
+  if (!rondas.length || !entradas.length || !entradas.some((e) => blockTieneJugador(e))) return false
 
   const numBlocks = entradas.length
   const cols = columnasBracket(cat.porRonda, { inscritos: cat.inscritos, numBlocks })
-  if (!cols.length) return
+  if (!cols.length) return false
 
   drawHeader(doc, campeonato, cat, pageW)
   const layout = calcLayout(cols, numBlocks, entradas, pageW, pageH)
@@ -403,9 +419,9 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
       const feedA = mi * 2
       const feedB = mi * 2 + 1
-      const yTop = roundIdx === 1 ? yCenterBlock(feedA, layout) : yCenterMerge(roundIdx - 1, feedA, layout)
+      const yTop = feederJoinY(roundIdx, feedA, layout, 'top')
       const yBot = feedB < levelPrev
-        ? (roundIdx === 1 ? yCenterBlock(feedB, layout) : yCenterMerge(roundIdx - 1, feedB, layout))
+        ? feederJoinY(roundIdx, feedB, layout, 'bot')
         : yTop
       const yMid = yCenterMerge(roundIdx, mi, layout)
       const topA = feederActivo(roundIdx, feedA, entradas, numBlocks)
@@ -416,7 +432,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
         : { w: 0 }
       const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, { topA, botA }, badgeSize.w)
 
-      if (combate?.numero_combate && pos) {
+      if (combate?.numero_combate && pos && topA && botA) {
         badgeQueue.push({ x: pos.x, y: pos.y, num: combate.numero_combate })
       }
     })
@@ -460,21 +476,32 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   doc.setFontSize(6)
   doc.setTextColor(...GRAY)
   doc.text(`ACCTKD · World Taekwondo · ${LAYOUT_VERSION}`, pageW / 2, pageH - 6, { align: 'center' })
+  return true
 }
 
-export function buildBracketPdfBuffer(data, { idCategoria = null } = {}) {
+export function buildBracketPdfBuffer(data, { idCategoria = null, cancha = null } = {}) {
   let cats = categoriasOrdenadasExport(data.categorias || [])
   if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
+  if (cancha != null) cats = cats.filter((c) => Number(c.cancha) === Number(cancha))
+  cats = cats.filter(categoriaExportablePdf)
   if (!cats.length) throw new Error('No hay llaves generadas para exportar')
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
 
-  cats.forEach((cat, i) => {
-    if (i > 0) doc.addPage()
-    dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH })
-  })
+  let firstPage = true
+  for (const cat of cats) {
+    if (!firstPage) doc.addPage()
+    const drew = dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH })
+    if (drew) {
+      firstPage = false
+    } else if (!firstPage) {
+      doc.deletePage(doc.getNumberOfPages())
+    }
+  }
+
+  if (firstPage) throw new Error('No hay llaves generadas para exportar')
 
   return Buffer.from(doc.output('arraybuffer'))
 }
