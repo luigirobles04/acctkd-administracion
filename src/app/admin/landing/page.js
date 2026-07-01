@@ -18,6 +18,8 @@ export default function LandingCmsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [subiendo, setSubiendo] = useState(false)
+  const [subiendoGal, setSubiendoGal] = useState(false)
+  const [galCaption, setGalCaption] = useState('')
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
@@ -58,6 +60,37 @@ export default function LandingCmsPage() {
       setSaving(false)
     }
   }
+
+  async function subirGaleria(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSubiendoGal(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file, file.name || 'galeria.jpg')
+      fd.append('slot', 'galeria')
+      fd.append('caption', galCaption || 'FestCup')
+      const res = await fetch('/api/landing/imagen', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setCfg(json.config)
+      setGalCaption('')
+      setMsg('Foto añadida a la galería del landing.')
+      setTimeout(() => setMsg(''), 3500)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubiendoGal(false)
+      e.target.value = ''
+    }
+  }
+
+  function quitarGaleria(idx) {
+    setCfg((p) => ({ ...p, galeria: (p.galeria || []).filter((_, i) => i !== idx) }))
+  }
+
+  const galeria = cfg.galeria || []
 
   async function subirImagen(e) {
     const file = e.target.files?.[0]
@@ -132,6 +165,47 @@ export default function LandingCmsPage() {
                   <input type="file" accept="image/*" onChange={subirImagen} disabled={subiendo} style={{ display: 'none' }} />
                 </label>
               </div>
+            </div>
+
+            <div className="ios-form-section" style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 4px' }}>Galería FestCup</p>
+              <p style={{ fontSize: 12, color: 'var(--label3)', margin: '0 0 12px' }}>
+                Sube fotos de ediciones pasadas. Si no hay fotos subidas, se muestran las imágenes por defecto del landing.
+              </p>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <input
+                  className="ios-input"
+                  placeholder="Descripción de la foto (ej. FestCup 2024 — Podio)"
+                  value={galCaption}
+                  onChange={(e) => setGalCaption(e.target.value)}
+                  style={{ flex: 1, minWidth: 180 }}
+                />
+                <label className="ios-btn ios-btn-primary" style={{ height: 38, padding: '0 14px', fontSize: 13, cursor: 'pointer', display: 'inline-flex' }}>
+                  {subiendoGal ? 'Subiendo...' : '+ Añadir foto'}
+                  <input type="file" accept="image/*" onChange={subirGaleria} disabled={subiendoGal} style={{ display: 'none' }} />
+                </label>
+              </div>
+              {galeria.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                  {galeria.map((g, i) => (
+                    <div key={g.path || i} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#111827' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/fotos/competidor?path=${encodeURIComponent(g.path)}`}
+                        alt={g.alt || g.caption}
+                        style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }}
+                      />
+                      <div style={{ padding: '6px 8px', fontSize: 11, color: 'var(--label2)' }}>{g.caption}</div>
+                      <button
+                        type="button"
+                        onClick={() => quitarGaleria(i)}
+                        style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 12, cursor: 'pointer' }}
+                        title="Quitar (guardar cambios después)"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="ios-form-section" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

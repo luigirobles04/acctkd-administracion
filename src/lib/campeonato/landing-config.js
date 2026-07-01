@@ -7,17 +7,20 @@ const CONFIG_DIR = 'site'
 const CONFIG_PREFIX = 'landing-config-'
 
 export const LANDING_DEFAULTS = {
-  heroBadge: 'Trujillo · Perú · Uniendo Campeones',
+  heroBadge: 'Trujillo · Perú · #UniendoCampeones',
   heroTitulo: 'Taekwondo',
   heroTituloAccent: 'FestCup 2026',
   heroSubtitulo:
-    'El evento más importante de la Academia Christopher Cabrera. Poomsae, Kyorugi y Free Style ' +
-    'gestionados con tecnología de vanguardia: inscripción, pesaje, llaves y resultados en vivo, sin margen de error.',
+    'La marca de campeonato más importante del norte del Perú. Cuatro ediciones formando campeones ' +
+    'con reglamento World Taekwondo, tecnología en vivo y la experiencia ACCTKD que ya conoces.',
   ctaPrimario: 'Inscribir mi academia',
-  ctaSecundario: 'Ver campeonatos',
+  ctaSecundario: 'Ver ediciones',
   heroImagen: null,
-  ctaTitulo: '¿Listo para competir?',
-  ctaTexto: 'Inscribe a tu academia en el Taekwondo FestCup 2026 y forma parte de la mejor experiencia de taekwondo del norte del país.',
+  ctaTitulo: '¿Tu academia compite en FestCup?',
+  ctaTexto:
+    'Únete a las academias que ya confían en la marca FestCup. Inscripción en línea, dorsales automáticos ' +
+    'y resultados en tiempo real desde el primer combate.',
+  galeria: null,
 }
 
 async function ultimaVersionPath(sb) {

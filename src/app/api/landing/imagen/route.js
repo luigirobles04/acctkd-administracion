@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { readUploadFile } from '@/lib/campeonato/upload-file'
 import { BUCKET } from '@/lib/campeonato/foto-competidor'
-import { saveLandingConfig } from '@/lib/campeonato/landing-config'
+import { getLandingConfig, saveLandingConfig } from '@/lib/campeonato/landing-config'
 
 export async function POST(request) {
   try {
@@ -22,8 +22,17 @@ export async function POST(request) {
     })
     if (error) throw error
 
-    const key = slot === 'hero' ? 'heroImagen' : `${slot}Imagen`
-    const config = await saveLandingConfig(sb, { [key]: path })
+    let config
+    if (slot === 'hero') {
+      config = await saveLandingConfig(sb, { heroImagen: path })
+    } else if (slot === 'galeria') {
+      const caption = (formData.get('caption') || 'FestCup').toString().slice(0, 80)
+      const current = await getLandingConfig(sb)
+      const galeria = [...(current.galeria || []), { path, caption, alt: caption }]
+      config = await saveLandingConfig(sb, { galeria })
+    } else {
+      config = await saveLandingConfig(sb, { [`${slot}Imagen`]: path })
+    }
 
     return NextResponse.json({ ok: true, path, config })
   } catch (e) {
