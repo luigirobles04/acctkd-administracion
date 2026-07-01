@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   FESTCUP_STATS,
-  FESTCUP_EDICIONES,
-  FESTCUP_GALERIA,
+  FESTCUP_LEGADO,
+  FESTCUP_POSTERS,
+  FESTCUP_MOMENTOS,
   FESTCUP_RAZONES,
 } from '@/lib/campeonato/landing-data'
 import './landing.css'
 
-function useReveal() {
+function useReveal(deps = []) {
   useEffect(() => {
     const els = document.querySelectorAll('.reveal')
     if (!('IntersectionObserver' in window)) {
@@ -26,53 +27,61 @@ function useReveal() {
           }
         })
       },
-      { threshold: 0.1 }
+      { threshold: 0.08 }
     )
     els.forEach((el) => io.observe(el))
     return () => io.disconnect()
-  })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
 }
 
-function fmtFecha(d) {
-  if (!d) return 'Por confirmar'
-  try {
-    return new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })
-  } catch {
-    return d
-  }
+function useCounters(active) {
+  const [vals, setVals] = useState(FESTCUP_STATS.map(() => 0))
+  useEffect(() => {
+    if (!active) return
+    const duration = 1400
+    const start = performance.now()
+    let raf
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration)
+      const ease = 1 - (1 - t) ** 3
+      setVals(FESTCUP_STATS.map((s) => Math.round(s.value * ease)))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [active])
+  return vals
 }
 
 const CFG_DEFAULTS = {
   heroBadge: 'Trujillo · Perú · #UniendoCampeones',
-  heroTitulo: 'Taekwondo',
-  heroTituloAccent: 'FestCup 2026',
+  heroTitulo: 'Tu academia',
+  heroTituloAccent: 'merece FestCup',
   heroSubtitulo:
-    'La marca de campeonato más importante del norte del Perú. Cuatro ediciones formando campeones ' +
-    'con reglamento World Taekwondo, tecnología en vivo y la experiencia ACCTKD que ya conoces.',
+    'El campeonato más grande del norte del Perú. Lleva a tus atletas a competir donde nacen los campeones — ' +
+    'con la marca que ya conocen cientos de competidores.',
   ctaPrimario: 'Inscribir mi academia',
-  ctaSecundario: 'Ver ediciones',
+  ctaSecundario: 'Ver el legado',
   heroImagen: null,
-  ctaTitulo: '¿Tu academia compite en FestCup?',
+  ctaTitulo: '¿Listos para el tatami?',
   ctaTexto:
-    'Únete a las academias que ya confían en la marca FestCup. Inscripción en línea, dorsales automáticos ' +
-    'y resultados en tiempo real desde el primer combate.',
+    'No te quedes fuera. Inscribe a tu academia en FestCup 2026 y forma parte del campeonato que reúne ' +
+    'a las mejores academias del país.',
 }
 
 export default function LandingPage() {
-  const [camps, setCamps] = useState([])
-  const [loaded, setLoaded] = useState(false)
   const [cfg, setCfg] = useState(CFG_DEFAULTS)
   const [menuOpen, setMenuOpen] = useState(false)
   const [lightbox, setLightbox] = useState(null)
+  const [statsVisible, setStatsVisible] = useState(false)
+  const [showSticky, setShowSticky] = useState(false)
   const navRef = useRef(null)
-  useReveal()
+  const statsRef = useRef(null)
+  const counterVals = useCounters(statsVisible)
+  useReveal([cfg])
 
   useEffect(() => {
-    fetch('/api/public/campeonatos', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => setCamps(j.campeonatos || []))
-      .catch(() => setCamps([]))
-      .finally(() => setLoaded(true))
     fetch('/api/landing', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => j.config && setCfg({ ...CFG_DEFAULTS, ...j.config }))
@@ -82,6 +91,7 @@ export default function LandingPage() {
   useEffect(() => {
     const onScroll = () => {
       if (navRef.current) navRef.current.classList.toggle('scrolled', window.scrollY > 20)
+      setShowSticky(window.scrollY > 500)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
@@ -89,42 +99,52 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
+    const el = statsRef.current
+    if (!el || !('IntersectionObserver' in window)) {
+      setStatsVisible(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setStatsVisible(true); io.disconnect() } },
+      { threshold: 0.3 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  useEffect(() => {
     document.body.style.overflow = lightbox ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [lightbox])
 
-  const heroImgSrc = cfg.heroImagen
+  const heroPoster = cfg.heroImagen
     ? `/api/fotos/competidor?path=${encodeURIComponent(cfg.heroImagen)}`
-    : '/landing/festcup-2026-flyer.png'
+    : '/landing/galeria/festcup-2026-poster.png'
 
-  const destacado = camps.find((c) => c.inscripciones_abiertas) || camps[0] || null
-  const edicionActual = FESTCUP_EDICIONES.find((e) => e.highlight) || FESTCUP_EDICIONES[0]
-  const edicionesPasadas = FESTCUP_EDICIONES.filter((e) => !e.highlight)
-
-  const galeriaItems = (cfg.galeria?.length ? cfg.galeria : FESTCUP_GALERIA).map((g) => ({
-    ...g,
-    src: g.path
-      ? `/api/fotos/competidor?path=${encodeURIComponent(g.path)}`
-      : g.src,
-  }))
+  const poster2026 = FESTCUP_LEGADO.find((e) => e.highlight) || FESTCUP_LEGADO[0]
 
   return (
     <div className="lp">
+      {/* Orbes animados de fondo */}
+      <div className="lp-orbs" aria-hidden>
+        <span className="lp-orb lp-orb-1" />
+        <span className="lp-orb lp-orb-2" />
+        <span className="lp-orb lp-orb-3" />
+      </div>
+
       {/* NAV */}
       <nav className="lp-nav" ref={navRef}>
         <Link href="/" className="lp-brand">
-          <img src="/branding/academia-logo.png" alt="Christopher Cabrera Taekwondo" />
+          <img src="/branding/academia-logo.png" alt="ACCTKD" />
           <span className="lp-brand-txt">
             FEST<span className="lp-brand-red">CUP</span>
-            <small>by ACCTKD · Trujillo</small>
+            <small>Trujillo · Perú</small>
           </span>
         </Link>
         <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
           <a href="#legado" onClick={() => setMenuOpen(false)}>Legado</a>
-          <a href="#galeria" onClick={() => setMenuOpen(false)}>Galería</a>
-          <a href="#campeonatos" onClick={() => setMenuOpen(false)}>Campeonatos</a>
-          <a href="#inscribete" onClick={() => setMenuOpen(false)}>Inscríbete</a>
-          <Link href="/login" className="lp-btn lp-btn-ghost" onClick={() => setMenuOpen(false)}>ERP</Link>
+          <a href="#momentos" onClick={() => setMenuOpen(false)}>Momentos</a>
+          <a href="#por-que" onClick={() => setMenuOpen(false)}>¿Por qué?</a>
           <Link href="/registro-academia" className="lp-btn lp-btn-primary" onClick={() => setMenuOpen(false)}>
             Inscribir academia
           </Link>
@@ -134,9 +154,8 @@ export default function LandingPage() {
         </button>
       </nav>
 
-      {/* HERO */}
+      {/* HERO — poster + CTA emocional */}
       <header className="lp-hero">
-        <div className="lp-hero-bg" aria-hidden />
         <div className="lp-hero-grid">
           <div className="lp-hero-copy">
             <span className="lp-eyebrow lp-anim-1">
@@ -148,229 +167,194 @@ export default function LandingPage() {
             </h1>
             <p className="lp-sub lp-anim-3">{cfg.heroSubtitulo}</p>
             <div className="lp-hero-cta lp-anim-3">
-              <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-lg">
+              <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-lg lp-btn-shine">
                 {cfg.ctaPrimario} →
               </Link>
               <a href="#legado" className="lp-btn lp-btn-ghost lp-btn-lg">{cfg.ctaSecundario}</a>
             </div>
-            <div className="lp-hero-meta lp-anim-4">
-              {FESTCUP_STATS.map((s) => (
-                <div key={s.label}>
-                  <b>{s.value}{s.suffix}</b>
+            <div className="lp-hero-meta lp-anim-4" ref={statsRef}>
+              {FESTCUP_STATS.map((s, i) => (
+                <div key={s.label} className="lp-stat">
+                  <b>{counterVals[i]}{s.suffix}</b>
                   <span>{s.label}</span>
                 </div>
               ))}
             </div>
           </div>
           <div className="lp-hero-visual lp-anim-2">
-            <div className="lp-hero-poster">
-              <img src={heroImgSrc} alt="Taekwondo FestCup 2026" />
-            </div>
-            <div className="lp-hero-float-card">
-              <span className="lp-hero-float-tag">Próxima edición</span>
-              <strong>{edicionActual.title}</strong>
-              <span>{edicionActual.subtitle}</span>
+            <div className="lp-hero-poster-wrap">
+              <div className="lp-hero-glow" aria-hidden />
+              <div className="lp-hero-poster">
+                <img src={heroPoster} alt="Taekwondo FestCup 2026" />
+              </div>
+              <div className="lp-hero-badge-live">
+                <span className="pulse" /> Inscripciones abiertas
+              </div>
             </div>
           </div>
         </div>
-        <div className="lp-marquee" aria-hidden>
-          <div className="lp-marquee-track">
-            {[...Array(2)].map((_, i) => (
-              <span key={i}>
-                FESTCUP · TRUJILLO · WORLD TAEKWONDO · KYORUGI · POOMSAE · FREE STYLE · #UniendoCampeones · ACCTKD ·
-              </span>
+
+        {/* Marquee de posters mini */}
+        <div className="lp-poster-marquee" aria-hidden>
+          <div className="lp-poster-marquee-track">
+            {[...FESTCUP_POSTERS, ...FESTCUP_POSTERS].map((p, i) => (
+              <img key={`${p.src}-${i}`} src={p.src} alt="" loading="lazy" />
             ))}
           </div>
         </div>
       </header>
 
-      {/* LOGOS STRIP */}
+      {/* WT strip */}
       <section className="lp-logos-strip">
         <div className="lp-container lp-logos-inner reveal">
           <img src="/branding/wt-logo.png" alt="World Taekwondo" />
-          <img src="/branding/academia-logo.png" alt="Christopher Cabrera Taekwondo" />
           <span className="lp-logos-text">Reglamentado por World Taekwondo · Organizado por ACCTKD</span>
+          <img src="/branding/academia-logo.png" alt="ACCTKD" />
         </div>
       </section>
 
-      {/* LEGADO / EDICIONES */}
-      <section className="lp-section" id="legado">
-        <div className="lp-container">
+      {/* LEGADO — posters grandes edición por edición */}
+      <section className="lp-legado-section" id="legado">
+        <div className="lp-container lp-legado-intro">
           <p className="lp-kicker reveal">Nuestra historia</p>
           <h2 className="lp-h2 reveal d1">El legado FestCup</h2>
           <p className="lp-lead reveal d1">
-            Desde 2022, FestCup reúne a academias de todo el Perú en Trujillo. Cada edición deja huella —
-            campeones, recuerdos y la pasión del taekwondo en su máxima expresión.
+            Desde 2022, edición tras edición, FestCup reúne a academias de todo el Perú en Trujillo.
+            <strong> Cuatro años uniendo campeones.</strong> Cada poster cuenta una historia — la tuya empieza en 2026.
           </p>
+        </div>
 
-          {/* Edición destacada */}
-          <article className="lp-edition-featured reveal d2">
-            <div className="lp-edition-featured-img">
-              <img src={edicionActual.imagen} alt={edicionActual.title} />
-              <span className="lp-edition-year">{edicionActual.year}</span>
-            </div>
-            <div className="lp-edition-featured-body">
-              <span className="lp-badge open">{edicionActual.tag}</span>
-              <h3>{edicionActual.title}</h3>
-              <p className="lp-edition-sub">{edicionActual.subtitle}</p>
-              <p className="lp-edition-desc">{edicionActual.desc}</p>
-              <div className="lp-hero-cta">
-                <Link href="/registro-academia" className="lp-btn lp-btn-primary">Inscribir mi academia</Link>
-                {destacado && (
-                  <Link href={`/campeonato/${destacado.slug}`} className="lp-btn lp-btn-ghost">Ver evento en vivo</Link>
-                )}
-              </div>
-            </div>
-          </article>
-
-          {/* Timeline ediciones pasadas */}
-          <div className="lp-timeline reveal d3">
-            {edicionesPasadas.map((ed) => (
-              <article className="lp-timeline-item" key={ed.year}>
-                <div className="lp-timeline-dot" />
-                <div className="lp-timeline-card">
-                  <div className="lp-timeline-img">
-                    <img src={ed.imagen} alt={ed.title} loading="lazy" />
-                  </div>
-                  <div className="lp-timeline-body">
-                    <span className="lp-timeline-year">{ed.year}</span>
-                    <h4>{ed.title}</h4>
-                    <p className="lp-timeline-sub">{ed.subtitle}</p>
-                    <p>{ed.desc}</p>
-                    <span className="lp-timeline-tag">{ed.tag}</span>
-                  </div>
+        {/* Carrusel horizontal de posters gigantes */}
+        <div className="lp-legado-scroll reveal d2">
+          <div className="lp-legado-scroll-hint">← Desliza para ver cada edición →</div>
+          <div className="lp-legado-scroll-track">
+            {FESTCUP_LEGADO.map((ed) => (
+              <article
+                key={ed.year + ed.poster}
+                className={`lp-legado-slide ${ed.highlight ? 'current' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="lp-legado-slide-poster"
+                  onClick={() => setLightbox({ src: ed.poster, alt: ed.alt, caption: ed.title })}
+                >
+                  <span className="lp-legado-slide-glow" aria-hidden />
+                  <img src={ed.poster} alt={ed.alt} loading="lazy" />
+                  <span className="lp-legado-slide-year">{ed.year}</span>
+                </button>
+                <div className="lp-legado-slide-info">
+                  <span className={`lp-badge ${ed.highlight ? 'open' : ''}`}>{ed.tag}</span>
+                  <h3>{ed.title}</h3>
+                  <p>{ed.fecha} · {ed.lugar}</p>
                 </div>
               </article>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* GALERÍA */}
-      <section className="lp-section alt" id="galeria">
-        <div className="lp-container">
-          <p className="lp-kicker reveal">Momentos FestCup</p>
-          <h2 className="lp-h2 reveal d1">La emoción del campeonato</h2>
-          <p className="lp-lead reveal d1">
-            Combates, podios, credenciales y la energía de cientos de competidores dándolo todo en el tatami.
-          </p>
-          <div className="lp-gallery">
-            {galeriaItems.map((g, i) => (
+        {/* Timeline vertical — poster + texto alternado */}
+        <div className="lp-legado-timeline">
+          {FESTCUP_LEGADO.map((ed, i) => (
+            <article
+              key={`tl-${ed.year}`}
+              className={`lp-legado-block reveal ${i % 2 === 1 ? 'reverse' : ''} ${ed.highlight ? 'highlight' : ''}`}
+            >
+              <div className="lp-legado-block-year" aria-hidden>{ed.year}</div>
               <button
                 type="button"
-                key={g.src}
-                className={`lp-gallery-item reveal d${(i % 4) + 1} ${i === 0 ? 'wide' : ''}`}
-                onClick={() => setLightbox(g)}
-                aria-label={`Ver ${g.caption}`}
+                className="lp-legado-block-poster"
+                onClick={() => setLightbox({ src: ed.poster, alt: ed.alt, caption: ed.title })}
               >
-                <img src={g.src} alt={g.alt} loading="lazy" />
-                <span className="lp-gallery-cap">{g.caption}</span>
+                <span className="lp-legado-block-glow" aria-hidden />
+                <img src={ed.poster} alt={ed.alt} loading="lazy" />
+              </button>
+              <div className="lp-legado-block-body">
+                <span className="lp-legado-node">{ed.year}</span>
+                <span className={`lp-badge ${ed.highlight ? 'open' : ''}`}>{ed.tag}</span>
+                <h3>{ed.title}</h3>
+                <p className="lp-legado-fecha">{ed.fecha}</p>
+                <p className="lp-legado-lugar">{ed.lugar}</p>
+                <p className="lp-legado-desc">{ed.desc}</p>
+                {ed.highlight ? (
+                  <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-lg lp-btn-shine">
+                    Inscribir mi academia →
+                  </Link>
+                ) : (
+                  <span className="lp-legado-tag-pill">{ed.tag}</span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* MOMENTOS — emoción del evento */}
+      <section className="lp-section alt" id="momentos">
+        <div className="lp-container">
+          <p className="lp-kicker reveal">Así se vive FestCup</p>
+          <h2 className="lp-h2 reveal d1">Esto es lo que tus atletas van a recordar</h2>
+          <p className="lp-lead reveal d1">
+            Podios, medallas, el grito de la grada y la emoción de competir al máximo nivel en Trujillo.
+          </p>
+          <div className="lp-momentos">
+            {FESTCUP_MOMENTOS.map((m, i) => (
+              <button
+                type="button"
+                key={m.src}
+                className={`lp-momento reveal d${(i % 4) + 1} ${i === 0 ? 'wide' : ''}`}
+                onClick={() => setLightbox(m)}
+              >
+                <img src={m.src} alt={m.alt} loading="lazy" />
+                <span>{m.caption}</span>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* POR QUÉ FESTCUP */}
-      <section className="lp-section" id="inscribete">
+      {/* POR QUÉ INSCRIBIRSE */}
+      <section className="lp-section lp-porque-section" id="por-que">
         <div className="lp-container">
           <p className="lp-kicker reveal">Para academias</p>
           <h2 className="lp-h2 reveal d1">¿Por qué inscribirte en FestCup?</h2>
+          <p className="lp-lead reveal d1">
+            No es solo un campeonato — es <strong>4 años de experiencia</strong>, organización de primer nivel
+            y la marca que está <strong>#UniendoCampeones</strong> en todo el norte del Perú.
+          </p>
           <div className="lp-reasons">
             {FESTCUP_RAZONES.map((r, i) => (
               <div className={`lp-reason reveal d${(i % 4) + 1}`} key={r.title}>
+                <span className="lp-reason-stat">{r.stat}</span>
                 <span className="lp-reason-ic">{r.ic}</span>
                 <h4>{r.title}</h4>
                 <p>{r.text}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CAMPEONATOS ACTIVOS (API) */}
-      <section className="lp-section alt" id="campeonatos">
-        <div className="lp-container">
-          <p className="lp-kicker reveal">En curso</p>
-          <h2 className="lp-h2 reveal d1">Campeonatos activos</h2>
-          <p className="lp-lead reveal d1">
-            Consulta resultados, descarga llaves, sigue las peleas en TV en vivo e inscribe a tu academia.
-          </p>
-
-          {!loaded ? (
-            <p className="lp-lead reveal">Cargando campeonatos…</p>
-          ) : camps.length === 0 ? (
-            <p className="lp-lead reveal">Pronto anunciaremos el próximo campeonato. ¡Mantente atento!</p>
-          ) : (
-            <div className="lp-cards">
-              {camps.map((c, i) => (
-                <article className={`lp-card reveal d${(i % 3) + 1}`} key={c.id_campeonato}>
-                  <div className="lp-card-cover">
-                    <img
-                      src={c.foto_url || '/landing/festcup-2026-flyer.png'}
-                      alt={c.nombre}
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="lp-card-top">
-                    <h3>{c.nombre}</h3>
-                    <span className={`lp-badge ${c.inscripciones_abiertas ? 'open' : 'soon'}`}>
-                      {c.inscripciones_abiertas ? 'Inscripciones' : c.estado || 'Próximo'}
-                    </span>
-                  </div>
-                  <div className="lp-card-meta">
-                    <span>📅 {fmtFecha(c.fecha_inicio)}</span>
-                    {(c.ciudad || c.lugar) && <span>📍 {c.lugar || c.ciudad}</span>}
-                  </div>
-                  <div className="lp-card-actions">
-                    {c.inscripciones_abiertas && (
-                      <Link href={`/registro-academia?slug=${c.slug}`} className="lp-chip primary">Inscribirse</Link>
-                    )}
-                    <Link href={`/campeonato/${c.slug}`} className="lp-chip">Ver evento</Link>
-                    <Link href={`/campeonato/${c.slug}/podios`} className="lp-chip">Resultados</Link>
-                    <Link href={`/campeonato/${c.slug}/canchas`} className="lp-chip">TV en vivo</Link>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ACCESOS RÁPIDOS */}
-      <section className="lp-section" id="accesos">
-        <div className="lp-container">
-          <p className="lp-kicker reveal">Acceso rápido</p>
-          <h2 className="lp-h2 reveal d1">Todo el evento, a un clic</h2>
-          <div className="lp-access">
-            <Link href={destacado ? `/campeonato/${destacado.slug}/canchas` : '#campeonatos'} className="reveal d1">
-              <span className="ic">📺</span><b>TV en vivo</b><span>Peleas por área en tiempo real</span>
-            </Link>
-            <Link href={destacado ? `/campeonato/${destacado.slug}/podios` : '#campeonatos'} className="reveal d2">
-              <span className="ic">🏆</span><b>Resultados & Podios</b><span>Medallero actualizado</span>
-            </Link>
-            <Link href="/registro-academia" className="reveal d3">
-              <span className="ic">📝</span><b>Inscripción</b><span>Registra a tu academia ahora</span>
-            </Link>
-            <Link href="/login" className="reveal d4">
-              <span className="ic">⚙️</span><b>Panel ERP</b><span>Organizadores y staff</span>
+          <div className="lp-hashtag-banner reveal d3">
+            <span className="lp-hashtag">#UniendoCampeones</span>
+            <p>Únete a las academias que ya confían en FestCup</p>
+            <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-lg lp-btn-shine">
+              Inscribir mi academia →
             </Link>
           </div>
         </div>
       </section>
 
-      {/* CTA FINAL */}
+      {/* CTA FINAL con poster */}
       <section className="lp-section">
-        <div className="lp-cta-band reveal">
-          <div className="lp-cta-logos">
-            <img src="/branding/academia-logo.png" alt="ACCTKD" />
-            <img src="/branding/wt-logo.png" alt="WT" />
+        <div className="lp-cta-final reveal">
+          <div className="lp-cta-final-poster">
+            <img src={poster2026.poster} alt="FestCup 2026" />
           </div>
-          <h2>{cfg.ctaTitulo}</h2>
-          <p>{cfg.ctaTexto}</p>
-          <div className="lp-hero-cta">
-            <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-lg">{cfg.ctaPrimario}</Link>
-            <Link href="/login" className="lp-btn lp-btn-ghost">Acceso organizadores</Link>
+          <div className="lp-cta-final-body">
+            <img src="/branding/wt-logo.png" alt="WT" className="lp-cta-wt" />
+            <h2>{cfg.ctaTitulo}</h2>
+            <p>{cfg.ctaTexto}</p>
+            <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-xl lp-btn-shine">
+              {cfg.ctaPrimario} →
+            </Link>
+            <span className="lp-cta-note">Coliseo Gran Chimú · Trujillo · World Taekwondo</span>
           </div>
         </div>
       </section>
@@ -382,32 +366,35 @@ export default function LandingPage() {
             <img src="/branding/academia-logo.png" alt="ACCTKD" />
             <div>
               <strong>FESTCUP</strong>
-              <span>by Academia Christopher Cabrera Taekwondo</span>
+              <span>Academia Christopher Cabrera Taekwondo</span>
             </div>
           </div>
           <div className="lp-footer-links">
+            <Link href="/registro-academia">Inscribir academia</Link>
             <a href="#legado">Legado</a>
-            <a href="#galeria">Galería</a>
-            <a href="#campeonatos">Campeonatos</a>
-            <Link href="/registro-academia">Inscripción</Link>
-            <Link href="/login">ERP</Link>
-          </div>
-          <div className="logos">
-            <img src="/branding/wt-logo.png" alt="World Taekwondo" />
+            <a href="#momentos">Momentos</a>
+            <Link href="/login">Organizadores</Link>
           </div>
           <small>
-            © {new Date().getFullYear()} Academia Christopher Cabrera Taekwondo · Taekwondo FestCup · Trujillo, Perú<br />
-            Reglamentado por World Taekwondo · #UniendoCampeones
+            © {new Date().getFullYear()} FestCup · Trujillo, Perú · #UniendoCampeones
           </small>
         </div>
       </footer>
 
+      {/* Sticky CTA móvil */}
+      <div className={`lp-sticky-cta ${showSticky ? 'visible' : ''}`}>
+        <span>FestCup 2026 · Inscripciones abiertas</span>
+        <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-shine">
+          Inscribir →
+        </Link>
+      </div>
+
       {/* Lightbox */}
       {lightbox && (
-        <div className="lp-lightbox" role="dialog" onClick={() => setLightbox(null)}>
+        <div className="lp-lightbox lp-lightbox-in" role="dialog" onClick={() => setLightbox(null)}>
           <button type="button" className="lp-lightbox-close" aria-label="Cerrar">✕</button>
           <img src={lightbox.src} alt={lightbox.alt} onClick={(e) => e.stopPropagation()} />
-          <p>{lightbox.caption}</p>
+          {lightbox.caption && <p>{lightbox.caption}</p>}
         </div>
       )}
     </div>

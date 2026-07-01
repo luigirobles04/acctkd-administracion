@@ -8,18 +8,18 @@ const CONFIG_PREFIX = 'landing-config-'
 
 export const LANDING_DEFAULTS = {
   heroBadge: 'Trujillo · Perú · #UniendoCampeones',
-  heroTitulo: 'Taekwondo',
-  heroTituloAccent: 'FestCup 2026',
+  heroTitulo: 'Tu academia',
+  heroTituloAccent: 'merece FestCup',
   heroSubtitulo:
-    'La marca de campeonato más importante del norte del Perú. Cuatro ediciones formando campeones ' +
-    'con reglamento World Taekwondo, tecnología en vivo y la experiencia ACCTKD que ya conoces.',
+    'El campeonato más grande del norte del Perú. Lleva a tus atletas a competir donde nacen los campeones — ' +
+    'con la marca que ya conocen cientos de competidores.',
   ctaPrimario: 'Inscribir mi academia',
-  ctaSecundario: 'Ver ediciones',
+  ctaSecundario: 'Ver el legado',
   heroImagen: null,
-  ctaTitulo: '¿Tu academia compite en FestCup?',
+  ctaTitulo: '¿Listos para el tatami?',
   ctaTexto:
-    'Únete a las academias que ya confían en la marca FestCup. Inscripción en línea, dorsales automáticos ' +
-    'y resultados en tiempo real desde el primer combate.',
+    'No te quedes fuera. Inscribe a tu academia en FestCup 2026 y forma parte del campeonato que reúne ' +
+    'a las mejores academias del país.',
   galeria: null,
 }
 
