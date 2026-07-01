@@ -242,8 +242,22 @@ export default function CampeonatoAcademiasPage() {
                     <Fragment key={ac.id}>
                     <tr style={{ borderBottom: '1px solid var(--separator)' }}>
                       <td style={{ padding: 10 }}>
-                        <strong>{ac.academia?.nombre}</strong>
-                        <div style={{ fontSize: 12, color: 'var(--label3)' }}>{ac.academia?.codigo_prefijo}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {ac.academia?.logo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={`/api/fotos/competidor?path=${encodeURIComponent(ac.academia.logo_url)}`}
+                              alt=""
+                              style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                            />
+                          ) : (
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--fill-secondary, #eee)', flexShrink: 0 }} />
+                          )}
+                          <div>
+                            <strong>{ac.academia?.nombre}</strong>
+                            <div style={{ fontSize: 12, color: 'var(--label3)' }}>{ac.academia?.codigo_prefijo}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ fontSize: 13 }}>
                         {ac.academia?.representante_nombre || '—'}

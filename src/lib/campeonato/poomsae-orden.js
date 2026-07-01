@@ -36,17 +36,33 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
     `
   let soporteSorteo = true
+  let soporteCalificacion = true
   let { data: lineas, error: errL } = await sb
     .from('linea_inscripcion')
-    .select(`orden_poomsae, ${baseCols}`)
+    .select(`orden_poomsae, poomsae_puntaje, poomsae_estado, ${baseCols}`)
     .eq('id_campeonato', idCampeonato)
     .in('modalidad', MODALIDADES_POOMSAE)
     .eq('estado', 'aprobado')
     .order('dorsal_numero', { ascending: true, nullsFirst: false })
 
+  // Fallback si las columnas de calificación aún no existen en la BD.
+  if (errL && /poomsae_puntaje|poomsae_estado/.test(errL.message || '')) {
+    soporteCalificacion = false
+    const retry = await sb
+      .from('linea_inscripcion')
+      .select(`orden_poomsae, ${baseCols}`)
+      .eq('id_campeonato', idCampeonato)
+      .in('modalidad', MODALIDADES_POOMSAE)
+      .eq('estado', 'aprobado')
+      .order('dorsal_numero', { ascending: true, nullsFirst: false })
+    lineas = retry.data
+    errL = retry.error
+  }
+
   // Fallback si la columna orden_poomsae aún no existe en la BD.
   if (errL && /orden_poomsae/.test(errL.message || '')) {
     soporteSorteo = false
+    soporteCalificacion = false
     const retry = await sb
       .from('linea_inscripcion')
       .select(baseCols)
@@ -84,7 +100,10 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       modalidad: MODALIDADES[l.modalidad]?.label || l.modalidad,
       nombres: nombreCompetidor(l),
       academia: academiaNombre(l),
+      puntaje: l.poomsae_puntaje ?? null,
+      calificado: l.poomsae_estado === 'calificado',
     }))
+    const calificados = inscritos.filter((p) => p.calificado).length
     return {
       id_categoria: cat.id_categoria,
       nombre: cat.nombre,
@@ -92,6 +111,8 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       genero: cat.genero,
       inscritos: inscritos.length,
       sorteada,
+      calificados,
+      cerrada: inscritos.length > 0 && calificados === inscritos.length,
       participantes: inscritos,
     }
   })
@@ -102,9 +123,10 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
     conInscritos: conInscritos.length,
     totalParticipantes: conInscritos.reduce((s, c) => s + c.inscritos, 0),
     soporteSorteo,
+    soporteCalificacion,
   }
 
-  return { categorias: categoriasOut, resumen, soporteSorteo }
+  return { categorias: categoriasOut, resumen, soporteSorteo, soporteCalificacion }
 }
 
 export { MODALIDADES_POOMSAE }

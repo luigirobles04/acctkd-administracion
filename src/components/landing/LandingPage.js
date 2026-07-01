@@ -63,9 +63,24 @@ const FEATURES = [
   },
 ]
 
+const CFG_DEFAULTS = {
+  heroBadge: 'Trujillo · Perú · Uniendo Campeones',
+  heroTitulo: 'Taekwondo',
+  heroTituloAccent: 'FestCup 2026',
+  heroSubtitulo:
+    'El evento más importante de la Academia Christopher Cabrera. Poomsae, Kyorugi y Free Style ' +
+    'gestionados con tecnología de vanguardia: inscripción, pesaje, llaves y resultados en vivo, sin margen de error.',
+  ctaPrimario: 'Inscribir mi academia',
+  ctaSecundario: 'Ver campeonatos',
+  heroImagen: null,
+  ctaTitulo: '¿Listo para competir?',
+  ctaTexto: 'Inscribe a tu academia en el Taekwondo FestCup 2026 y forma parte de la mejor experiencia de taekwondo del norte del país.',
+}
+
 export default function LandingPage() {
   const [camps, setCamps] = useState([])
   const [loaded, setLoaded] = useState(false)
+  const [cfg, setCfg] = useState(CFG_DEFAULTS)
   const navRef = useRef(null)
   useReveal()
 
@@ -75,7 +90,15 @@ export default function LandingPage() {
       .then((j) => setCamps(j.campeonatos || []))
       .catch(() => setCamps([]))
       .finally(() => setLoaded(true))
+    fetch('/api/landing', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => j.config && setCfg({ ...CFG_DEFAULTS, ...j.config }))
+      .catch(() => {})
   }, [])
+
+  const heroImgSrc = cfg.heroImagen
+    ? `/api/fotos/competidor?path=${encodeURIComponent(cfg.heroImagen)}`
+    : '/branding/festcup-2026-flyer.png'
 
   useEffect(() => {
     const onScroll = () => {
@@ -112,19 +135,15 @@ export default function LandingPage() {
       <header className="lp-hero">
         <div className="lp-hero-grid">
           <div>
-            <span className="lp-eyebrow lp-anim-1"><span className="dot" /> Trujillo · Perú · Uniendo Campeones</span>
+            <span className="lp-eyebrow lp-anim-1"><span className="dot" /> {cfg.heroBadge}</span>
             <h1 className="lp-h1 lp-anim-2">
-              Taekwondo
-              <span className="accent">FestCup 2026</span>
+              {cfg.heroTitulo}
+              <span className="accent">{cfg.heroTituloAccent}</span>
             </h1>
-            <p className="lp-sub lp-anim-3">
-              El evento más importante de la Academia Christopher Cabrera. Poomsae, Kyorugi y Free Style
-              gestionados con tecnología de vanguardia: inscripción, pesaje, llaves y resultados en vivo,
-              sin margen de error.
-            </p>
+            <p className="lp-sub lp-anim-3">{cfg.heroSubtitulo}</p>
             <div className="lp-hero-cta lp-anim-3">
-              <Link href="/registro-academia" className="lp-btn lp-btn-primary">Inscribir mi academia →</Link>
-              <a href="#campeonatos" className="lp-btn lp-btn-ghost">Ver campeonatos</a>
+              <Link href="/registro-academia" className="lp-btn lp-btn-primary">{cfg.ctaPrimario} →</Link>
+              <a href="#campeonatos" className="lp-btn lp-btn-ghost">{cfg.ctaSecundario}</a>
             </div>
             <div className="lp-hero-meta lp-anim-4">
               <div><b>+4</b><span>Ediciones</span></div>
@@ -133,7 +152,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="lp-hero-poster lp-anim-2">
-            <img src="/branding/festcup-2026-flyer.png" alt="Taekwondo FestCup 2026" />
+            <img src={heroImgSrc} alt="Taekwondo FestCup 2026" />
           </div>
         </div>
       </header>
@@ -227,10 +246,10 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="lp-section">
         <div className="lp-cta-band reveal">
-          <h2>¿Listo para competir?</h2>
-          <p>Inscribe a tu academia en el Taekwondo FestCup 2026 y forma parte de la mejor experiencia de taekwondo del norte del país.</p>
+          <h2>{cfg.ctaTitulo}</h2>
+          <p>{cfg.ctaTexto}</p>
           <div className="lp-hero-cta">
-            <Link href="/registro-academia" className="lp-btn lp-btn-primary">Inscribir mi academia</Link>
+            <Link href="/registro-academia" className="lp-btn lp-btn-primary">{cfg.ctaPrimario}</Link>
             <Link href="/login" className="lp-btn lp-btn-ghost">Acceso organizadores</Link>
           </div>
         </div>

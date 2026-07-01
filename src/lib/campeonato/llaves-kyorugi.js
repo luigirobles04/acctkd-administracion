@@ -1,3 +1,5 @@
+import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+
 function nextPowerOf2(n) {
   let p = 1
   while (p < n) p *= 2
@@ -196,6 +198,7 @@ function parseCompetidor(l, academiaNombre) {
     dorsal: l.dorsal_display || '',
     nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : '',
     academia: academiaNombre || l.academia_nombre || '',
+    foto: fotoCompetidorProxyUrl(p?.foto_url),
   }
 }
 

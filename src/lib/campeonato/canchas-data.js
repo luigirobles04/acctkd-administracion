@@ -61,7 +61,7 @@ export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltado
       .select(`
         id_linea, dorsal_display,
         academia_campeonato(academia(nombre)),
-        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
+        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, foto_url))
       `)
       .in('id_linea', [...lineaIds])
     lineaMap = Object.fromEntries(

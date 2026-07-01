@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Sidebar, { TABS } from './Sidebar'
 import SupabaseConfigBanner from './SupabaseConfigBanner'
 import PreviewDeploymentRedirect from './PreviewDeploymentRedirect'
-import { getCurrentUser, isAdmin } from '@/lib/services/auth.service'
+import { getCurrentUser, isAdminPanel, isAdminCampeonato } from '@/lib/services/auth.service'
 
 export default function AdminLayout({ children, title, subtitle, actions }) {
   const router = useRouter()
@@ -13,8 +13,12 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
 
   useEffect(() => {
     const user = getCurrentUser()
-    if (!user || !isAdmin(user)) router.replace('/login')
-  }, [router])
+    if (!user || !isAdminPanel(user)) { router.replace('/login'); return }
+    // El admin de campeonato solo tiene acceso al módulo de campeonatos.
+    if (isAdminCampeonato(user) && !pathname.startsWith('/admin/campeonatos')) {
+      router.replace('/admin/campeonatos')
+    }
+  }, [router, pathname])
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>

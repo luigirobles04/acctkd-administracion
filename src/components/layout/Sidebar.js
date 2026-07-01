@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { logout, getCurrentUser } from '@/lib/services/auth.service'
+import { logout, getCurrentUser, isAdminCampeonato } from '@/lib/services/auth.service'
 
-const MENU = [
+const MENU_FULL = [
   {
     label: 'Principal',
     items: [
@@ -36,6 +36,18 @@ const MENU = [
     label: 'Sistema',
     items: [
       { href: '/admin/usuarios',    icon: 'manage_accounts', label: 'Usuarios'  },
+      { href: '/admin/landing',     icon: 'auto_awesome',    label: 'Landing Page' },
+    ],
+  },
+]
+
+// Menú acotado para el rol "admin_campeonato": solo ve el módulo de campeonatos,
+// pero con los mismos permisos de edición dentro de él que el admin completo.
+const MENU_CAMPEONATO = [
+  {
+    label: 'Campeonatos',
+    items: [
+      { href: '/admin/campeonatos', icon: 'emoji_events', label: 'Campeonatos'  },
     ],
   },
 ]
@@ -63,6 +75,8 @@ export default function Sidebar({ open, onClose }) {
       rol: typeof raw.rol === 'string' ? raw.rol : raw.rol?.nombre || 'Administrador',
     })
   }, [])
+
+  const MENU = isAdminCampeonato(user) ? MENU_CAMPEONATO : MENU_FULL
 
   async function handleLogout() {
     await logout()

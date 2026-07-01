@@ -72,3 +72,27 @@ export function isRepresentante(user) {
 export function isOrganizador(user) {
   return rolNombre(user) === 'organizador'
 }
+
+/** Administrador de campeonato: mismos permisos de edición que admin, acotado al panel de campeonatos. */
+export function isAdminCampeonato(user) {
+  return rolNombre(user) === 'admin_campeonato'
+}
+
+/** Árbitro / operario de mesa: registra resultados en vivo (kyorugi y poomsae). */
+export function isArbitroMesa(user) {
+  return rolNombre(user) === 'arbitro_mesa'
+}
+
+/** Cualquier rol con acceso al panel admin (incluye admin_campeonato). */
+export function isAdminPanel(user) {
+  return isAdmin(user) || isAdminCampeonato(user)
+}
+
+export function landingPorRol(user) {
+  if (isAdmin(user)) return '/admin/dashboard'
+  if (isAdminCampeonato(user)) return '/admin/campeonatos'
+  if (isArbitroMesa(user)) return '/arbitro'
+  if (isRepresentante(user)) return '/portal'
+  if (isMaestro(user)) return '/maestro/clases'
+  return '/alumno/dashboard'
+}

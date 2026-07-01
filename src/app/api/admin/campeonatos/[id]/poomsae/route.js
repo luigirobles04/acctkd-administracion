@@ -22,8 +22,8 @@ export async function GET(_request, { params }) {
     const sb = getSupabaseAdmin()
     const { data: camp } = await sb.from('campeonato').select('id_campeonato, nombre, slug, fecha_inicio').eq('id_campeonato', idCampeonato).maybeSingle()
 
-    const { categorias, resumen } = await fetchOrdenPoomsaeCampeonato(sb, idCampeonato)
-    return NextResponse.json({ campeonato: camp, categorias, resumen })
+    const { categorias, resumen, soporteSorteo, soporteCalificacion } = await fetchOrdenPoomsaeCampeonato(sb, idCampeonato)
+    return NextResponse.json({ campeonato: camp, categorias, resumen, soporteSorteo, soporteCalificacion })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

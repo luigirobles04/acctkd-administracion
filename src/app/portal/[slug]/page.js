@@ -79,6 +79,8 @@ export default function PortalCampeonatoPage() {
   const [showGrupoForm, setShowGrupoForm] = useState(false)
   const [editPerfilId, setEditPerfilId] = useState(null)
   const [colaInscripcion, setColaInscripcion] = useState([])
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
+  const [logoError, setLogoError] = useState('')
 
   const cargar = useCallback(async () => {
     if (!slug) return
@@ -407,6 +409,26 @@ export default function PortalCampeonatoPage() {
     else cargar()
   }
 
+  async function subirLogoAcademia(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoError('')
+    setSubiendoLogo(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file, file.name || 'logo.png')
+      const res = await portalFetch(`/api/portal/campeonato/${slug}/academia-logo`, { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (err) {
+      setLogoError(err.message || 'No se pudo subir el logo')
+    } finally {
+      setSubiendoLogo(false)
+      e.target.value = ''
+    }
+  }
+
   async function subirVoucher(e) {
     e.preventDefault()
     if (!voucher.file) return alert('Selecciona el comprobante')
@@ -474,6 +496,31 @@ export default function PortalCampeonatoPage() {
             showPago={Number(ac.monto_total) > 0}
           />
         )}
+      </div>
+
+      <div className="portal-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: 14, flexShrink: 0, overflow: 'hidden',
+          background: 'var(--fill-secondary, #f0f0f2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {data.academia?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/fotos/competidor?path=${encodeURIComponent(data.academia.logo_url)}`} alt="Logo academia" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span className="material-symbols-rounded" style={{ fontSize: 26, color: 'var(--label3)' }}>shield</span>
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Logo de tu academia</p>
+          <p style={{ fontSize: 12, color: 'var(--label3)', margin: '2px 0 0' }}>
+            Aparece en credenciales, buscadores y exportaciones del campeonato.
+          </p>
+          {logoError && <p style={{ fontSize: 12, color: '#DC2626', margin: '4px 0 0' }}>{logoError}</p>}
+        </div>
+        <label className="ios-btn" style={{ height: 34, padding: '0 12px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+          {subiendoLogo ? 'Subiendo...' : data.academia?.logo_url ? 'Cambiar' : 'Subir'}
+          <input type="file" accept="image/*" onChange={subirLogoAcademia} disabled={subiendoLogo} style={{ display: 'none' }} />
+        </label>
       </div>
 
       {!ac.aceptacion_bases_at && (

@@ -211,6 +211,42 @@
   background: #92400e;
 }
 
+.pantalla-competidor-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pantalla-competidor--izq .pantalla-competidor-top {
+  flex-direction: row-reverse;
+}
+
+.pantalla-foto {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #0a0a0f;
+}
+
+.pantalla-foto--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: #94a3b8;
+  background: #0f172a;
+}
+
+.pantalla-competidor--grande .pantalla-foto {
+  width: 92px;
+  height: 92px;
+  border-width: 3px;
+}
+
 .pantalla-dorsal {
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
@@ -223,19 +259,27 @@
 }
 
 .pantalla-nombre {
-  margin-top: 8px;
-  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  margin-top: 12px;
+  font-size: clamp(1.3rem, 2.8vw, 2.1rem);
   font-weight: 800;
   line-height: 1.15;
   color: #f1f5f9;
   word-break: break-word;
 }
 
+.pantalla-competidor--grande .pantalla-nombre {
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+}
+
 .pantalla-academia {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: #94a3b8;
   font-weight: 600;
+}
+
+.pantalla-competidor--grande .pantalla-academia {
+  font-size: 16px;
 }
 
 .pantalla-vacio {

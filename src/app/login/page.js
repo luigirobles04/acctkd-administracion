@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { login, isAdmin, isMaestro, isRepresentante } from '@/lib/services/auth.service'
+import { login, landingPorRol } from '@/lib/services/auth.service'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,10 +17,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const user = await login(form.identificador, form.password)
-      if (isAdmin(user)) router.push('/admin/dashboard')
-      else if (isRepresentante(user)) router.push('/portal')
-      else if (isMaestro(user)) router.push('/maestro/clases')
-      else router.push('/alumno/dashboard')
+      router.push(landingPorRol(user))
     } catch (err) {
       setError(err.message || 'Credenciales incorrectas')
     } finally {

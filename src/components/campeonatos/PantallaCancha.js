@@ -34,9 +34,19 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
         <span className="pantalla-vacio">Por definir</span>
       ) : (
         <>
-          <span className="pantalla-dorsal" style={c && !esGanador ? { color: c.text } : undefined}>
-            {data.dorsal}
-          </span>
+          <div className="pantalla-competidor-top">
+            {data.foto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.foto} alt={data.nombres} className="pantalla-foto" />
+            ) : (
+              <div className="pantalla-foto pantalla-foto--placeholder">
+                {(data.nombres || data.dorsal || '?').trim().charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="pantalla-dorsal" style={c && !esGanador ? { color: c.text } : undefined}>
+              {data.dorsal}
+            </span>
+          </div>
           <span className="pantalla-nombre">{data.nombres}</span>
           {data.academia && <span className="pantalla-academia">{data.academia}</span>}
         </>
