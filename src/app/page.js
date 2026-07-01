@@ -1,28 +1,16 @@
-'use client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { getCurrentUser, isAdmin, isMaestro } from '@/lib/services/auth.service'
+import LandingPage from '@/components/landing/LandingPage'
+
+export const metadata = {
+  title: 'Taekwondo FestCup · ACCTKD — Academia Christopher Cabrera',
+  description:
+    'El evento más importante de la Academia Christopher Cabrera Taekwondo en Trujillo. Poomsae, Kyorugi y Free Style con inscripción, pesaje, llaves y resultados en vivo.',
+  openGraph: {
+    title: 'Taekwondo FestCup 2026 · ACCTKD',
+    description: 'Inscríbete, consulta resultados, descarga llaves y sigue las peleas en vivo.',
+    images: ['/branding/festcup-2026-flyer.png'],
+  },
+}
 
 export default function Home() {
-  const router = useRouter()
-
-  useEffect(() => {
-    const user = getCurrentUser()
-    if (!user) {
-      router.push('/login')
-      return
-    }
-    if (isAdmin(user)) router.push('/admin/dashboard')
-    else if (isMaestro(user)) router.push('/maestro/clases')
-    else router.push('/alumno/dashboard')
-  }, [router])
-
-  return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#1A1A1A' }}>
-      <div className="text-white text-center">
-        <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm opacity-70">Cargando...</p>
-      </div>
-    </div>
-  )
+  return <LandingPage />
 }
