@@ -7,6 +7,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { evaluarPesoEnCategoria, etiquetaPesaje, MAX_INTENTOS_PESAJE } from '@/lib/campeonato/pesaje'
 import { readJsonResponse } from '@/lib/public-app-url'
+import { descargarPesajeExcel, descargarPesajePdf } from '@/lib/campeonato/export-pesaje'
 
 function nombreCompetidor(l) {
   const m = l.miembros?.[0]?.perfil
@@ -33,6 +34,10 @@ export default function CampeonatoPesajePage() {
   const [ultimoResultado, setUltimoResultado] = useState(null)
   const [categoriaSugerida, setCategoriaSugerida] = useState(null)
   const [modoCorregir, setModoCorregir] = useState(false)
+  const [filtroCat, setFiltroCat] = useState('')
+  const [filtroAcad, setFiltroAcad] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('')
+  const [buscar, setBuscar] = useState('')
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -64,6 +69,50 @@ export default function CampeonatoPesajePage() {
     if (!lineaSeleccionada || !form.peso) return null
     return evaluarPesoEnCategoria(form.peso, lineaSeleccionada.categoria)
   }, [lineaSeleccionada, form.peso])
+
+  const categoriasUnicas = useMemo(() => {
+    const set = new Map()
+    lineas.forEach((l) => { if (l.categoria?.nombre) set.set(l.categoria.nombre, true) })
+    return [...set.keys()].sort()
+  }, [lineas])
+
+  const academiasUnicas = useMemo(() => {
+    const set = new Map()
+    lineas.forEach((l) => { const n = l.academia_campeonato?.academia?.nombre; if (n) set.set(n, true) })
+    return [...set.keys()].sort()
+  }, [lineas])
+
+  const lineasFiltradas = useMemo(() => {
+    const q = buscar.trim().toLowerCase()
+    return lineas.filter((l) => {
+      if (filtroCat && l.categoria?.nombre !== filtroCat) return false
+      if (filtroAcad && l.academia_campeonato?.academia?.nombre !== filtroAcad) return false
+      if (filtroEstado && (l.pesaje_estado || 'pendiente') !== filtroEstado) return false
+      if (q) {
+        const p = l.miembros?.[0]?.perfil
+        const txt = `${l.dorsal_display || ''} ${p ? `${p.nombres || ''} ${p.apellidos || ''}` : ''} ${l.academia_campeonato?.academia?.nombre || ''}`.toLowerCase()
+        if (!txt.includes(q)) return false
+      }
+      return true
+    })
+  }, [lineas, filtroCat, filtroAcad, filtroEstado, buscar])
+
+  const stats = useMemo(() => {
+    const s = { total: lineasFiltradas.length, ok: 0, pendiente: 0, descalificado: 0 }
+    lineasFiltradas.forEach((l) => {
+      if (l.pesaje_estado === 'ok' || l.pesaje_estado === 'subido') s.ok++
+      else if (l.pesaje_estado === 'descalificado') s.descalificado++
+      else s.pendiente++
+    })
+    return s
+  }, [lineasFiltradas])
+
+  function exportar(tipo) {
+    if (!lineasFiltradas.length) { alert('No hay filas para exportar con los filtros actuales.'); return }
+    const meta = { categoria: filtroCat, academia: filtroAcad }
+    if (tipo === 'excel') descargarPesajeExcel(campeonato, lineasFiltradas, meta)
+    else descargarPesajePdf(campeonato, lineasFiltradas, meta)
+  }
 
   async function registrarPesaje(e, recategorizar = false, forzar = false) {
     e.preventDefault()
@@ -247,8 +296,53 @@ export default function CampeonatoPesajePage() {
             )}
 
             <div className="ios-card" style={{ padding: 16, marginTop: 16 }}>
-              <h4 style={{ marginBottom: 12 }}>Lista de pesaje ({lineas.length})</h4>
-              {lineas.map((l) => (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <h4 style={{ margin: 0 }}>Lista de pesaje ({lineasFiltradas.length})</h4>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => exportar('excel')}>
+                    ⬇ Excel
+                  </button>
+                  <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => exportar('pdf')}>
+                    ⬇ PDF
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <input
+                  type="search"
+                  className="ios-input"
+                  placeholder="Buscar dorsal, nombre…"
+                  value={buscar}
+                  onChange={(e) => setBuscar(e.target.value)}
+                  style={{ flex: '1 1 180px', minWidth: 140 }}
+                />
+                <select className="ios-input" value={filtroCat} onChange={(e) => setFiltroCat(e.target.value)} style={{ flex: '1 1 160px' }}>
+                  <option value="">Todas las categorías</option>
+                  {categoriasUnicas.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select className="ios-input" value={filtroAcad} onChange={(e) => setFiltroAcad(e.target.value)} style={{ flex: '1 1 160px' }}>
+                  <option value="">Todas las academias</option>
+                  {academiasUnicas.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <select className="ios-input" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={{ flex: '1 1 140px' }}>
+                  <option value="">Todos los estados</option>
+                  <option value="ok">Aprobado</option>
+                  <option value="subido">Recategorizado</option>
+                  <option value="reintento">En reintento</option>
+                  <option value="descalificado">Descalificado</option>
+                  <option value="pendiente">Pendiente</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, fontSize: 12 }}>
+                <span className="badge badge-gray">Total: {stats.total}</span>
+                <span className="badge badge-green">Pasaron: {stats.ok}</span>
+                <span className="badge badge-yellow">Pendientes: {stats.pendiente}</span>
+                <span className="badge badge-red">Descalif.: {stats.descalificado}</span>
+              </div>
+
+              {lineasFiltradas.map((l) => (
                 <div key={l.id_linea} style={{ padding: '10px 0', borderBottom: '1px solid var(--separator)', fontSize: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <div>
@@ -277,6 +371,9 @@ export default function CampeonatoPesajePage() {
               ))}
               {lineas.length === 0 && (
                 <p style={{ color: 'var(--label3)' }}>No hay competidores kyorugi con dorsal aprobado aún.</p>
+              )}
+              {lineas.length > 0 && lineasFiltradas.length === 0 && (
+                <p style={{ color: 'var(--label3)' }}>Ningún competidor coincide con los filtros.</p>
               )}
             </div>
           </>
