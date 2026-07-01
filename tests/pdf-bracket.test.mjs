@@ -204,6 +204,34 @@ describe('export-bracket-pdf (smoke)', () => {
     expect(bufAll.byteLength).toBeGreaterThan(bufArea1.byteLength)
   })
 
+  it('export grande comprimido: válido y bajo el tope de Vercel (4.5MB)', async () => {
+    const { buildBracketPdfBuffer } = await import('@/lib/campeonato/export-bracket-pdf')
+    // Simula un campeonato real: 60 categorías de 16 competidores repartidas en 3 canchas.
+    const categorias = Array.from({ length: 60 }, (_, i) => ({
+      id_categoria: i + 1,
+      nombre: `Categoría ${i + 1} - Kyorugi`,
+      cancha: (i % 3) + 1,
+      inscritos: 16,
+      tiene_llave: true,
+      orden: i + 1,
+      porRonda: makePorRonda({ rondas: [4, 3, 2, 1] }),
+    }))
+    const data = { campeonato: { nombre: 'Taekwondo FestCup 2026', fecha_inicio: '2026-11-07' }, categorias }
+
+    const bufAll = buildBracketPdfBuffer(data)
+    // PDF completo y bien formado (cabecera + EOF presentes).
+    const head = Buffer.from(bufAll.subarray(0, 5)).toString('latin1')
+    const tail = Buffer.from(bufAll.subarray(bufAll.length - 1024)).toString('latin1')
+    expect(head).toBe('%PDF-')
+    expect(tail).toContain('%%EOF')
+    // Debe caber holgadamente bajo el límite de respuesta serverless (~4.5MB).
+    expect(bufAll.byteLength).toBeLessThan(4_000_000)
+
+    // Export por cancha: aún más pequeño.
+    const bufArea = buildBracketPdfBuffer(data, { cancha: 1 })
+    expect(bufArea.byteLength).toBeLessThan(bufAll.byteLength)
+  })
+
   it('no lanza con llave parcial (slots vacíos en bracket de 8)', async () => {
     const { jsPDF } = await import('jspdf')
     const { dibujarBracketCategoriaPdf } = await import('@/lib/campeonato/export-bracket-pdf')

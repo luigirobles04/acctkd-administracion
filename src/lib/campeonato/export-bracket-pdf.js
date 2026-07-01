@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport } from '@/lib/campeonato/bracket-export'
 import { entradasPrimeraRonda, ROWS_PER_MATCH } from '@/lib/campeonato/bracket-cnu-layout'
+import { WT_LOGO_PNG, ACADEMIA_LOGO_PNG } from '@/lib/campeonato/pdf-logos'
 
 const GRAY = [100, 116, 139]
 const DARK = [17, 17, 17]
@@ -58,16 +59,28 @@ function roundMatchActivo(roundIdx, mi, entradas, numBlocks) {
   return topA || botA
 }
 
+function drawHeaderLogos(doc, pageW) {
+  // WT logo left, academia logo right. Aliases keep a single embed reused on every page.
+  try {
+    doc.addImage(WT_LOGO_PNG, 'PNG', 10, 2.5, 30, 13.7, 'wtLogo', 'FAST')
+  } catch (_) {}
+  try {
+    doc.addImage(ACADEMIA_LOGO_PNG, 'PNG', pageW - 10 - 15, 2, 15, 15, 'acLogo', 'FAST')
+  } catch (_) {}
+}
+
 function drawHeader(doc, campeonato, cat, pageW) {
+  drawHeaderLogos(doc, pageW)
+
   doc.setTextColor(...DARK)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text(trunc(doc, campeonato?.nombre || 'Campeonato', pageW - 24), pageW / 2, 9, { align: 'center' })
+  doc.text(trunc(doc, campeonato?.nombre || 'Campeonato', pageW - 90), pageW / 2, 9, { align: 'center' })
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   const subtitle = [cat.nombre, cat.cancha ? `Área ${cat.cancha}` : null, cat.inscritos ? `${cat.inscritos} competidores` : null].filter(Boolean).join(' · ')
-  doc.text(trunc(doc, subtitle, pageW - 24), pageW / 2, 15, { align: 'center' })
+  doc.text(trunc(doc, subtitle, pageW - 90), pageW / 2, 15, { align: 'center' })
 
   if (campeonato?.fecha_inicio) {
     const f = new Date(campeonato.fecha_inicio)
@@ -475,7 +488,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
 
   doc.setFontSize(6)
   doc.setTextColor(...GRAY)
-  doc.text(`ACCTKD · World Taekwondo · ${LAYOUT_VERSION}`, pageW / 2, pageH - 6, { align: 'center' })
+  doc.text(`ACCTKD · Taekwondo FestCup · World Taekwondo · ${LAYOUT_VERSION}`, pageW / 2, pageH - 6, { align: 'center' })
   return true
 }
 
@@ -486,7 +499,7 @@ export function buildBracketPdfBuffer(data, { idCategoria = null, cancha = null 
   cats = cats.filter(categoriaExportablePdf)
   if (!cats.length) throw new Error('No hay llaves generadas para exportar')
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
 
