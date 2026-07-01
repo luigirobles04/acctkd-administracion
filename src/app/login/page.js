@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { login, landingPorRol } from '@/lib/services/auth.service'
 
 export default function LoginPage() {
@@ -30,6 +31,22 @@ export default function LoginPage() {
       className="min-h-dvh flex items-center justify-center p-5"
       style={{ background: '#0A0A0B' }}
     >
+      {/* Volver al inicio */}
+      <Link
+        href="/"
+        style={{
+          position: 'fixed', top: 20, left: 20, zIndex: 10,
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '10px 16px', borderRadius: 999,
+          background: 'rgba(255,255,255,0.06)',
+          border: '0.5px solid rgba(255,255,255,0.12)',
+          color: 'rgba(235,235,245,0.85)', fontSize: 13, fontWeight: 600,
+          textDecoration: 'none', transition: 'background 0.2s, border-color 0.2s',
+        }}
+      >
+        ← Volver al inicio
+      </Link>
+
       {/* Fondo sutil */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div

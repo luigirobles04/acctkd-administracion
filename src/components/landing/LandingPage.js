@@ -72,6 +72,7 @@ const CFG_DEFAULTS = {
 
 export default function LandingPage() {
   const [cfg, setCfg] = useState(CFG_DEFAULTS)
+  const [camps, setCamps] = useState([])
   const [menuOpen, setMenuOpen] = useState(false)
   const [lightbox, setLightbox] = useState(null)
   const [statsVisible, setStatsVisible] = useState(false)
@@ -86,6 +87,10 @@ export default function LandingPage() {
       .then((r) => r.json())
       .then((j) => j.config && setCfg({ ...CFG_DEFAULTS, ...j.config }))
       .catch(() => {})
+    fetch('/api/public/campeonatos', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setCamps(j.campeonatos || []))
+      .catch(() => setCamps([]))
   }, [])
 
   useEffect(() => {
@@ -122,6 +127,9 @@ export default function LandingPage() {
     : '/landing/galeria/festcup-2026-poster.png'
 
   const poster2026 = FESTCUP_LEGADO.find((e) => e.highlight) || FESTCUP_LEGADO[0]
+  const campActivo = camps.find((c) => c.inscripciones_abiertas) || camps[0] || null
+  const campSlug = campActivo?.slug
+  const campNombre = campActivo?.nombre || 'FestCup'
 
   return (
     <div className="lp">
@@ -142,9 +150,12 @@ export default function LandingPage() {
           </span>
         </Link>
         <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
+          <a href="#ver-en-vivo" onClick={() => setMenuOpen(false)}>Ver en vivo</a>
           <a href="#legado" onClick={() => setMenuOpen(false)}>Legado</a>
-          <a href="#momentos" onClick={() => setMenuOpen(false)}>Momentos</a>
           <a href="#por-que" onClick={() => setMenuOpen(false)}>¿Por qué?</a>
+          <Link href="/login" className="lp-btn lp-btn-ghost" onClick={() => setMenuOpen(false)}>
+            Ingresar
+          </Link>
           <Link href="/registro-academia" className="lp-btn lp-btn-primary" onClick={() => setMenuOpen(false)}>
             Inscribir academia
           </Link>
@@ -210,6 +221,67 @@ export default function LandingPage() {
           <img src="/branding/wt-logo.png" alt="World Taekwondo" />
           <span className="lp-logos-text">Reglamentado por World Taekwondo · Organizado por ACCTKD</span>
           <img src="/branding/academia-logo.png" alt="ACCTKD" />
+        </div>
+      </section>
+
+      {/* ACCESO — academia inscrita + ver en vivo */}
+      <section className="lp-acceso-section" id="ver-en-vivo">
+        <div className="lp-container">
+          <div className="lp-acceso-grid">
+            <article className="lp-acceso-box reveal">
+              <div className="lp-acceso-head">
+                <span className="lp-acceso-icon">🥋</span>
+                <div>
+                  <p className="lp-kicker" style={{ margin: 0 }}>Academias</p>
+                  <h3>¿Ya inscribiste tu academia?</h3>
+                </div>
+              </div>
+              <p className="lp-acceso-desc">
+                Ingresa con el DNI del representante para gestionar plantel, fotos, pagos y credenciales de tus competidores.
+              </p>
+              <div className="lp-acceso-actions">
+                <Link href="/login" className="lp-btn lp-btn-primary lp-btn-shine">
+                  Ingresar al sistema →
+                </Link>
+                <Link href="/portal" className="lp-acceso-link">Portal de academias</Link>
+              </div>
+            </article>
+
+            <article className="lp-acceso-box lp-acceso-vivo reveal d1">
+              <div className="lp-acceso-head">
+                <span className="lp-acceso-icon">📺</span>
+                <div>
+                  <p className="lp-kicker" style={{ margin: 0 }}>Público</p>
+                  <h3>Ver el campeonato en vivo</h3>
+                </div>
+              </div>
+              <p className="lp-acceso-desc">
+                {campActivo
+                  ? `Sigue ${campNombre}: peleas por área, podios, llaves y resultados actualizados.`
+                  : 'Cuando el evento esté activo podrás seguir las peleas y resultados aquí.'}
+              </p>
+              {campSlug ? (
+                <div className="lp-acceso-chips">
+                  <Link href={`/campeonato/${campSlug}/canchas`} className="lp-acceso-chip live">
+                    <b>📺 TV en vivo</b>
+                    <span>Peleas por área</span>
+                  </Link>
+                  <Link href={`/campeonato/${campSlug}/podios`} className="lp-acceso-chip">
+                    <b>🏆 Resultados</b>
+                    <span>Podios y medallero</span>
+                  </Link>
+                  <Link href={`/campeonato/${campSlug}`} className="lp-acceso-chip">
+                    <b>📋 Evento</b>
+                    <span>Info · Bases · Llaves</span>
+                  </Link>
+                </div>
+              ) : (
+                <p className="lp-acceso-desc" style={{ marginTop: 12, opacity: 0.7 }}>
+                  Próximamente disponible cuando abra el campeonato.
+                </p>
+              )}
+            </article>
+          </div>
         </div>
       </section>
 
@@ -371,8 +443,9 @@ export default function LandingPage() {
           </div>
           <div className="lp-footer-links">
             <Link href="/registro-academia">Inscribir academia</Link>
+            <Link href="/login">Academia inscrita</Link>
+            <a href="#ver-en-vivo">Ver en vivo</a>
             <a href="#legado">Legado</a>
-            <a href="#momentos">Momentos</a>
             <Link href="/login">Organizadores</Link>
           </div>
           <small>
