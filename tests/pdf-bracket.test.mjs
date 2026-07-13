@@ -198,9 +198,9 @@ describe('export-bracket-pdf (smoke)', () => {
         },
       ],
     }
-    const bufArea1 = buildBracketPdfBuffer(data, { cancha: 1 })
+    const bufArea1 = await buildBracketPdfBuffer(data, null, { cancha: 1 })
     expect(bufArea1.byteLength).toBeGreaterThan(500)
-    const bufAll = buildBracketPdfBuffer(data)
+    const bufAll = await buildBracketPdfBuffer(data, null)
     expect(bufAll.byteLength).toBeGreaterThan(bufArea1.byteLength)
   })
 
@@ -218,7 +218,7 @@ describe('export-bracket-pdf (smoke)', () => {
     }))
     const data = { campeonato: { nombre: 'Taekwondo FestCup 2026', fecha_inicio: '2026-11-07' }, categorias }
 
-    const bufAll = buildBracketPdfBuffer(data)
+    const bufAll = await buildBracketPdfBuffer(data, null)
     // PDF completo y bien formado (cabecera + EOF presentes).
     const head = Buffer.from(bufAll.subarray(0, 5)).toString('latin1')
     const tail = Buffer.from(bufAll.subarray(bufAll.length - 1024)).toString('latin1')
@@ -228,7 +228,7 @@ describe('export-bracket-pdf (smoke)', () => {
     expect(bufAll.byteLength).toBeLessThan(4_000_000)
 
     // Export por cancha: aún más pequeño.
-    const bufArea = buildBracketPdfBuffer(data, { cancha: 1 })
+    const bufArea = await buildBracketPdfBuffer(data, null, { cancha: 1 })
     expect(bufArea.byteLength).toBeLessThan(bufAll.byteLength)
   })
 

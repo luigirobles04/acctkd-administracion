@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport } from '@/lib/campeonato/bracket-export'
-import { entradasPrimeraRonda, ROWS_PER_MATCH } from '@/lib/campeonato/bracket-cnu-layout'
+import { entradasPrimeraRonda, ROWS_PER_MATCH, outRowCenter } from '@/lib/campeonato/bracket-cnu-layout'
 import { WT_LOGO_PNG, ACADEMIA_LOGO_PNG } from '@/lib/campeonato/pdf-logos'
 import { BUCKET, extractStoragePath } from '@/lib/campeonato/foto-competidor'
 
@@ -12,7 +12,7 @@ const GOLD_LIGHT = [255, 251, 235]
 const CHUNG = [29, 78, 216]
 const HONG = [220, 38, 38]
 const BOX_FILL = [248, 249, 251]
-const LAYOUT_VERSION = 'v6'
+const LAYOUT_VERSION = 'v7'
 
 function trunc(doc, text, maxW) {
   let s = String(text || '')
@@ -36,28 +36,34 @@ function mergeBlockRange(roundIdx, mergeIdx) {
   return { first: mergeIdx * span, last: mergeIdx * span + span - 1 }
 }
 
-function mergeTieneJugadores(entradas, roundIdx, mergeIdx) {
-  const { first, last } = mergeBlockRange(roundIdx, mergeIdx)
-  for (let bi = first; bi <= last && bi < entradas.length; bi++) {
-    if (blockTieneJugador(entradas[bi])) return true
-  }
-  return false
+/** Y en mm desde fila del grid CNU (misma fórmula que layoutCnuBracket). */
+export function yFromOutRow(rowIdx, layout) {
+  return layout.treeTop + (rowIdx + 0.5) * layout.rowH
 }
 
-function feederActivo(roundIdx, feedMi, entradas, numBlocks) {
-  if (roundIdx === 1) {
-    return feedMi < numBlocks && blockTieneJugador(entradas[feedMi])
+/** Posiciones de conectores del bloque bi en la 1.ª columna del árbol. */
+export function blockFeederYs(bi, layout) {
+  const rTop = bi * ROWS_PER_MATCH
+  const rBot = rTop + 2
+  const rMid = outRowCenter(0, bi)
+  return {
+    yTop: yFromOutRow(rTop, layout),
+    yBot: yFromOutRow(rBot, layout),
+    yMid: yFromOutRow(rMid, layout),
   }
-  return mergeTieneJugadores(entradas, roundIdx - 2, feedMi)
 }
 
-function roundMatchActivo(roundIdx, mi, entradas, numBlocks) {
+/** Posiciones yTop/yBot/yMid para un cruce en roundIdx (columna cols[roundIdx]). */
+export function mergeFeederYs(roundIdx, mi, numBlocks, layout) {
+  const levelBlockCount = numBlocks / 2 ** (roundIdx - 1)
   const feedA = mi * 2
   const feedB = mi * 2 + 1
-  const levelPrev = numBlocks / 2 ** (roundIdx - 1)
-  const topA = feederActivo(roundIdx, feedA, entradas, numBlocks)
-  const botA = feedB < levelPrev && feederActivo(roundIdx, feedB, entradas, numBlocks)
-  return topA || botA
+  const yTop = yFromOutRow(outRowCenter(roundIdx - 1, feedA), layout)
+  const yBot = feedB < levelBlockCount
+    ? yFromOutRow(outRowCenter(roundIdx - 1, feedB), layout)
+    : yTop
+  const yMid = yFromOutRow(outRowCenter(roundIdx, mi), layout)
+  return { yTop, yBot, yMid }
 }
 
 function drawHeaderLogos(doc, pageW) {
@@ -208,13 +214,7 @@ export function yCenterBlock(bi, layout) {
 }
 
 export function yCenterMerge(roundIdx, mi, layout) {
-  const spanBlocks = 2 ** roundIdx
-  const first = mi * spanBlocks
-  const last = Math.min(first + spanBlocks - 1, layout.numBlocks - 1)
-  if (first > last) return yCenterBlock(first, layout)
-  const start = layout.blockStartRow[first]
-  const end = layout.blockStartRow[last] + rowsEnBloque(layout.entradas[last])
-  return yFromRow((start + end) / 2 - 0.5, layout)
+  return yFromOutRow(outRowCenter(roundIdx, mi), layout)
 }
 
 export function mergesEnRonda(numBlocks, roundIdx) {
@@ -292,15 +292,15 @@ function lineToNextWithBadgeGap(doc, xVert, y, xNext, badgeW) {
   return (xStart + xEnd) / 2
 }
 
-function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, { topA, botA }, badgeW = 0) {
-  if (!topA && !botA) return null
+/** Conector CNU: siempre dibuja T completa o passthrough (bye / feeder único). */
+export function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeW = 0) {
+  const sameLevel = Math.abs(yTop - yBot) < 0.5
 
-  const ySingle = topA ? yTop : yBot
-  const pareja = topA && botA && Math.abs(yTop - yBot) > 0.6
-
-  if (!pareja) {
-    const bx = lineToNextWithBadgeGap(doc, xPrev, ySingle, xNext, badgeW)
-    return { x: bx, y: ySingle }
+  if (sameLevel) {
+    line(doc, xPrev, yTop, xGap, yTop)
+    line(doc, xGap, yTop, xVert, yTop)
+    const bx = lineToNextWithBadgeGap(doc, xVert, yMid, xNext, badgeW)
+    return { x: bx, y: yMid }
   }
 
   line(doc, xPrev, yTop, xGap, yTop)
@@ -350,30 +350,15 @@ function drawWinnerBox(doc, x, yCenter, layout, nombre) {
 }
 
 function blockPlayerYs(bi, layout) {
-  const start = layout.blockStartRow[bi]
-  const span = rowsEnBloque(layout.entradas[bi])
-  const blockTop = layout.treeTop + start * layout.rowH
-  const blockH = span * layout.rowH
+  const { yTop, yBot, yMid } = blockFeederYs(bi, layout)
   const { boxH, pairGap } = layout
-  const pairH = boxH * 2 + pairGap
-  const yChung = blockTop + (blockH - pairH) / 2
-  const yMid = yCenterBlock(bi, layout)
   return {
-    yTop: yChung + boxH / 2,
-    yBot: yChung + boxH + pairGap + boxH / 2,
+    yTop,
+    yBot,
     yMid,
-    yChung,
-    pairH,
+    yChung: yTop - boxH / 2,
+    pairH: boxH * 2 + pairGap,
   }
-}
-
-/** Altura del conector según bloque real (bye = centro; pareja = yTop/yBot del jugador). */
-function feederJoinY(roundIdx, feedMi, layout, role) {
-  if (roundIdx !== 1) return yCenterMerge(roundIdx - 1, feedMi, layout)
-  const entry = layout.entradas[feedMi]
-  const { yTop, yBot, yMid } = blockPlayerYs(feedMi, layout)
-  if (entry?.es_bye) return yMid
-  return role === 'top' ? yTop : yBot
 }
 
 export function categoriaExportablePdf(cat) {
@@ -431,33 +416,34 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     if (b) badgeQueue.push(b)
   }
 
+  // 2 competidores: una sola columna (Final) — conectar roundX[0] → Winner
+  if (cols.length === 1 && numBlocks >= 1) {
+    const combate = cols[0]?.combates?.[0]
+    const { yMid } = blockFeederYs(0, layout)
+    const badgeSize = combate?.numero_combate
+      ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
+      : { w: 0 }
+    const bx = lineToNextWithBadgeGap(doc, roundX[0], yMid, winnerX, badgeSize.w)
+    if (combate?.numero_combate) {
+      badgeQueue.push({ x: bx, y: yMid, num: combate.numero_combate })
+    }
+  }
+
   for (let roundIdx = 1; roundIdx < cols.length; roundIdx++) {
     const col = cols[roundIdx]
-    const levelPrev = numBlocks / 2 ** (roundIdx - 1)
     const xPrev = roundX[roundIdx - 1]
     const xGap = roundX[roundIdx] - layout.roundColW * 0.32
     const xVert = roundX[roundIdx]
     const xNext = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.32 : winnerX
 
     col.combates.forEach((combate, mi) => {
-      if (!roundMatchActivo(roundIdx, mi, entradas, numBlocks)) return
-
-      const feedA = mi * 2
-      const feedB = mi * 2 + 1
-      const yTop = feederJoinY(roundIdx, feedA, layout, 'top')
-      const yBot = feedB < levelPrev
-        ? feederJoinY(roundIdx, feedB, layout, 'bot')
-        : yTop
-      const yMid = yCenterMerge(roundIdx, mi, layout)
-      const topA = feederActivo(roundIdx, feedA, entradas, numBlocks)
-      const botA = feedB < levelPrev && feederActivo(roundIdx, feedB, entradas, numBlocks)
-
+      const { yTop, yBot, yMid } = mergeFeederYs(roundIdx, mi, numBlocks, layout)
       const badgeSize = combate?.numero_combate
         ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
         : { w: 0 }
-      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, { topA, botA }, badgeSize.w)
+      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeSize.w)
 
-      if (combate?.numero_combate && pos && topA && botA) {
+      if (combate?.numero_combate && pos) {
         badgeQueue.push({ x: pos.x, y: pos.y, num: combate.numero_combate })
       }
     })
@@ -487,13 +473,9 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   })
 
   const finalIdx = cols.length - 1
-  if (roundMatchActivo(finalIdx, 0, entradas, numBlocks)) {
-    const finalMatch = cols[finalIdx]?.combates[0]
-    const yFinal = yCenterMerge(finalIdx, 0, layout)
-    const yWin = yFinal
-    line(doc, roundX[finalIdx], yFinal, winnerX, yWin)
-    drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
-  }
+  const finalMatch = cols[finalIdx]?.combates[0]
+  const yFinal = yFromOutRow(outRowCenter(finalIdx, 0), layout)
+  drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
 
   for (const b of badgeQueue) {
     drawFightBadge(doc, b.x, b.y, cat.cancha, b.num, fightFont)
