@@ -16,7 +16,7 @@ function fmtCombate(num, cancha) {
 
 function slotFromRaw(c, color = null) {
   if (!c?.nombres && !c?.id_linea) return { nombre: 'POR DEFINIR', academia: '', vacio: true, color }
-  return { nombre: (c.nombres || 'POR DEFINIR').toUpperCase(), academia: c.academia || '', vacio: false, color }
+  return { nombre: (c.nombres || 'POR DEFINIR').toUpperCase(), academia: c.academia || '', academia_logo: c.academia_logo || '', vacio: false, color }
 }
 
 /** Primera ronda completa: combates reales + byes (pasan directo a la siguiente ronda) */
@@ -44,7 +44,7 @@ export function entradasPrimeraRonda(porRonda) {
     out.push({
       es_bye: Boolean(m.es_bye),
       vacio: false,
-      numero_combate: m.es_bye ? '' : (m.orden_pista || m.orden_bracket || ''),
+      numero_combate: m.es_bye ? '' : (m.orden_llave || m.orden_pista || m.orden_bracket || ''),
       chung: slotFromRaw(m.competidor1, m.color1 || (m.es_bye ? colorByeEnBloque(mn) : 'azul')),
       hong: m.es_bye ? null : slotFromRaw(m.competidor2, m.color2 || 'rojo'),
     })

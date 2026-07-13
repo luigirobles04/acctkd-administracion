@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
 
     const sb = getSupabaseAdmin()
     const data = await buildExportLlaves(sb, idCampeonato)
-    const buffer = buildBracketPdfBuffer(data, {
+    const buffer = await buildBracketPdfBuffer(data, sb, {
       idCategoria: idCategoria || undefined,
       cancha: cancha || undefined,
     })

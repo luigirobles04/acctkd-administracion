@@ -479,6 +479,34 @@ export default function PortalCampeonatoPage() {
   const aprobada = ac.estado_aprobacion === 'aprobada'
   const rechazada = ac.estado_aprobacion === 'rechazada'
   const allCats = data.categorias || []
+  const faltaLogo = !data.academia?.logo_url
+
+  if (faltaLogo) {
+    return (
+      <PortalLayout titulo={camp.nombre} subtitulo="Inscripción en línea" academiaNombre={data.academia?.nombre}>
+        <div className="portal-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
+          <span className="material-symbols-rounded" style={{ fontSize: 48, color: 'var(--red)', marginBottom: 12 }}>shield</span>
+          <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>Sube el logo de tu academia</h2>
+          <p style={{ fontSize: 14, color: 'var(--label2)', margin: '0 0 20px', lineHeight: 1.5 }}>
+            Es obligatorio para continuar. Aparecerá en credenciales, llaves y exportaciones del campeonato.
+            <br />Solo PNG o JPG, máximo 2 MB.
+          </p>
+          <div style={{
+            width: 96, height: 96, borderRadius: 16, margin: '0 auto 16px', overflow: 'hidden',
+            background: 'var(--fill-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '2px dashed var(--separator)',
+          }}>
+            <span className="material-symbols-rounded" style={{ fontSize: 36, color: 'var(--label3)' }}>image</span>
+          </div>
+          {logoError && <p style={{ fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{logoError}</p>}
+          <label className="ios-btn ios-btn-primary" style={{ height: 44, padding: '0 20px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            {subiendoLogo ? 'Subiendo…' : 'Subir logo de academia'}
+            <input type="file" accept="image/png,image/jpeg,.jpg,.jpeg" onChange={subirLogoAcademia} disabled={subiendoLogo} style={{ display: 'none' }} />
+          </label>
+        </div>
+      </PortalLayout>
+    )
+  }
 
   return (
     <PortalLayout titulo={camp.nombre} subtitulo="Inscripción en línea" academiaNombre={data.academia?.nombre}>
@@ -519,7 +547,7 @@ export default function PortalCampeonatoPage() {
         </div>
         <label className="ios-btn" style={{ height: 34, padding: '0 12px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
           {subiendoLogo ? 'Subiendo...' : data.academia?.logo_url ? 'Cambiar' : 'Subir'}
-          <input type="file" accept="image/*" onChange={subirLogoAcademia} disabled={subiendoLogo} style={{ display: 'none' }} />
+          <input type="file" accept="image/png,image/jpeg,.jpg,.jpeg" onChange={subirLogoAcademia} disabled={subiendoLogo} style={{ display: 'none' }} />
         </label>
       </div>
 

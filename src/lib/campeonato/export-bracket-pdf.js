@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport } from '@/lib/campeonato/bracket-export'
 import { entradasPrimeraRonda, ROWS_PER_MATCH } from '@/lib/campeonato/bracket-cnu-layout'
 import { WT_LOGO_PNG, ACADEMIA_LOGO_PNG } from '@/lib/campeonato/pdf-logos'
+import { BUCKET, extractStoragePath } from '@/lib/campeonato/foto-competidor'
 
 const GRAY = [100, 116, 139]
 const DARK = [17, 17, 17]
@@ -129,11 +130,15 @@ function colorSideFrom(slot) {
   return null
 }
 
-function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
+function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null, logoCache = {} } = {}) {
   const vacio = slot?.vacio || !slot?.nombre || slot.nombre === 'POR DEFINIR'
   const label = (slot?.nombre || 'POR DEFINIR').toUpperCase()
   const side = colorSide || colorSideFrom(slot)
   const barW = Math.min(3.4, w * 0.065)
+  const logoPath = extractStoragePath(slot?.academia_logo)
+  const logo = logoPath ? logoCache[logoPath] : null
+  const logoW = logo ? Math.min(7.5, h * 0.82) : 0
+  const textMaxW = w - barW - 5 - (logoW ? logoW + 2.5 : 0)
 
   doc.setFillColor(...BOX_FILL)
   doc.setDrawColor(160, 165, 175)
@@ -148,6 +153,12 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
     doc.rect(x, y, barW, h, 'F')
   }
 
+  if (logo && logoW > 0) {
+    try {
+      doc.addImage(logo.dataUrl, logo.format, x + w - logoW - 1.5, y + (h - logoW) / 2, logoW, logoW, logo.alias, 'FAST')
+    } catch (_) {}
+  }
+
   const nameX = x + barW + 2.5
   doc.setFont('helvetica', 'bold')
   const hasAcademia = !vacio && slot?.academia && h >= 7.5
@@ -156,13 +167,13 @@ function drawCompetidorBox(doc, x, y, w, h, slot, { colorSide = null } = {}) {
   if (side === 'azul') doc.setTextColor(...CHUNG)
   else if (side === 'rojo') doc.setTextColor(...HONG)
   else doc.setTextColor(...DARK)
-  doc.text(trunc(doc, label, w - barW - 5), nameX, y + (hasAcademia ? h * 0.38 : h * 0.6))
+  doc.text(trunc(doc, label, textMaxW), nameX, y + (hasAcademia ? h * 0.38 : h * 0.6))
 
   if (hasAcademia) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(Math.max(4.2, h * 0.26))
     doc.setTextColor(...GRAY)
-    doc.text(trunc(doc, slot.academia, w - barW - 5), nameX, y + h - 1.6)
+    doc.text(trunc(doc, slot.academia, textMaxW), nameX, y + h - 1.6)
   }
 }
 
@@ -173,7 +184,7 @@ function line(doc, x1, y1, x2, y2) {
 }
 
 function rowsEnBloque(entry) {
-  return blockTieneJugador(entry) ? ROWS_PER_MATCH : 1
+  return ROWS_PER_MATCH
 }
 
 export function buildRowMap(entradas) {
@@ -393,12 +404,13 @@ function drawBlockArms(doc, bi, layout, entradas) {
   line(doc, xArmEnd, yBot, xVert, yBot)
 
   if (entry.numero_combate) {
-    return { x: xVert - layout.roundColW * 0.08, y: yMid, num: entry.numero_combate }
+    const badgeY = entry.es_bye ? yMid : (yTop + yBot) / 2
+    return { x: xVert - layout.roundColW * 0.08, y: badgeY, num: entry.numero_combate }
   }
   return null
 }
 
-export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, pageH = 210 } = {}) {
+export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, pageH = 210, logoCache = {} } = {}) {
   const entradas = entradasPrimeraRonda(cat.porRonda)
   const rondas = rondasOrdenadas(cat.porRonda)
   if (!rondas.length || !entradas.length || !entradas.some((e) => blockTieneJugador(e))) return false
@@ -460,16 +472,17 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       if (player && !player.vacio) {
         drawCompetidorBox(doc, nameX, yMid - boxH / 2, boxW, boxH, player, {
           colorSide: player.color === 'rojo' ? 'rojo' : 'azul',
+          logoCache,
         })
       }
       return
     }
 
     if (entry.chung && !entry.chung.vacio) {
-      drawCompetidorBox(doc, nameX, yChung, boxW, boxH, entry.chung, { colorSide: entry.chung.color || 'azul' })
+      drawCompetidorBox(doc, nameX, yChung, boxW, boxH, entry.chung, { colorSide: entry.chung.color || 'azul', logoCache })
     }
     if (entry.hong && !entry.hong.vacio) {
-      drawCompetidorBox(doc, nameX, yChung + boxH + pairGap, boxW, boxH, entry.hong, { colorSide: entry.hong.color || 'rojo' })
+      drawCompetidorBox(doc, nameX, yChung + boxH + pairGap, boxW, boxH, entry.hong, { colorSide: entry.hong.color || 'rojo', logoCache })
     }
   })
 
@@ -492,12 +505,49 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   return true
 }
 
-export function buildBracketPdfBuffer(data, { idCategoria = null, cancha = null } = {}) {
+function collectLogoPathsFromCategorias(categorias) {
+  const paths = new Set()
+  for (const cat of categorias || []) {
+    for (const lista of Object.values(cat.porRonda || {})) {
+      for (const m of lista || []) {
+        for (const c of [m.competidor1, m.competidor2]) {
+          const p = extractStoragePath(c?.academia_logo)
+          if (p) paths.add(p)
+        }
+      }
+    }
+  }
+  return [...paths]
+}
+
+export async function loadAcademiaLogosForPdf(sb, categorias) {
+  const paths = collectLogoPathsFromCategorias(categorias)
+  const cache = {}
+  let aliasIdx = 0
+  for (const path of paths) {
+    try {
+      const { data, error } = await sb.storage.from(BUCKET).download(path)
+      if (error || !data) continue
+      const buf = Buffer.from(await data.arrayBuffer())
+      const format = path.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG'
+      cache[path] = {
+        format,
+        dataUrl: `data:image/${format === 'PNG' ? 'png' : 'jpeg'};base64,${buf.toString('base64')}`,
+        alias: `acl${aliasIdx++}`,
+      }
+    } catch (_) {}
+  }
+  return cache
+}
+
+export async function buildBracketPdfBuffer(data, sb, { idCategoria = null, cancha = null } = {}) {
   let cats = categoriasOrdenadasExport(data.categorias || [])
   if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
   if (cancha != null) cats = cats.filter((c) => Number(c.cancha) === Number(cancha))
   cats = cats.filter(categoriaExportablePdf)
   if (!cats.length) throw new Error('No hay llaves generadas para exportar')
+
+  const logoCache = sb ? await loadAcademiaLogosForPdf(sb, cats) : {}
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
   const pageW = doc.internal.pageSize.getWidth()
@@ -506,7 +556,7 @@ export function buildBracketPdfBuffer(data, { idCategoria = null, cancha = null 
   let firstPage = true
   for (const cat of cats) {
     if (!firstPage) doc.addPage()
-    const drew = dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH })
+    const drew = dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH, logoCache })
     if (drew) {
       firstPage = false
     } else if (!firstPage) {
@@ -519,8 +569,8 @@ export function buildBracketPdfBuffer(data, { idCategoria = null, cancha = null 
   return Buffer.from(doc.output('arraybuffer'))
 }
 
-export function descargarLlavesBracketPdf(data) {
-  const buffer = buildBracketPdfBuffer(data)
+export async function descargarLlavesBracketPdf(data) {
+  const buffer = await buildBracketPdfBuffer(data, null)
   const camp = data.campeonato?.nombre || 'Campeonato'
   const slug = (camp || 'campeonato')
     .normalize('NFD')
@@ -539,8 +589,8 @@ export function descargarLlavesBracketPdf(data) {
   URL.revokeObjectURL(url)
 }
 
-export function descargarCategoriaBracketPdf(data, idCategoria) {
-  const buffer = buildBracketPdfBuffer(data, { idCategoria })
+export async function descargarCategoriaBracketPdf(data, idCategoria) {
+  const buffer = await buildBracketPdfBuffer(data, null, { idCategoria })
   const cat = (data.categorias || []).find((c) => c.id_categoria === idCategoria)
   const slug = (cat?.nombre || 'categoria')
     .normalize('NFD')

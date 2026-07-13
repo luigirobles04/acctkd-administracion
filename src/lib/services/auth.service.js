@@ -17,11 +17,10 @@ export async function login(identificador, password) {
   return json.user
 }
 
-export async function registerAcademia(payload) {
+export async function registerAcademia(formData) {
   const res = await fetch('/api/auth/registro-academia', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: formData,
   })
   const json = await res.json()
   if (!res.ok) throw new Error(json.error || 'Error en registro')

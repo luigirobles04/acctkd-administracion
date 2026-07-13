@@ -1,4 +1,5 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
+import { computeOrdenLlavePdf } from '@/lib/campeonato/orden-llave'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -95,10 +96,17 @@ export async function buildExportLlaves(sb, idCampeonato) {
       ordenBracketPorLlave[c.id_llave] = idx + 1
     })
 
+    const ordenLlavePorLlave = computeOrdenLlavePdf(rawCat)
+
     function enrichCombate(c) {
       const base = conOrdenLocal(c)
       const ob = ordenBracketPorLlave[c.id_llave]
-      return ob != null ? { ...base, orden_bracket: ob } : base
+      const ol = ordenLlavePorLlave[c.id_llave]
+      return {
+        ...base,
+        ...(ob != null ? { orden_bracket: ob } : {}),
+        ...(ol != null ? { orden_llave: ol } : {}),
+      }
     }
 
     const combates = rawCat.filter(combateExportable).map(enrichCombate)
@@ -127,7 +135,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
-        numero_combate: c.orden_pista || '',
+        numero_combate: c.orden_llave || c.orden_pista || '',
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',

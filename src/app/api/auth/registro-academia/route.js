@@ -6,6 +6,7 @@ import {
   registrarAcademiaRepresentante,
   obtenerCampeonatoPorSlug,
 } from '@/lib/campeonato/inscripcion-server'
+import { readAndValidateLogoFile, uploadAcademiaLogo } from '@/lib/campeonato/academia-logo'
 
 function formatError(e) {
   if (!e) return 'Error desconocido'
@@ -22,30 +23,34 @@ function formatError(e) {
 
 export async function POST(request) {
   try {
-    const body = await request.json()
-    const {
-      slug,
-      nombre_academia,
-      telefono,
-      ciudad,
-      representante_nombre,
-      representante_dni,
-      password,
-      password_confirm,
-    } = body
+    const formData = await request.formData()
+    const slug = formData.get('slug')
+    const nombre_academia = formData.get('nombre_academia')
+    const telefono = formData.get('telefono')
+    const ciudad = formData.get('ciudad')
+    const representante_nombre = formData.get('representante_nombre')
+    const representante_dni = formData.get('representante_dni')
+    const password = formData.get('password')
+    const password_confirm = formData.get('password_confirm')
+    const logoFile = formData.get('logo')
 
-    if (!slug || !nombre_academia?.trim() || !telefono?.trim() || !ciudad?.trim()) {
+    if (!slug || !String(nombre_academia || '').trim() || !String(telefono || '').trim() || !String(ciudad || '').trim()) {
       return NextResponse.json({ error: 'Completa todos los campos de la academia' }, { status: 400 })
     }
-    if (!representante_nombre?.trim() || !representante_dni?.trim()) {
+    if (!String(representante_nombre || '').trim() || !String(representante_dni || '').trim()) {
       return NextResponse.json({ error: 'DNI y nombre del representante requeridos' }, { status: 400 })
     }
-    if (!password || password.length < 8) {
+    if (!password || String(password).length < 8) {
       return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
     }
     if (password !== password_confirm) {
       return NextResponse.json({ error: 'Las contraseñas no coinciden' }, { status: 400 })
     }
+    if (!logoFile || typeof logoFile === 'string') {
+      return NextResponse.json({ error: 'El logo de la academia es obligatorio (PNG o JPG)' }, { status: 400 })
+    }
+
+    const logo = await readAndValidateLogoFile(logoFile)
 
     const sb = getSupabaseAdmin()
     const campeonato = await obtenerCampeonatoPorSlug(sb, slug)
@@ -54,17 +59,26 @@ export async function POST(request) {
     const { data: rol } = await sb.from('rol').select('id_rol').eq('nombre', 'representante').single()
     if (!rol) return NextResponse.json({ error: 'Rol representante no configurado' }, { status: 500 })
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(String(password), 10)
     const result = await registrarAcademiaRepresentante(sb, {
       idCampeonato: campeonato.id_campeonato,
-      nombreAcademia: nombre_academia,
-      telefono,
-      ciudad,
-      representanteNombre: representante_nombre,
-      representanteDni: representante_dni,
+      nombreAcademia: String(nombre_academia),
+      telefono: String(telefono),
+      ciudad: String(ciudad),
+      representanteNombre: String(representante_nombre),
+      representanteDni: String(representante_dni),
       passwordHash,
       idRolRepresentante: rol.id_rol,
     })
+
+    try {
+      await uploadAcademiaLogo(sb, result.academia.id_academia, logo)
+    } catch (logoErr) {
+      await sb.from('academia_campeonato').delete().eq('id', result.academiaCampeonato.id)
+      await sb.from('usuario').delete().eq('id_usuario', result.usuario.id_usuario)
+      await sb.from('academia').delete().eq('id_academia', result.academia.id_academia)
+      throw logoErr
+    }
 
     const userData = {
       id_usuario: result.usuario.id_usuario,
@@ -82,7 +96,7 @@ export async function POST(request) {
       ok: true,
       user: userData,
       sessionToken,
-      academia: result.academia,
+      academia: { ...result.academia, logo_url: true },
       campeonato: { slug: campeonato.slug, nombre: campeonato.nombre },
       mensaje: 'Registro exitoso. Puedes armar tu lista mientras ACCTKD aprueba tu academia.',
     })

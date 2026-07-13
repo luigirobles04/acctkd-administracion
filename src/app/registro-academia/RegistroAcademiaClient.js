@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { registerAcademia, isRepresentante } from '@/lib/services/auth.service'
 
+const LOGO_MAX = 2 * 1024 * 1024
+
 export default function RegistroAcademiaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preSlug = searchParams.get('slug') || ''
+  const logoInputRef = useRef(null)
 
   const [campeonatos, setCampeonatos] = useState([])
   const [form, setForm] = useState({
@@ -22,6 +25,8 @@ export default function RegistroAcademiaPage() {
     password: '',
     password_confirm: '',
   })
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,12 +42,49 @@ export default function RegistroAcademiaPage() {
       .catch(() => {})
   }, [preSlug])
 
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+    }
+  }, [logoPreview])
+
+  function onLogoChange(e) {
+    setError('')
+    const file = e.target.files?.[0]
+    if (!file) {
+      setLogoFile(null)
+      setLogoPreview('')
+      return
+    }
+    const ext = (file.name.split('.').pop() || '').toLowerCase()
+    if (!['png', 'jpg', 'jpeg'].includes(ext)) {
+      setError('Solo se permiten imágenes PNG o JPG')
+      e.target.value = ''
+      return
+    }
+    if (file.size > LOGO_MAX) {
+      setError('El logo no puede superar 2 MB')
+      e.target.value = ''
+      return
+    }
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (!logoFile) {
+      setError('El logo de la academia es obligatorio (PNG o JPG)')
+      logoInputRef.current?.focus()
+      return
+    }
     setLoading(true)
     try {
-      const result = await registerAcademia(form)
+      const fd = new FormData()
+      Object.entries(form).forEach(([k, v]) => fd.append(k, v))
+      fd.append('logo', logoFile)
+      const result = await registerAcademia(fd)
       if (isRepresentante(result.user)) {
         router.push(`/portal/${result.campeonato.slug}`)
       } else {
@@ -61,7 +103,7 @@ export default function RegistroAcademiaPage() {
     <div className="portal-shell">
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
-          <Link href="/login" className="portal-topbar-brand">
+          <Link href="/" className="portal-topbar-brand">
             <Image src="/logo-dark.png" alt="ACCTKD" width={28} height={28} className="portal-topbar-logo" />
             <span>ACCTKD</span>
           </Link>
@@ -70,7 +112,7 @@ export default function RegistroAcademiaPage() {
 
       <div className="portal-page-head">
         <div className="portal-page-head-inner">
-          <Link href="/login" className="portal-hero-back">← Volver al login</Link>
+          <Link href="/" className="portal-hero-back">← Volver al inicio</Link>
           <h1 className="portal-page-title">Registro de academia</h1>
           <p className="portal-page-sub">
             Crea tu cuenta y arma tu lista. ACCTKD aprueba antes de enviar.
@@ -103,6 +145,37 @@ export default function RegistroAcademiaPage() {
               <input className="ios-input" value={form.ciudad} onChange={(e) => set('ciudad', e.target.value)} required placeholder="Trujillo" />
             </div>
           </div>
+
+          <div>
+            <label className="ios-label">Logo de la academia *</label>
+            <p style={{ fontSize: 12, color: 'var(--label3)', margin: '0 0 8px' }}>Obligatorio · PNG o JPG · máx. 2 MB</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: 14, flexShrink: 0, overflow: 'hidden',
+                background: 'var(--fill-secondary, #f0f0f2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1px dashed var(--separator)',
+              }}>
+                {logoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreview} alt="Vista previa logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <span className="material-symbols-rounded" style={{ fontSize: 28, color: 'var(--label3)' }}>image</span>
+                )}
+              </div>
+              <label className="ios-btn" style={{ height: 40, padding: '0 14px', cursor: 'pointer' }}>
+                {logoFile ? 'Cambiar logo' : 'Subir logo'}
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,.jpg,.jpeg"
+                  onChange={onLogoChange}
+                  required
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          </div>
+
           <hr style={{ border: 'none', borderTop: '1px solid var(--separator)', margin: '4px 0' }} />
           <div>
             <label className="ios-label">DNI del representante (será tu usuario)</label>

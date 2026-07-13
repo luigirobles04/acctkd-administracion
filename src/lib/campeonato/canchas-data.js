@@ -60,14 +60,14 @@ export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltado
       .from('linea_inscripcion')
       .select(`
         id_linea, dorsal_display,
-        academia_campeonato(academia(nombre)),
+        academia_campeonato(academia(nombre, logo_url)),
         miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, foto_url))
       `)
       .in('id_linea', [...lineaIds])
     lineaMap = Object.fromEntries(
       (lineas || []).map((l) => [
         l.id_linea,
-        { ...l, academia_nombre: l.academia_campeonato?.academia?.nombre || '' },
+        { ...l, academia_nombre: l.academia_campeonato?.academia?.nombre || '', academia_logo_url: l.academia_campeonato?.academia?.logo_url || '' },
       ])
     )
   }

@@ -190,7 +190,7 @@ function coloresCombate(id_linea1, id_linea2) {
   return { color1, color2 }
 }
 
-function parseCompetidor(l, academiaNombre) {
+function parseCompetidor(l, academiaNombre, academiaLogoUrl = null) {
   if (!l) return null
   const p = l.miembros?.[0]?.perfil
   return {
@@ -198,6 +198,7 @@ function parseCompetidor(l, academiaNombre) {
     dorsal: l.dorsal_display || '',
     nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : '',
     academia: academiaNombre || l.academia_nombre || '',
+    academia_logo: academiaLogoUrl || l.academia_logo_url || '',
     foto: fotoCompetidorProxyUrl(p?.foto_url),
   }
 }
@@ -221,32 +222,7 @@ async function batchUpdateCanchas(sb, rows) {
   }
 }
 
-/** Combates de una categoría ordenados: primero ronda más alta, luego match_numero */
-function combatesOrdenados(lista) {
-  return (lista || [])
-    .filter((c) => c.estado !== 'vacío')
-    .sort((a, b) => {
-      if (b.ronda !== a.ronda) return b.ronda - a.ronda
-      return a.match_numero - b.match_numero
-    })
-}
-
-/** Intercala combates de categorías pareadas (ej. -67 kg y +67 kg) para dar descanso */
-function intercalarParejas(categorias, porCat) {
-  const resultado = []
-  for (let i = 0; i < categorias.length; i += 2) {
-    const a = categorias[i]
-    const b = categorias[i + 1]
-    const ca = combatesOrdenados(porCat[a.id_categoria])
-    const cb = b ? combatesOrdenados(porCat[b.id_categoria]) : []
-    const max = Math.max(ca.length, cb.length)
-    for (let j = 0; j < max; j++) {
-      if (ca[j]) resultado.push({ combate: ca[j], categoria: a })
-      if (cb[j]) resultado.push({ combate: cb[j], categoria: b })
-    }
-  }
-  return resultado
-}
+import { buildScheduleHibrido } from '@/lib/campeonato/schedule-canchas'
 
 /** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
@@ -283,13 +259,13 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
-    const secuencia = intercalarParejas(catsEnCancha, porCat)
+    const secuencia = buildScheduleHibrido(catsEnCancha, porCat)
     const conteoCat = {}
-    let ordenCancha = 1  // numeración secuencial dentro de cada cancha
+    let ordenCancha = 1
 
-    for (const { combate, categoria } of secuencia) {
+    for (const combate of secuencia) {
       updates.push({ id_llave: combate.id_llave, cancha: n + 1, orden_pista: ordenCancha })
-      conteoCat[categoria.id_categoria] = (conteoCat[categoria.id_categoria] || 0) + 1
+      conteoCat[combate.id_categoria] = (conteoCat[combate.id_categoria] || 0) + 1
       ordenCancha++
     }
 

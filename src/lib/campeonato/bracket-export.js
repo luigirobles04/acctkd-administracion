@@ -54,6 +54,7 @@ function slotFromCompetidor(c, color = null) {
   return {
     nombre: (c.nombres || 'POR DEFINIR').toUpperCase(),
     academia: c.academia || '',
+    academia_logo: c.academia_logo || '',
     dorsal: c.dorsal || '',
     vacio: false,
     color,
@@ -110,7 +111,7 @@ export function columnasBracket(porRonda, { inscritos = null, numBlocks = null }
       .sort((a, b) => a.match_numero - b.match_numero)
       .map((m) => ({
         match_numero: m.match_numero,
-        numero_combate: m.orden_pista || m.orden_bracket || '',
+        numero_combate: m.orden_llave || m.orden_bracket || m.orden_pista || '',
         es_bye: m.es_bye,
         chung: slotFromCompetidor(m.competidor1, m.color1 || 'azul'),
         hong: slotFromCompetidor(m.competidor2, m.color2 || 'rojo'),

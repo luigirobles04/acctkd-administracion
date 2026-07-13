@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolverPortalCampeonato } from '@/lib/campeonato/portal-server'
-import { readUploadFile } from '@/lib/campeonato/upload-file'
-import { BUCKET } from '@/lib/campeonato/foto-competidor'
+import { readAndValidateLogoFile, uploadAcademiaLogo } from '@/lib/campeonato/academia-logo'
 
 export async function POST(request, { params }) {
   try {
@@ -23,17 +22,8 @@ export async function POST(request, { params }) {
     const file = formData.get('file')
     if (!file) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
 
-    const { buffer, contentType, filename } = await readUploadFile(file)
-    const ext = filename.split('.').pop()?.toLowerCase() || 'png'
-    const path = `academia-logos/${ac.id_academia}/logo_${Date.now()}.${ext}`
-
-    const { error: errUp } = await sb.storage
-      .from(BUCKET)
-      .upload(path, buffer, { contentType: contentType || 'image/png', upsert: true })
-    if (errUp) throw errUp
-
-    const { error: errDb } = await sb.from('academia').update({ logo_url: path }).eq('id_academia', ac.id_academia)
-    if (errDb) throw errDb
+    const parsed = await readAndValidateLogoFile(file)
+    const path = await uploadAcademiaLogo(sb, ac.id_academia, parsed)
 
     return NextResponse.json({ ok: true, logo_url: path })
   } catch (e) {

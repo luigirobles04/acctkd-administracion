@@ -104,19 +104,20 @@ describe('columnasBracket', () => {
     expect(cols[0].combates[1].match_numero).toBe(2)
   })
 
-  it('prefiere orden_pista (secuencial por área) sobre orden_bracket local', () => {
+  it('prefiere orden_llave (secuencial por categoría) sobre orden_pista global', () => {
     const porRonda = {
       1: [{
         ronda: 1,
         match_numero: 1,
         estado: 'pendiente',
         orden_pista: 99,
-        orden_bracket: 3,
+        orden_llave: 6,
+        orden_bracket: 5,
         competidor1: { nombres: 'A', id_linea: 1 },
         competidor2: { nombres: 'B', id_linea: 2 },
       }],
     }
-    expect(columnasBracket(porRonda)[0].combates[0].numero_combate).toBe(99)
+    expect(columnasBracket(porRonda)[0].combates[0].numero_combate).toBe(6)
   })
 
   it('asigna color azul a chung y rojo a hong por defecto', () => {
