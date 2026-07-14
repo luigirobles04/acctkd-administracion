@@ -12,7 +12,7 @@ const GOLD_LIGHT = [255, 251, 235]
 const CHUNG = [29, 78, 216]
 const HONG = [220, 38, 38]
 const BOX_FILL = [248, 249, 251]
-const LAYOUT_VERSION = 'v8'
+const LAYOUT_VERSION = 'v9'
 
 function trunc(doc, text, maxW) {
   let s = String(text || '')
@@ -31,9 +31,29 @@ function blockTieneJugador(entry) {
   )
 }
 
-function mergeBlockRange(roundIdx, mergeIdx) {
-  const span = 2 ** (roundIdx + 1)
-  return { first: mergeIdx * span, last: mergeIdx * span + span - 1 }
+export function treeDepth(numBlocks) {
+  if (numBlocks <= 1) return 0
+  return Math.ceil(Math.log2(numBlocks))
+}
+
+/** ¿El subárbol del feeder tiene algún jugador activo? */
+export function mergeFeederActive(level, feedIdx, numBlocks, entradas) {
+  if (level < 1 || feedIdx < 0) return false
+  const blocksPerFeeder = 2 ** (level - 1)
+  const blockStart = feedIdx * blocksPerFeeder
+  const blockEnd = Math.min(blockStart + blocksPerFeeder - 1, numBlocks - 1)
+  for (let bi = blockStart; bi <= blockEnd; bi++) {
+    if (blockTieneJugador(entradas[bi])) return true
+  }
+  return false
+}
+
+function combateForTreeLevel(cols, level, mi) {
+  const colIdx = level - 1
+  if (colIdx >= 0 && colIdx < cols.length) {
+    return cols[colIdx]?.combates?.[mi] ?? null
+  }
+  return cols[cols.length - 1]?.combates?.[0] ?? null
 }
 
 /** Y en mm desde fila del grid CNU (misma fórmula que layoutCnuBracket). */
@@ -226,7 +246,8 @@ export function calcLayout(cols, numBlocks, entradas, pageW, pageH) {
   const marginB = 11
   const availH = pageH - marginT - marginB
   const { blockStartRow, totalRows } = buildRowMap(entradas)
-  const numRounds = cols.length
+  const depth = treeDepth(numBlocks)
+  const numRounds = Math.max(cols.length, depth > 0 ? depth : 1)
 
   let rowH = availH / totalRows
   while (rowH * totalRows > availH && rowH > 2.5) rowH *= 0.92
@@ -320,10 +341,41 @@ export function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMi
   return { x: bx, y: yMid }
 }
 
-function feederActiveRound1(roundIdx, feedIdx, entradas) {
-  if (roundIdx !== 1) return true
-  if (feedIdx < 0 || feedIdx >= entradas.length) return false
-  return blockTieneJugador(entradas[feedIdx])
+function drawTreeConnectors(doc, layout, cols, numBlocks, entradas, cat, badgeByNum) {
+  const { roundX, winnerX, roundColW, fightFont } = layout
+  const depth = treeDepth(numBlocks)
+  if (depth === 0) return
+
+  for (let level = 1; level <= depth; level++) {
+    const merges = Math.max(1, numBlocks / 2 ** level)
+    const prevIdx = Math.min(level - 1, roundX.length - 1)
+    const vertIdx = Math.min(level, roundX.length - 1)
+    const xPrev = roundX[prevIdx]
+    const xVert = roundX[vertIdx]
+    const xGap = xVert - roundColW * 0.32
+    const xNext = level >= depth
+      ? winnerX
+      : roundX[Math.min(level + 1, roundX.length - 1)] - roundColW * 0.32
+
+    for (let mi = 0; mi < merges; mi++) {
+      const feedA = mi * 2
+      const feedB = mi * 2 + 1
+      const { yTop, yBot, yMid } = mergeFeederYs(level, mi, numBlocks, layout)
+      const activeTop = mergeFeederActive(level, feedA, numBlocks, entradas)
+      const activeBot = mergeFeederActive(level, feedB, numBlocks, entradas)
+      const combate = combateForTreeLevel(cols, level, mi)
+      const badgeSize = combate?.numero_combate
+        ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
+        : { w: 0 }
+      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeSize.w, {
+        activeTop,
+        activeBot,
+      })
+      if (combate?.numero_combate && pos) {
+        queueBadge(badgeByNum, { x: pos.x, y: pos.y, num: combate.numero_combate })
+      }
+    }
+  }
 }
 
 function queueBadge(badgeByNum, { num, x, y }) {
@@ -337,8 +389,9 @@ function drawColumnHeaders(doc, cols, layout, y) {
   doc.setFontSize(7)
   doc.setTextColor(...GRAY)
   doc.text('Name / Team', nameX, y)
-  cols.forEach((col, i) => {
-    doc.text(col.label, roundX[i], y, { align: 'center' })
+  roundX.forEach((x, i) => {
+    const label = cols[i]?.label ?? (i > 0 && cols.length === 1 ? 'Final' : cols[cols.length - 1]?.label ?? '')
+    if (label) doc.text(label, x, y, { align: 'center' })
   })
   doc.text('Winner', winnerX + layout.winW / 2, y, { align: 'center' })
 }
@@ -435,9 +488,11 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     if (b) queueBadge(badgeByNum, b)
   }
 
-  // 2 competidores: una sola columna (Final) — conectar roundX[0] → Winner
-  if (cols.length === 1 && numBlocks >= 1) {
-    const combate = cols[0]?.combates?.[0]
+  drawTreeConnectors(doc, layout, cols, numBlocks, entradas, cat, badgeByNum)
+
+  // 2 competidores directo a final (1 bloque, 1 combate)
+  if (numBlocks === 1 && cols.length >= 1 && treeDepth(numBlocks) === 0) {
+    const combate = cols[cols.length - 1]?.combates?.[0]
     const { yMid } = blockFeederYs(0, layout)
     const badgeSize = combate?.numero_combate
       ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
@@ -446,33 +501,6 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     if (combate?.numero_combate) {
       queueBadge(badgeByNum, { x: bx, y: yMid, num: combate.numero_combate })
     }
-  }
-
-  for (let roundIdx = 1; roundIdx < cols.length; roundIdx++) {
-    const col = cols[roundIdx]
-    const xPrev = roundX[roundIdx - 1]
-    const xGap = roundX[roundIdx] - layout.roundColW * 0.32
-    const xVert = roundX[roundIdx]
-    const xNext = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.32 : winnerX
-
-    col.combates.forEach((combate, mi) => {
-      const feedA = mi * 2
-      const feedB = mi * 2 + 1
-      const { yTop, yBot, yMid } = mergeFeederYs(roundIdx, mi, numBlocks, layout)
-      const activeTop = feederActiveRound1(roundIdx, feedA, entradas)
-      const activeBot = feederActiveRound1(roundIdx, feedB, entradas)
-      const badgeSize = combate?.numero_combate
-        ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
-        : { w: 0 }
-      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeSize.w, {
-        activeTop,
-        activeBot,
-      })
-
-      if (combate?.numero_combate && pos) {
-        queueBadge(badgeByNum, { x: pos.x, y: pos.y, num: combate.numero_combate })
-      }
-    })
   }
 
   entradas.forEach((entry, bi) => {
@@ -498,9 +526,9 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     }
   })
 
-  const finalIdx = cols.length - 1
-  const finalMatch = cols[finalIdx]?.combates[0]
-  const yFinal = yFromOutRow(outRowCenter(finalIdx, 0), layout)
+  const finalIdx = Math.max(cols.length - 1, treeDepth(numBlocks))
+  const finalMatch = cols[cols.length - 1]?.combates?.[0]
+  const yFinal = yFromOutRow(outRowCenter(Math.min(finalIdx, treeDepth(numBlocks) || 0), 0), layout)
   drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
 
   for (const b of badgeByNum.values()) {

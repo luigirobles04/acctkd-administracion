@@ -6,7 +6,8 @@ import {
   calcLayout,
   drawCnuConnector,
   mergeFeederYs,
-  blockFeederYs,
+  mergeFeederActive,
+  treeDepth,
   dibujarBracketCategoriaPdf,
 } from '@/lib/campeonato/export-bracket-pdf'
 
@@ -125,6 +126,25 @@ describe('drawCnuConnector', () => {
     const pos = drawCnuConnector(doc, 50, 60, 70, 90, 20, 40, 30, 0, { activeTop: false, activeBot: false })
     expect(pos).toBeNull()
     expect(state.lineCount - before).toBe(0)
+  })
+})
+
+describe('mergeFeederActive', () => {
+  it('detecta subárbol vacío en llave parcial', () => {
+    const entradas = [
+      { vacio: true, chung: { vacio: true }, hong: { vacio: true } },
+      { vacio: false, es_bye: false, chung: { vacio: false }, hong: { vacio: false } },
+    ]
+    expect(mergeFeederActive(1, 0, 2, entradas)).toBe(false)
+    expect(mergeFeederActive(1, 1, 2, entradas)).toBe(true)
+  })
+})
+
+describe('treeDepth layout', () => {
+  it('4 bloques → 2 columnas de conectores', () => {
+    expect(treeDepth(4)).toBe(2)
+    expect(treeDepth(2)).toBe(1)
+    expect(treeDepth(1)).toBe(0)
   })
 })
 

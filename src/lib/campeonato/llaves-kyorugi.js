@@ -222,7 +222,7 @@ async function batchUpdateCanchas(sb, rows) {
   }
 }
 
-import { buildScheduleHibrido } from '@/lib/campeonato/schedule-canchas'
+import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
 
 /** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
@@ -259,7 +259,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
-    const secuencia = buildScheduleHibrido(catsEnCancha, porCat)
+    const secuencia = buildSchedulePorCategoria(catsEnCancha, porCat)
     const conteoCat = {}
     let ordenCancha = 1
 

@@ -1,5 +1,5 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
-import { computeOrdenLlavePdf } from '@/lib/campeonato/orden-llave'
+import { combatesPeleables } from '@/lib/campeonato/schedule-canchas'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -20,6 +20,33 @@ function combateExportable(c) {
 
 function combateBracketExport(c) {
   return c && !['vacío', 'bye'].includes(c.estado)
+}
+
+function compararCategoria(a, b) {
+  const oa = a.orden ?? 9999
+  const ob = b.orden ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
+}
+
+/**
+ * Numeración continua por área en bloques de categoría:
+ * Cat A: 1..N, Cat B: N+1.., sin huecos (final incluida al final de cada bloque).
+ */
+function buildOrdenBloquesPorCancha(categorias, porCat, canchaPorCat) {
+  const map = {}
+  for (const cancha of [1, 2, 3]) {
+    const catsEnCancha = categorias
+      .filter((c) => Number(canchaPorCat[c.id_categoria]) === cancha)
+      .sort(compararCategoria)
+    let orden = 1
+    for (const cat of catsEnCancha) {
+      for (const c of combatesPeleables(porCat[cat.id_categoria])) {
+        map[c.id_llave] = orden++
+      }
+    }
+  }
+  return map
 }
 
 /** Agrupa combates por categoría con metadata para export */
@@ -67,46 +94,18 @@ export async function buildExportLlaves(sb, idCampeonato) {
     }
   }
 
-  // Número de combate local por área: 1, 2, 3… (no global 200+)
-  const ordenLocalPorLlave = {}
-  for (const cancha of [1, 2, 3]) {
-    const lista = (porCancha[cancha] || [])
-      .filter(combateBracketExport)
-      .sort((a, b) => (a.orden_pista || 9999) - (b.orden_pista || 9999))
-    lista.forEach((c, idx) => {
-      ordenLocalPorLlave[c.id_llave] = idx + 1
-    })
-  }
+  const ordenBloquesPorLlave = buildOrdenBloquesPorCancha(categorias || [], porCat, canchaPorCat)
 
-  function conOrdenLocal(c) {
-    const local = ordenLocalPorLlave[c.id_llave]
-    return local != null ? { ...c, orden_pista: local } : c
+  function conOrdenBloque(c) {
+    const n = ordenBloquesPorLlave[c.id_llave]
+    return n != null ? { ...c, orden_pista: n } : c
   }
 
   const categoriasExport = (categorias || []).map((cat) => {
     const rawCat = porCat[cat.id_categoria] || []
-    const combatesBracketOrden = rawCat
-      .filter(combateBracketExport)
-      .sort((a, b) => {
-        if (b.ronda !== a.ronda) return b.ronda - a.ronda
-        return a.match_numero - b.match_numero
-      })
-    const ordenBracketPorLlave = {}
-    combatesBracketOrden.forEach((c, idx) => {
-      ordenBracketPorLlave[c.id_llave] = idx + 1
-    })
-
-    const ordenLlavePorLlave = computeOrdenLlavePdf(rawCat)
 
     function enrichCombate(c) {
-      const base = conOrdenLocal(c)
-      const ob = ordenBracketPorLlave[c.id_llave]
-      const ol = ordenLlavePorLlave[c.id_llave]
-      return {
-        ...base,
-        ...(ob != null ? { orden_bracket: ob } : {}),
-        ...(ol != null ? { orden_llave: ol } : {}),
-      }
+      return conOrdenBloque(c)
     }
 
     const combates = rawCat.filter(combateExportable).map(enrichCombate)
@@ -135,7 +134,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
-        numero_combate: c.orden_pista || c.orden_llave || '',
+        numero_combate: c.orden_pista || '',
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',

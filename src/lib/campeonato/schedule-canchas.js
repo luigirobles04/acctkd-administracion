@@ -8,6 +8,13 @@ export function combatesOrdenados(lista) {
     })
 }
 
+/** Combates reales (sin bye/saltado) para numeración y pista. */
+export function combatesPeleables(lista) {
+  return combatesOrdenados(lista).filter(
+    (c) => !c.es_bye && c.estado !== 'saltado' && c.estado !== 'bye'
+  )
+}
+
 export function esFinal(combate) {
   return combate?.ronda === 1
 }
@@ -71,5 +78,19 @@ export function buildScheduleHibrido(categorias, porCat) {
     }
   }
 
+  return schedule
+}
+
+/**
+ * Programación por bloques de categoría:
+ * termina todos los combates de una categoría antes de pasar a la siguiente.
+ * Numeración seguida 1, 2, 3… (pre-finales y final sin hueco).
+ */
+export function buildSchedulePorCategoria(categorias, porCat) {
+  const schedule = []
+  for (const cat of categorias) {
+    const combates = combatesPeleables(porCat[cat.id_categoria])
+    schedule.push(...combates)
+  }
   return schedule
 }
