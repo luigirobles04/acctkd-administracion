@@ -12,7 +12,7 @@ const GOLD_LIGHT = [255, 251, 235]
 const CHUNG = [29, 78, 216]
 const HONG = [220, 38, 38]
 const BOX_FILL = [248, 249, 251]
-const LAYOUT_VERSION = 'v7'
+const LAYOUT_VERSION = 'v8'
 
 function trunc(doc, text, maxW) {
   let s = String(text || '')
@@ -292,13 +292,21 @@ function lineToNextWithBadgeGap(doc, xVert, y, xNext, badgeW) {
   return (xStart + xEnd) / 2
 }
 
-/** Conector CNU: siempre dibuja T completa o passthrough (bye / feeder único). */
-export function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeW = 0) {
-  const sameLevel = Math.abs(yTop - yBot) < 0.5
+/** Conector CNU: T completa, passthrough (bye) o feeder único (slot vacío en 1.ª ronda). */
+export function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeW = 0, opts = {}) {
+  const { activeTop = true, activeBot = true } = opts
+  if (!activeTop && !activeBot) return null
 
-  if (sameLevel) {
-    line(doc, xPrev, yTop, xGap, yTop)
-    line(doc, xGap, yTop, xVert, yTop)
+  const sameLevel = Math.abs(yTop - yBot) < 0.5
+  const singleFeeder = !activeTop || !activeBot || sameLevel
+
+  if (singleFeeder) {
+    const y = activeTop && activeBot ? yMid : activeTop ? yTop : yBot
+    line(doc, xPrev, y, xGap, y)
+    line(doc, xGap, y, xVert, y)
+    if (Math.abs(y - yMid) > 0.5) {
+      line(doc, xVert, y, xVert, yMid)
+    }
     const bx = lineToNextWithBadgeGap(doc, xVert, yMid, xNext, badgeW)
     return { x: bx, y: yMid }
   }
@@ -310,6 +318,17 @@ export function drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMi
   line(doc, xGap, yBot, xVert, yBot)
   const bx = lineToNextWithBadgeGap(doc, xVert, yMid, xNext, badgeW)
   return { x: bx, y: yMid }
+}
+
+function feederActiveRound1(roundIdx, feedIdx, entradas) {
+  if (roundIdx !== 1) return true
+  if (feedIdx < 0 || feedIdx >= entradas.length) return false
+  return blockTieneJugador(entradas[feedIdx])
+}
+
+function queueBadge(badgeByNum, { num, x, y }) {
+  if (!num) return
+  if (!badgeByNum.has(num)) badgeByNum.set(num, { x, y, num })
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
@@ -407,13 +426,13 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   drawHeader(doc, campeonato, cat, pageW)
   const layout = calcLayout(cols, numBlocks, entradas, pageW, pageH)
   const { nameX, boxW, boxH, pairGap, roundX, winnerX, fightFont } = layout
-  const badgeQueue = []
+  const badgeByNum = new Map()
 
   drawColumnHeaders(doc, cols, layout, layout.marginT - 3)
 
   for (let bi = 0; bi < numBlocks; bi++) {
     const b = drawBlockArms(doc, bi, layout, entradas)
-    if (b) badgeQueue.push(b)
+    if (b) queueBadge(badgeByNum, b)
   }
 
   // 2 competidores: una sola columna (Final) — conectar roundX[0] → Winner
@@ -425,7 +444,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
       : { w: 0 }
     const bx = lineToNextWithBadgeGap(doc, roundX[0], yMid, winnerX, badgeSize.w)
     if (combate?.numero_combate) {
-      badgeQueue.push({ x: bx, y: yMid, num: combate.numero_combate })
+      queueBadge(badgeByNum, { x: bx, y: yMid, num: combate.numero_combate })
     }
   }
 
@@ -437,14 +456,21 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
     const xNext = roundIdx < cols.length - 1 ? roundX[roundIdx + 1] - layout.roundColW * 0.32 : winnerX
 
     col.combates.forEach((combate, mi) => {
+      const feedA = mi * 2
+      const feedB = mi * 2 + 1
       const { yTop, yBot, yMid } = mergeFeederYs(roundIdx, mi, numBlocks, layout)
+      const activeTop = feederActiveRound1(roundIdx, feedA, entradas)
+      const activeBot = feederActiveRound1(roundIdx, feedB, entradas)
       const badgeSize = combate?.numero_combate
         ? measureFightBadge(doc, cat.cancha, combate.numero_combate, fightFont)
         : { w: 0 }
-      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeSize.w)
+      const pos = drawCnuConnector(doc, xPrev, xGap, xVert, xNext, yTop, yBot, yMid, badgeSize.w, {
+        activeTop,
+        activeBot,
+      })
 
       if (combate?.numero_combate && pos) {
-        badgeQueue.push({ x: pos.x, y: pos.y, num: combate.numero_combate })
+        queueBadge(badgeByNum, { x: pos.x, y: pos.y, num: combate.numero_combate })
       }
     })
   }
@@ -477,7 +503,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   const yFinal = yFromOutRow(outRowCenter(finalIdx, 0), layout)
   drawWinnerBox(doc, winnerX, yFinal, layout, finalMatch?.ganador)
 
-  for (const b of badgeQueue) {
+  for (const b of badgeByNum.values()) {
     drawFightBadge(doc, b.x, b.y, cat.cancha, b.num, fightFont)
   }
 

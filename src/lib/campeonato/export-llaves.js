@@ -135,7 +135,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
-        numero_combate: c.orden_llave || c.orden_pista || '',
+        numero_combate: c.orden_pista || c.orden_llave || '',
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',

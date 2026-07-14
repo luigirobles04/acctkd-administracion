@@ -44,7 +44,7 @@ export function entradasPrimeraRonda(porRonda) {
     out.push({
       es_bye: Boolean(m.es_bye),
       vacio: false,
-      numero_combate: m.es_bye ? '' : (m.orden_llave || m.orden_pista || m.orden_bracket || ''),
+      numero_combate: m.es_bye ? '' : (m.orden_pista || m.orden_bracket || m.orden_llave || ''),
       chung: slotFromRaw(m.competidor1, m.color1 || (m.es_bye ? colorByeEnBloque(mn) : 'azul')),
       hong: m.es_bye ? null : slotFromRaw(m.competidor2, m.color2 || 'rojo'),
     })

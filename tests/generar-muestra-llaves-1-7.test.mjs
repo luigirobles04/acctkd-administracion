@@ -135,8 +135,8 @@ function buildCategoriasMuestra(desde, hasta) {
 }
 
 describe('generar muestra PDF llaves 1-8', () => {
-  it('escribe llaves-muestra-1-a-8.pdf y llaves-muestra-8.pdf', () => {
-    const buffer = buildBracketPdfBuffer({
+  it('escribe llaves-muestra-1-a-8.pdf y llaves-muestra-8.pdf', async () => {
+    const buffer = await buildBracketPdfBuffer({
       campeonato: {
         nombre: 'MUESTRA — Llaves 1 a 8 (X1, X2, X3…)',
         fecha_inicio: '2026-07-19',
@@ -144,7 +144,7 @@ describe('generar muestra PDF llaves 1-8', () => {
       categorias: buildCategoriasMuestra(1, 8),
     })
 
-    const buffer8 = buildBracketPdfBuffer({
+    const buffer8 = await buildBracketPdfBuffer({
       campeonato: {
         nombre: 'MUESTRA — Llave 8 competidores',
         fecha_inicio: '2026-07-19',
@@ -157,7 +157,7 @@ describe('generar muestra PDF llaves 1-8', () => {
     writeFileSync(OUT_DESKTOP, buffer)
     writeFileSync(OUT_8, buffer8)
 
-    const buffer9 = buildBracketPdfBuffer({
+    const buffer9 = await buildBracketPdfBuffer({
       campeonato: {
         nombre: 'MUESTRA — Llave 9 competidores',
         fecha_inicio: '2026-07-19',
@@ -166,7 +166,7 @@ describe('generar muestra PDF llaves 1-8', () => {
     })
     writeFileSync(OUT_9, buffer9)
 
-    const buffer10 = buildBracketPdfBuffer({
+    const buffer10 = await buildBracketPdfBuffer({
       campeonato: {
         nombre: 'MUESTRA — Llave 10 competidores',
         fecha_inicio: '2026-07-19',
