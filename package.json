@@ -13,7 +13,9 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
-    "seed:prueba-llaves": "node scripts/crear-campeonato-prueba-llaves.mjs"
+    "seed:prueba-llaves": "node scripts/crear-campeonato-prueba-llaves.mjs",
+    "pdf:llaves": "node scripts/generar-pdf-llaves-nombres.mjs",
+    "acbracket": "node scripts/generar-pdf-llaves-nombres.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.3",

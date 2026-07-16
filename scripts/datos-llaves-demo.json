@@ -1,0 +1,87 @@
+{
+  "campeonato": "ACBRACKET 1.0 — Prueba",
+  "fecha": "2026-08-15",
+  "cancha": 1,
+  "categorias": [
+    {
+      "nombre": "Categoría 1",
+      "nombres": ["Renzo Alvarado", "Kiara Bustamante", "Yonatan Reátegui", "Eliana Montenegro"]
+    },
+    {
+      "nombre": "Categoría 2",
+      "nombres": ["Franco Delgado", "Ariana Paredes"]
+    },
+    {
+      "nombre": "Categoría 3",
+      "nombres": ["Rommel Inga", "Vanessa Tafur", "Dario Cieza", "Milagros Obregón", "Piero Huamán", "Lucero Zavaleta"]
+    },
+    {
+      "nombre": "Categoría 4",
+      "nombres": ["Thiago Rosales", "Emma Quiñones", "Gael Arévalo"]
+    },
+    {
+      "nombre": "Categoría 5",
+      "nombres": ["Leonardo Saavedra", "Camila Villalobos", "Adrián Pimentel", "Sofía Cáceda", "Ian Olivares"]
+    },
+    {
+      "nombre": "Categoría 6",
+      "nombres": ["Bruno Reátegui", "Lucía Zegarra"]
+    },
+    {
+      "nombre": "Categoría 7",
+      "nombres": ["Mateo Ames", "Isabella Cabanillas", "Sebastián Tello", "Fernanda Bazán", "Diego Ruiz", "Valentina Cueva"]
+    },
+    {
+      "nombre": "Categoría 8",
+      "nombres": ["Axel Flores", "Zoe Chávez", "Gael Guzmán", "Mía Aguilar"]
+    },
+    {
+      "nombre": "Categoría 9",
+      "nombres": ["Tomás Medina", "Abril Silva", "Benjamín Cruz"]
+    },
+    {
+      "nombre": "Categoría 10",
+      "nombres": ["Julieta Ortega", "Matías Luna", "Antonella Vega", "Vicente Ponce", "Dante Soto"]
+    },
+    {
+      "nombre": "Categoría 11",
+      "nombres": ["Aitana Rojas", "Iker Barrios"]
+    },
+    {
+      "nombre": "Categoría 12",
+      "nombres": ["Carlos Mendoza", "Patricia Ríos", "Jorge Salazar", "Ana Torres", "Luis Delgado", "Carmen Quispe"]
+    },
+    {
+      "nombre": "Categoría 13",
+      "nombres": ["Miguel Vargas", "Rosa Herrera", "Pedro Castillo", "Lucía Ramírez"]
+    },
+    {
+      "nombre": "Categoría 14",
+      "nombres": ["Renato Fiestas", "Gary Solís", "Shirley Bazán"]
+    },
+    {
+      "nombre": "Categoría 15",
+      "nombres": ["Jair Palomino", "Ruth Laurente", "Wilder Chipana", "Kiomi Vásquez", "Joel Carrillo"]
+    },
+    {
+      "nombre": "Categoría 16",
+      "nombres": ["Maximiliano Saavedra", "Emma Villalobos"]
+    },
+    {
+      "nombre": "Categoría 17",
+      "nombres": ["Leonel Carranza", "Zoe Pimentel", "Axel Cáceda", "Sara Quiñones"]
+    },
+    {
+      "nombre": "Categoría 18",
+      "nombres": ["Santiago Zegarra", "Valentina Ames", "Ignacio Cabanillas", "Florencia Tello", "Lorenzo Bazán", "Catalina Paredes"]
+    },
+    {
+      "nombre": "Categoría 19",
+      "nombres": ["Mauricio Sáenz", "Bianca Arana", "Ezequiel Palomino"]
+    },
+    {
+      "nombre": "Categoría 20",
+      "nombres": ["Estefanía Wong", "Dario Peñaloza", "Luciana Carrillo", "Fabio Ascencio", "Noelia Bartra"]
+    }
+  ]
+}

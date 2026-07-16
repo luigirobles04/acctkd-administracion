@@ -10,6 +10,15 @@ describe('sembrar-campeonato-prueba-llaves', () => {
     }
   })
 
+  it('kyorugi Área 1 (idx % 3 === 0) alterna 2 y 3 comp', () => {
+    const cat = { id_categoria: 99, modalidad: 'kyorugi' }
+    expect(cupoParaCategoria(cat, 0, { kyorugiIdx: 0 })).toBe(2)
+    expect(cupoParaCategoria(cat, 0, { kyorugiIdx: 3 })).toBe(3)
+    expect(cupoParaCategoria(cat, 0, { kyorugiIdx: 6 })).toBe(2)
+    expect(cupoParaCategoria(cat, 0, { kyorugiIdx: 1 })).toBe(2 + (99 % 9))
+    expect(cupoParaCategoria({ id_categoria: 5, modalidad: 'kyorugi' }, 0, { kyorugiIdx: 1 })).toBeGreaterThanOrEqual(4)
+  })
+
   it('perfilParaCategoria genera nombres de persona y datos coherentes', () => {
     const cat = {
       id_categoria: 12,

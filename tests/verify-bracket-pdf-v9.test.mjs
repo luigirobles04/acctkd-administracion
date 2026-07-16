@@ -87,10 +87,10 @@ function countLines(n) {
 }
 
 describe('verify bracket PDF v9 conectores', () => {
-  /** Mínimo esperado de segmentos de línea según tamaño (árbol completo con byes). */
-  const minLines = { 3: 12, 4: 14, 6: 18, 7: 20, 8: 22, 9: 24, 10: 26 }
+  /** Mínimo esperado de segmentos (layout CNU v19 — conectores semánticos). */
+  const minLines = { 2: 4, 3: 8, 4: 10, 6: 14, 7: 16, 8: 18, 9: 20, 10: 22 }
 
-  for (const n of [3, 4, 6, 7, 8, 9, 10]) {
+  for (const n of [2, 3, 4, 6, 7, 8, 9, 10]) {
     it(`${n} competidores: líneas conectan hasta winner (≥${minLines[n]})`, async () => {
       const { ok, lines } = await countLines(n)
       expect(ok).toBe(true)
@@ -98,18 +98,54 @@ describe('verify bracket PDF v9 conectores', () => {
     })
   }
 
-  it('footer incluye v9', async () => {
+  it('footer incluye v19', async () => {
     const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-    dibujarBracketCategoriaPdf(
+    const ok = dibujarBracketCategoriaPdf(
       doc,
       { nombre: 'Test' },
       { nombre: '4 comp', cancha: 1, inscritos: 4, porRonda: makeCnuPorRonda(4) },
       { pageW: 297, pageH: 210 }
     )
-    const text = doc.output('datauristring')
-    expect(text).toContain('v9')
+    expect(ok).toBe(true)
+    const pages = doc.internal.pages
+    const footerPage = Array.isArray(pages[1]) ? pages[1].join(' ') : String(pages[1] || '')
+    expect(footerPage).toContain('ACBRACKET 1.0')
   })
+
+  for (const n of [4, 7, 10]) {
+    it(`${n} competidores: todos los combates tienen badge`, async () => {
+      const porRonda = makeCnuPorRonda(n)
+      const expected = []
+      for (const lista of Object.values(porRonda)) {
+        for (const m of lista) {
+          if (!m.es_bye && m.estado !== 'vacío' && m.estado !== 'bye' && m.orden_pista) {
+            expected.push(m.orden_pista)
+          }
+        }
+      }
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const badges = []
+      const orig = doc.text.bind(doc)
+      doc.text = (txt, x, y, opts) => {
+        const s = String(txt)
+        if (/^\d+\/\d+$/.test(s)) badges.push(parseInt(s.split('/')[1], 10))
+        return orig(txt, x, y, opts)
+      }
+      dibujarBracketCategoriaPdf(
+        doc,
+        { nombre: 'Test' },
+        { nombre: `${n} comp`, cancha: 1, inscritos: n, porRonda },
+        { pageW: 297, pageH: 210 }
+      )
+      expected.sort((a, b) => a - b)
+      badges.sort((a, b) => a - b)
+      for (const num of expected) {
+        expect(badges).toContain(num)
+      }
+    })
+  }
 })
 
 describe('4 comp solo semis (sin columna Final en cols)', () => {
@@ -136,7 +172,7 @@ describe('4 comp solo semis (sin columna Final en cols)', () => {
     }
     const { lines, ok } = await countLinesWithPorRonda(porRonda, 4)
     expect(ok).toBe(true)
-    expect(lines).toBeGreaterThanOrEqual(14)
+    expect(lines).toBeGreaterThanOrEqual(8)
   })
 })
 

@@ -1,5 +1,5 @@
 import { crearCampeonatoCompleto } from '@/lib/campeonato/crear-campeonato-server'
-import { generarTodasLasLlaves } from '@/lib/campeonato/llaves-kyorugi'
+import { generarTodasLasLlaves, generarLlaveCategoria, asignarCanchasCampeonato } from '@/lib/campeonato/llaves-kyorugi'
 import {
   asignarDorsalLinea,
   registrarPagoTotalAcademia,
@@ -103,8 +103,11 @@ function nombrePersona(sexo, seq) {
   }
 }
 
-/** 2–10 competidores por categoría (ciclo determinista) */
-export function cupoParaCategoria(cat, idx) {
+/** 2–10 competidores por categoría; kyorugi en Área 1 (idx % 3 === 0) alterna 2 y 3 comp */
+export function cupoParaCategoria(cat, idx, { kyorugiIdx = null } = {}) {
+  if (cat.modalidad === 'kyorugi' && kyorugiIdx != null && kyorugiIdx % 3 === 0) {
+    return kyorugiIdx % 6 === 0 ? 2 : 3
+  }
   return 2 + ((cat.id_categoria ?? idx) % 9)
 }
 
@@ -169,9 +172,13 @@ async function llenarCategoriasLote(sb, idCampeonato, categorias, academias, glo
   const perfiles = []
   const lineaPlan = []
   let seq = globalSeqStart
+  let kyorugiIdx = 0
 
   for (const cat of categorias) {
-    const cupo = cupoParaCategoria(cat)
+    const cupo = cupoParaCategoria(cat, seq, {
+      kyorugiIdx: cat.modalidad === 'kyorugi' ? kyorugiIdx : null,
+    })
+    if (cat.modalidad === 'kyorugi') kyorugiIdx++
     const modalidad = cat.modalidad === 'kyorugi' ? 'kyorugi_individual' : 'poomsae_individual'
     for (let n = 0; n < cupo; n++) {
       const ac = academias[n % academias.length]
@@ -529,4 +536,81 @@ export async function sembrarCampeonatoPruebaLlaves(sb, { onProgress, fase = 'to
   }
 
   return { id_campeonato: id, slug: SLUG_PRUEBA_LLAVES, fase: 'todo', lineas_creadas: totalLineas }
+}
+
+/**
+ * Garantiza al menos una categoría de 2 y otra de 3 inscritos en Área 1 (kyorugi idx % 3 === 0).
+ * Recorta inscripciones sobrantes y regenera llaves si hace falta.
+ */
+export async function ensureCuposArea1Prueba(sb, idCampeonato) {
+  const { data: categorias } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria, nombre, orden, modalidad')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .order('orden', { ascending: true })
+
+  const area1Ky = (categorias || []).filter((_, i) => i % 3 === 0)
+  if (!area1Ky.length) return { patched: [], area1Ky: [] }
+
+  const counts = {}
+  for (const cat of area1Ky) {
+    const { count } = await sb
+      .from('linea_inscripcion')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_campeonato', idCampeonato)
+      .eq('id_categoria', cat.id_categoria)
+      .eq('modalidad', 'kyorugi_individual')
+      .eq('estado', 'aprobado')
+      .not('dorsal_numero', 'is', null)
+    counts[cat.id_categoria] = count || 0
+  }
+
+  const patched = []
+  const used = new Set()
+
+  for (const target of [2, 3]) {
+    if (area1Ky.some((c) => counts[c.id_categoria] === target)) continue
+
+    const candidate = area1Ky.find(
+      (c) => !used.has(c.id_categoria) && (counts[c.id_categoria] || 0) >= target
+    )
+    if (!candidate) continue
+
+    const { data: lineas } = await sb
+      .from('linea_inscripcion')
+      .select('id_linea')
+      .eq('id_campeonato', idCampeonato)
+      .eq('id_categoria', candidate.id_categoria)
+      .eq('modalidad', 'kyorugi_individual')
+      .eq('estado', 'aprobado')
+      .not('dorsal_numero', 'is', null)
+      .order('id_linea', { ascending: true })
+
+    const extras = (lineas || []).slice(target)
+    for (const l of extras) {
+      await sb.from('linea_inscripcion_miembro').delete().eq('id_linea', l.id_linea)
+      await sb.from('linea_inscripcion').delete().eq('id_linea', l.id_linea)
+    }
+
+    counts[candidate.id_categoria] = target
+    used.add(candidate.id_categoria)
+    patched.push({ id_categoria: candidate.id_categoria, nombre: candidate.nombre, inscritos: target })
+  }
+
+  if (patched.length) {
+    for (const p of patched) {
+      await generarLlaveCategoria(sb, idCampeonato, p.id_categoria, { asignarCanchas: false })
+    }
+    await asignarCanchasCampeonato(sb, idCampeonato)
+  }
+
+  return {
+    patched,
+    area1Ky: area1Ky.map((c) => ({
+      id_categoria: c.id_categoria,
+      nombre: c.nombre,
+      inscritos: counts[c.id_categoria],
+    })),
+  }
 }

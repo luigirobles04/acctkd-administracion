@@ -94,3 +94,45 @@ export function buildSchedulePorCategoria(categorias, porCat) {
   }
   return schedule
 }
+
+/** Combates planos desde porRonda { [ronda]: combate[] }. */
+export function combatesDesdePorRonda(porRonda) {
+  const lista = []
+  for (const r of Object.keys(porRonda || {})) {
+    for (const m of porRonda[r] || []) {
+      if (m.ronda == null) m.ronda = Number(r)
+      lista.push(m)
+    }
+  }
+  return lista
+}
+
+function compararCategoriaExport(a, b) {
+  const oa = a.orden ?? 9999
+  const ob = b.orden ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
+}
+
+/**
+ * Asigna orden_pista continuo por área: categoría completa, luego la siguiente.
+ * Muta porRonda in-place (sin bye/saltado/vacío).
+ */
+export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.cancha ?? 1 } = {}) {
+  const byCancha = new Map()
+  for (const cat of categorias || []) {
+    const k = Number(getCancha(cat)) || 1
+    if (!byCancha.has(k)) byCancha.set(k, [])
+    byCancha.get(k).push(cat)
+  }
+
+  for (const cats of byCancha.values()) {
+    cats.sort(compararCategoriaExport)
+    let orden = 1
+    for (const cat of cats) {
+      for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {
+        c.orden_pista = orden++
+      }
+    }
+  }
+}

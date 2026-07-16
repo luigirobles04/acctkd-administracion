@@ -1,11 +1,27 @@
-/** Utilidades para exportar llaves como árbol visual (Excel FESTCUP / PDF CNU) */
-
 export const RONDA_LABEL_EXPORT = {
   1: 'Final',
   2: 'S-Final',
   3: 'Q-Final',
   4: 'R16',
   5: 'R32',
+}
+
+/** Tamaño de bracket según inscritos: 4→4, 7→8, 10→16, etc. */
+export function bracketSlotsFromInscritos(inscritos) {
+  const n = Math.max(2, Number(inscritos) || 2)
+  const bracketSize = 2 ** Math.ceil(Math.log2(n))
+  const maxR = Math.log2(bracketSize)
+  return { bracketSize, maxR, expectedSlots: bracketSize / 2 }
+}
+
+export function porRondaFiltrado(porRonda, inscritos) {
+  if (inscritos == null || inscritos < 2) return porRonda || {}
+  const targetMaxR = bracketSlotsFromInscritos(inscritos).maxR
+  const out = {}
+  for (const [r, lista] of Object.entries(porRonda || {})) {
+    if (Number(r) <= targetMaxR) out[r] = lista
+  }
+  return out
 }
 
 export function combateEnBracket(m) {
@@ -99,9 +115,13 @@ export function ganadorNombre(combate) {
 }
 
 export function columnasBracket(porRonda, { inscritos = null, numBlocks = null } = {}) {
-  const rondas = rondasOrdenadas(porRonda)
+  let rondas = rondasOrdenadas(porRonda)
   const maxR = rondas[0] || 1
-  const slots = numBlocks ?? 2 ** (maxR - 1)
+  if (inscritos != null && inscritos >= 2) {
+    const targetMaxR = bracketSlotsFromInscritos(inscritos).maxR
+    rondas = rondas.filter((r) => r <= targetMaxR)
+  }
+  const slots = numBlocks ?? 2 ** ((rondas[0] || maxR) - 1)
   const n = inscritos ?? slots * 2
   return rondas.map((r) => ({
     ronda: r,

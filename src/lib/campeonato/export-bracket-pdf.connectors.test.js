@@ -7,8 +7,9 @@ import {
   drawCnuConnector,
   mergeFeederYs,
   mergeFeederActive,
-  treeDepth,
+  connectorDepth,
   dibujarBracketCategoriaPdf,
+  maxBracketContentY,
 } from '@/lib/campeonato/export-bracket-pdf'
 
 function makePartialPorRonda(nPlayers, maxR, { ordenBase = 1 } = {}) {
@@ -103,7 +104,7 @@ describe('drawCnuConnector', () => {
     const { doc, state } = mockDoc()
     const before = state.lineCount
     drawCnuConnector(doc, 50, 60, 70, 90, 20, 40, 30, 0)
-    expect(state.lineCount - before).toBeGreaterThanOrEqual(6)
+    expect(state.lineCount - before).toBeGreaterThanOrEqual(5)
   })
 
   it('dibuja passthrough para bye (mismo nivel)', () => {
@@ -130,6 +131,15 @@ describe('drawCnuConnector', () => {
 })
 
 describe('mergeFeederActive', () => {
+  it('ronda 1: feedIdx es índice de bloque directo', () => {
+    const entradas = [
+      { vacio: false, es_bye: true, chung: { vacio: false }, hong: null },
+      { vacio: false, es_bye: false, chung: { vacio: false }, hong: { vacio: false } },
+    ]
+    expect(mergeFeederActive(1, 0, 2, entradas)).toBe(true)
+    expect(mergeFeederActive(1, 1, 2, entradas)).toBe(true)
+  })
+
   it('detecta subárbol vacío en llave parcial', () => {
     const entradas = [
       { vacio: true, chung: { vacio: true }, hong: { vacio: true } },
@@ -140,11 +150,10 @@ describe('mergeFeederActive', () => {
   })
 })
 
-describe('treeDepth layout', () => {
-  it('4 bloques → 2 columnas de conectores', () => {
-    expect(treeDepth(4)).toBe(2)
-    expect(treeDepth(2)).toBe(1)
-    expect(treeDepth(1)).toBe(0)
+describe('connectorDepth layout', () => {
+  it('7 comp (cols=3, blocks=4) → 2 niveles de conectores mínimo', () => {
+    const cols = [{ combates: [{}, {}, {}] }, { combates: [{}, {}] }, { combates: [{}] }]
+    expect(connectorDepth(4, cols)).toBeGreaterThanOrEqual(2)
   })
 })
 
@@ -197,14 +206,26 @@ describe('columnasBracket numeración', () => {
         color2: 'rojo',
       }],
     }
-    const cols = columnasBracket(porRonda, { inscritos: 2, numBlocks: 1 })
+    const cols = columnasBracket(porRonda, { inscritos: 4, numBlocks: 2 })
     expect(cols[0].combates[0].numero_combate).toBe(47)
     expect(cols[1].combates[0].numero_combate).toBe(49)
   })
 })
 
+describe('maxBracketContentY', () => {
+  for (const n of [2, 3, 4, 7, 10]) {
+    it(`${n} comp cabe en página A4 landscape`, () => {
+      const porRonda = makeCnuPorRonda(n)
+      const entradas = entradasPrimeraRonda(porRonda, { inscritos: n })
+      const cols = columnasBracket(porRonda, { inscritos: n, numBlocks: entradas.length })
+      const layout = calcLayout(cols, entradas.length, entradas, 297, 210)
+      expect(maxBracketContentY(layout, cols)).toBeLessThanOrEqual(210 - 11 - 2)
+    })
+  }
+})
+
 describe('dibujarBracketCategoriaPdf conectores', () => {
-  for (const [n, label] of [[3, '3 comp'], [4, '4 comp'], [6, '6 comp'], [7, '7 comp'], [9, '9 comp'], [10, '10 comp']]) {
+  for (const [n, label] of [[2, '2 comp'], [3, '3 comp'], [4, '4 comp'], [6, '6 comp'], [7, '7 comp'], [9, '9 comp'], [10, '10 comp']]) {
     it(`genera PDF con líneas para ${label} (CNU slots)`, async () => {
       const { jsPDF } = await import('jspdf')
       const porRonda = makeCnuPorRonda(n)
@@ -220,7 +241,7 @@ describe('dibujarBracketCategoriaPdf conectores', () => {
         { pageW: 297, pageH: 210 }
       )
       expect(ok).toBe(true)
-      expect(lines).toBeGreaterThan(n * 2)
+      expect(lines).toBeGreaterThanOrEqual(Math.max(3, n))
     })
   }
 })

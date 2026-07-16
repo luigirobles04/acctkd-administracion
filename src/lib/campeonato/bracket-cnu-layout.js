@@ -1,12 +1,12 @@
 /** Layout árbol CNU (Campeonato Nacional Universitario) — como PDF oficial */
 
-import { columnasBracket, colorByeEnBloque, rondasOrdenadas } from '@/lib/campeonato/bracket-export'
+import { columnasBracket, colorByeEnBloque, rondasOrdenadas, bracketSlotsFromInscritos } from '@/lib/campeonato/bracket-export'
 
 const ROWS_PER_MATCH = 4
-const COL_SEED = 0
-const COL_NAME = 1
-const COL_TEAM = 2
-const COL_BRACKET = 3
+export const COL_SEED = 0
+export const COL_NAME = 1
+export const COL_TEAM = 2
+export const COL_BRACKET = 3
 
 function fmtCombate(num, cancha) {
   if (!num) return ''
@@ -20,12 +20,16 @@ function slotFromRaw(c, color = null) {
 }
 
 /** Primera ronda completa: combates reales + byes (pasan directo a la siguiente ronda) */
-export function entradasPrimeraRonda(porRonda) {
+export function entradasPrimeraRonda(porRonda, { inscritos = null } = {}) {
   const rondas = rondasOrdenadas(porRonda)
   if (!rondas.length) return []
-  const maxR = rondas[0]
-  const lista = (porRonda[maxR] || []).sort((a, b) => a.match_numero - b.match_numero)
-  const expectedSlots = Math.pow(2, maxR - 1)
+  const dbMaxR = rondas[0]
+  const slotsInfo = inscritos != null && inscritos >= 2
+    ? bracketSlotsFromInscritos(inscritos)
+    : { maxR: dbMaxR, expectedSlots: 2 ** (dbMaxR - 1) }
+  const primeraRonda = porRonda[slotsInfo.maxR]?.length ? slotsInfo.maxR : dbMaxR
+  const lista = (porRonda[primeraRonda] || []).sort((a, b) => a.match_numero - b.match_numero)
+  const expectedSlots = slotsInfo.expectedSlots
   const byMatch = new Map(lista.map((m) => [m.match_numero, m]))
   const out = []
 
@@ -53,15 +57,31 @@ export function entradasPrimeraRonda(porRonda) {
   return out
 }
 
+/** Cuenta competidores reales en entradas (byes + pares, sin slots vacíos). */
+export function countPlayersInEntradas(entradas) {
+  let n = 0
+  for (const e of entradas || []) {
+    if (!e || e.vacio) continue
+    if (e.es_bye) {
+      const p = e.chung?.vacio === false ? e.chung : e.hong
+      if (p && !p.vacio) n++
+      continue
+    }
+    if (e.chung && !e.chung.vacio) n++
+    if (e.hong && !e.hong.vacio) n++
+  }
+  return n
+}
+
 /** Brazo horizontal desde la fila del jugador hacia la columna del conector */
 function armFromPlayer(addBorder, row, toCol) {
   for (let c = COL_NAME; c <= toCol; c++) addBorder(row, c, { bottom: true })
 }
 
 /** @returns {{ rows: number, cols: number, cells: Map<string, CellSpec>, merges: string[], roundLabels: string[] }} */
-export function layoutCnuBracket(porRonda, { cancha } = {}) {
-  const cols = columnasBracket(porRonda)
-  const entradas = entradasPrimeraRonda(porRonda)
+export function layoutCnuBracket(porRonda, { cancha, inscritos = null } = {}) {
+  const entradas = entradasPrimeraRonda(porRonda, { inscritos })
+  const cols = columnasBracket(porRonda, { inscritos, numBlocks: entradas.length })
   if (!cols.length || !entradas.length) return null
 
   const numBlocks0 = entradas.length
@@ -108,6 +128,8 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
 
   // ── Columna Name/Team + conector 1.ª ronda ──
   entradas.forEach((entry, bi) => {
+    if (entry.vacio) return
+
     const rTop = bi * ROWS_PER_MATCH
     const rBot = rTop + 2
     const rMid = rTop + 1
@@ -137,6 +159,13 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
       })
     }
   })
+
+  // 2 jugadores (1 bloque, 1 columna): salida vertical → gap → Winner
+  if (cols.length === 1 && numBlocks0 === 1) {
+    const mid = outRow(0, 0)
+    addBorder(mid, COL_BRACKET, { bottom: true })
+    addBorder(mid, COL_BRACKET + 1, { bottom: true })
+  }
 
   // ── Rondas siguientes ──
   cols.forEach((col, roundIdx) => {
@@ -191,7 +220,7 @@ export function layoutCnuBracket(porRonda, { cancha } = {}) {
 
   const roundLabels = ['Name / Team', ...cols.map((c) => c.label), 'Winner']
 
-  return { rows: numRows, cols: totalCols, cells, merges, bracketCols: cols, roundLabels }
+  return { rows: numRows, cols: totalCols, cells, merges, bracketCols: cols, roundLabels, entradas }
 }
 
 export function participantesPrimeraRonda(porRonda) {
