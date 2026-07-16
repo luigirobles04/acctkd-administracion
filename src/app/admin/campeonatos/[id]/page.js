@@ -26,6 +26,16 @@ const TABS = [
   { id: 'inscripciones', label: 'Inscripciones' },
 ]
 
+const GESTION_LINKS = [
+  { href: 'academias', label: 'Academias inscritas', icon: 'school', color: '#007AFF', primary: true },
+  { href: 'pagos', label: 'Pagos y aprobación', icon: 'payments', color: '#34C759' },
+  { href: 'llaves', label: 'Llaves Kyorugi', icon: 'account_tree', color: '#5856D6' },
+  { href: 'poomsae', label: 'Orden Poomsae', icon: 'format_list_numbered', color: '#FF9500' },
+  { href: 'podios', label: 'Podios', icon: 'emoji_events', color: '#F5C518' },
+  { href: 'credenciales', label: 'Credenciales', icon: 'badge', color: '#DC2626' },
+  { href: 'pesaje', label: 'Pesaje', icon: 'scale', color: '#64748B' },
+]
+
 export default function CampeonatoDetallePage() {
   const { id } = useParams()
   const router = useRouter()
@@ -297,9 +307,9 @@ export default function CampeonatoDetallePage() {
 
   return (
     <AdminLayout title={campeonato.nombre} subtitle={`${formatFecha(campeonato.fecha_inicio)} — ${formatFecha(campeonato.fecha_fin)}`}>
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 8px 32px' }}>
-        <Link href="/admin/campeonatos" className="ios-btn ios-btn-ghost" style={{ marginBottom: 16, paddingLeft: 0, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-          <span className="material-symbols-rounded" style={{ fontSize: 18 }}>arrow_back</span>
+      <div className="camp-page">
+        <Link href="/admin/campeonatos" className="camp-back">
+          <span className="material-symbols-rounded">arrow_back</span>
           Campeonatos
         </Link>
 
@@ -340,44 +350,67 @@ export default function CampeonatoDetallePage() {
 
         {tab === 'resumen' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div className="camp-stats-grid">
               {[
-                { label: 'Categorías', val: categoriasCount, icon: 'category', color: '#007AFF' },
-                { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759' },
-                { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500' },
-                { label: 'Recaudado', val: `S/ ${Number(recaudacion.recaudado || 0).toFixed(0)}`, icon: 'payments', color: '#34C759' },
-                { label: 'Pendiente', val: `S/ ${Number(recaudacion.pendiente || 0).toFixed(0)}`, icon: 'pending', color: '#FF9500' },
-                { label: 'Total esperado', val: `S/ ${Number(recaudacion.totalEsperado || 0).toFixed(0)}`, icon: 'account_balance', color: '#5856D6' },
-                { label: 'Slug portal', val: campeonato.slug || '—', icon: 'link', color: '#5856D6' },
+                { label: 'Categorías', val: categoriasCount, icon: 'category', color: '#007AFF', bg: 'rgba(0,122,255,0.12)' },
+                { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
+                { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
+                { label: 'Recaudado', val: `S/ ${Number(recaudacion.recaudado || 0).toFixed(0)}`, icon: 'payments', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
+                { label: 'Pendiente', val: `S/ ${Number(recaudacion.pendiente || 0).toFixed(0)}`, icon: 'pending', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
+                { label: 'Total esperado', val: `S/ ${Number(recaudacion.totalEsperado || 0).toFixed(0)}`, icon: 'account_balance', color: '#5856D6', bg: 'rgba(88,86,214,0.12)' },
               ].map((k) => (
-                <div key={k.label} className="ios-card" style={{ padding: 16 }}>
-                  <span className="material-symbols-rounded" style={{ color: k.color, fontSize: 22 }}>{k.icon}</span>
-                  <p style={{ fontSize: 22, fontWeight: 700, marginTop: 8 }}>{k.val}</p>
-                  <p className="ios-caption" style={{ color: 'var(--label3)' }}>{k.label}</p>
+                <div key={k.label} className="camp-stat-card">
+                  <div className="camp-stat-icon" style={{ background: k.bg }}>
+                    <span className="material-symbols-rounded" style={{ color: k.color, fontVariationSettings: "'FILL' 1" }}>{k.icon}</span>
+                  </div>
+                  <div>
+                    <p className="camp-stat-value">{k.val}</p>
+                    <p className="camp-stat-label">{k.label}</p>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="ios-card" style={{ padding: 18 }}>
-              <p className="ios-headline" style={{ marginBottom: 8 }}>Gestión del evento</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-primary">Academias inscritas</Link>
-                <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-secondary">Pagos y aprobación</Link>
-                <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
-                <Link href={`/admin/campeonatos/${id}/poomsae`} className="ios-btn ios-btn-secondary">Orden Poomsae</Link>
-                <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
-                <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
-                <Link href={`/admin/campeonatos/${id}/pesaje`} className="ios-btn ios-btn-secondary">Pesaje</Link>
+
+            {campeonato.slug && (
+              <div className="camp-slug-bar">
+                <span className="material-symbols-rounded">link</span>
+                <code>{campeonato.slug}</code>
+                <a href={`/campeonato/${campeonato.slug}`} target="_blank" rel="noreferrer" className="camp-slug-link">
+                  Página pública
+                </a>
+              </div>
+            )}
+
+            <section className="camp-section">
+              <p className="app-section-title">
+                <span className="material-symbols-rounded">tune</span>
+                Gestión del evento
+              </p>
+              <div className="app-quick-grid">
+                {GESTION_LINKS.map((g) => (
+                  <Link key={g.href} href={`/admin/campeonatos/${id}/${g.href}`} className={`app-quick-card ${g.primary ? 'app-quick-card--primary' : ''}`}>
+                    <div className="app-quick-card-icon" style={{ background: `${g.color}18` }}>
+                      <span className="material-symbols-rounded" style={{ color: g.color, fontVariationSettings: "'FILL' 1" }}>{g.icon}</span>
+                    </div>
+                    <span className="app-quick-card-label">{g.label}</span>
+                  </Link>
+                ))}
                 {campeonato.slug && (
-                  <>
-                    <a href={`/campeonato/${campeonato.slug}`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Página pública</a>
-                    <a href={`/campeonato/${campeonato.slug}/canchas`} className="ios-btn ios-btn-secondary" target="_blank" rel="noreferrer">Pantallas TV</a>
-                  </>
+                  <a href={`/campeonato/${campeonato.slug}/canchas`} target="_blank" rel="noreferrer" className="app-quick-card">
+                    <div className="app-quick-card-icon" style={{ background: 'rgba(225,6,0,0.1)' }}>
+                      <span className="material-symbols-rounded" style={{ color: 'var(--red)', fontVariationSettings: "'FILL' 1" }}>tv</span>
+                    </div>
+                    <span className="app-quick-card-label">Pantallas TV</span>
+                  </a>
                 )}
-                <button type="button" className="ios-btn ios-btn-ghost" style={{ color: 'var(--red)' }} onClick={eliminarCampeonato}>
-                  Eliminar campeonato
+                <button type="button" className="app-quick-card app-quick-card--danger" onClick={eliminarCampeonato}>
+                  <div className="app-quick-card-icon" style={{ background: 'rgba(255,59,48,0.1)' }}>
+                    <span className="material-symbols-rounded" style={{ color: 'var(--red)' }}>delete</span>
+                  </div>
+                  <span className="app-quick-card-label">Eliminar campeonato</span>
                 </button>
               </div>
-            </div>
+            </section>
           </>
         )}
 

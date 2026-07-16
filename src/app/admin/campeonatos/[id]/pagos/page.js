@@ -124,92 +124,102 @@ export default function CampeonatoPagosPage() {
 
   return (
     <AdminLayout title="Pagos inscripción" subtitle={campeonato?.nombre}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px 24px' }}>
-        <Link href={`/admin/campeonatos/${id}`} style={{ color: 'var(--red)', fontSize: 13 }}>← Campeonato</Link>
+      <div className="camp-page">
+        <Link href={`/admin/campeonatos/${id}`} className="camp-back">
+          <span className="material-symbols-rounded">arrow_back</span>
+          Campeonato
+        </Link>
 
         {error && (
-          <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A', fontSize: 14 }}>
-            {error}
-          </div>
+          <div className="camp-alert camp-alert--error">{error}</div>
         )}
 
         {loading ? (
-          <p style={{ marginTop: 16 }}>Cargando…</p>
+          <p className="camp-loading">Cargando…</p>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, margin: '16px 0' }}>
-              <div className="ios-card" style={{ padding: 12 }}>
-                <strong style={{ fontSize: 18, color: 'var(--green, #34C759)' }}>S/ {Number(recaudacion?.recaudado || 0).toFixed(0)}</strong>
-                <div className="ios-caption">Recaudado</div>
-              </div>
-              <div className="ios-card" style={{ padding: 12 }}>
-                <strong style={{ fontSize: 18 }}>S/ {Number(recaudacion?.pendiente || 0).toFixed(0)}</strong>
-                <div className="ios-caption">Pendiente</div>
-              </div>
-              <div className="ios-card" style={{ padding: 12 }}>
-                <strong style={{ fontSize: 18 }}>S/ {Number(recaudacion?.totalEsperado || 0).toFixed(0)}</strong>
-                <div className="ios-caption">Total esperado</div>
-              </div>
-              <div className="ios-card" style={{ padding: 12 }}><strong>{grupos.length}</strong><div className="ios-caption">Academias</div></div>
-              <div className="ios-card" style={{ padding: 12 }}><strong>{resumen.pagadas}</strong><div className="ios-caption">Líneas pagadas</div></div>
-              <div className="ios-card" style={{ padding: 12 }}><strong>{resumen.pendientes}</strong><div className="ios-caption">Pend. pago</div></div>
+            <div className="camp-stats-grid">
+              {[
+                { label: 'Recaudado', val: `S/ ${Number(recaudacion?.recaudado || 0).toFixed(0)}`, icon: 'payments', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
+                { label: 'Pendiente', val: `S/ ${Number(recaudacion?.pendiente || 0).toFixed(0)}`, icon: 'pending', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
+                { label: 'Total esperado', val: `S/ ${Number(recaudacion?.totalEsperado || 0).toFixed(0)}`, icon: 'account_balance', color: '#5856D6', bg: 'rgba(88,86,214,0.12)' },
+                { label: 'Academias', val: grupos.length, icon: 'school', color: '#007AFF', bg: 'rgba(0,122,255,0.12)' },
+                { label: 'Líneas pagadas', val: resumen.pagadas, icon: 'check_circle', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
+                { label: 'Pend. pago', val: resumen.pendientes, icon: 'hourglass_empty', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
+              ].map((k) => (
+                <div key={k.label} className="camp-stat-card">
+                  <div className="camp-stat-icon" style={{ background: k.bg }}>
+                    <span className="material-symbols-rounded" style={{ color: k.color, fontVariationSettings: "'FILL' 1" }}>{k.icon}</span>
+                  </div>
+                  <div>
+                    <p className="camp-stat-value">{k.val}</p>
+                    <p className="camp-stat-label">{k.label}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <h3 style={{ marginBottom: 12 }}>
-              Comprobantes pendientes
-              {comprobantesPendientes.length > 0 && (
-                <span className="badge badge-yellow" style={{ marginLeft: 8, fontSize: 11 }}>{comprobantesPendientes.length}</span>
-              )}
-            </h3>
-            <div className="ios-card" style={{ padding: 16, marginBottom: 24 }}>
-              {comprobantesPendientes.map((c) => (
-                <div key={c.id_comprobante} style={{ padding: '14px 0', borderBottom: '1px solid var(--separator)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-                    <div>
+            <section className="camp-section">
+              <h3 className="camp-section-title">
+                Comprobantes pendientes
+                {comprobantesPendientes.length > 0 && (
+                  <span className="badge badge-yellow">{comprobantesPendientes.length}</span>
+                )}
+              </h3>
+              <div className="ios-card camp-card">
+                {comprobantesPendientes.map((c) => (
+                  <div key={c.id_comprobante} className="camp-comprobante-row">
+                    <div className="camp-comprobante-info">
                       <strong>{c.academia_campeonato?.academia?.nombre}</strong>
-                      <div style={{ fontSize: 13, marginTop: 4 }}>Op. {c.numero_operacion || '—'}</div>
-                      {c.archivo_url && (
-                        <a href={c.archivo_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: 'var(--red)', display: 'inline-block', marginTop: 6 }}>
-                          Ver voucher →
+                      <div className="camp-comprobante-meta">Op. {c.numero_operacion || '—'}</div>
+                      {(c.archivo_proxy_url || c.archivo_url) && (
+                        <a
+                          href={c.archivo_proxy_url || c.archivo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="camp-voucher-link"
+                        >
+                          <span className="material-symbols-rounded">receipt_long</span>
+                          Ver voucher
                         </a>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="camp-comprobante-actions">
                       <input
-                        className="ios-input"
+                        className="ios-input camp-monto-input"
                         type="number"
                         step="0.01"
-                        style={{ width: 100, padding: '6px 10px' }}
                         value={montosEdit[c.id_comprobante] ?? ''}
                         onChange={(e) => setMontosEdit((m) => ({ ...m, [c.id_comprobante]: e.target.value }))}
                       />
-                      <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12 }} disabled={procesando === `val-${c.id_comprobante}`} onClick={() => validarComprobante(c)}>
+                      <button type="button" className="ios-btn ios-btn-primary camp-btn-sm" disabled={procesando === `val-${c.id_comprobante}`} onClick={() => validarComprobante(c)}>
                         {procesando === `val-${c.id_comprobante}` ? '…' : 'Aprobar'}
                       </button>
-                      <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, color: 'var(--red)' }} disabled={procesando === `rej-${c.id_comprobante}`} onClick={() => accionPagos({ key: `rej-${c.id_comprobante}`, accion: 'rechazar_comprobante', idComprobante: c.id_comprobante, observaciones: prompt('Motivo:') || '' })}>
+                      <button type="button" className="ios-btn ios-btn-secondary camp-btn-sm camp-btn-danger" disabled={procesando === `rej-${c.id_comprobante}`} onClick={() => accionPagos({ key: `rej-${c.id_comprobante}`, accion: 'rechazar_comprobante', idComprobante: c.id_comprobante, observaciones: prompt('Motivo:') || '' })}>
                         Rechazar
                       </button>
                     </div>
                   </div>
-                </div>
-              ))}
-              {comprobantesPendientes.length === 0 && <p style={{ color: 'var(--label3)' }}>Sin comprobantes pendientes</p>}
-            </div>
+                ))}
+                {comprobantesPendientes.length === 0 && <p className="camp-empty">Sin comprobantes pendientes</p>}
+              </div>
+            </section>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div className="camp-filters">
               {[
                 { id: 'todas', label: `Todas (${lineas.length})` },
                 { id: 'aprobadas', label: `Con dorsal (${resumen.aprobadas})` },
                 { id: 'pagadas', label: `Pagadas (${resumen.pagadas})` },
                 { id: 'pendientes', label: `Pend. pago (${resumen.pendientes})` },
               ].map((f) => (
-                <button key={f.id} type="button" className={filtro === f.id ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} style={{ fontSize: 12 }} onClick={() => setFiltro(f.id)}>
+                <button key={f.id} type="button" className={`ios-chip ${filtro === f.id ? 'active' : ''}`} onClick={() => setFiltro(f.id)}>
                   {f.label}
                 </button>
               ))}
             </div>
 
-            <h3 style={{ marginBottom: 12 }}>Por academia</h3>
+            <section className="camp-section">
+              <h3 className="camp-section-title">Por academia</h3>
             {grupos.map((g) => {
               const acMeta = academias.find((a) => a.id === g.id)
               const pendiente = acMeta?.pendiente ?? Math.max(0, g.lineas.reduce((s, l) => s + Math.max(0, Number(l.precio_aplicado || 0) - Number(l.monto_pagado || 0)), 0))
@@ -287,7 +297,8 @@ export default function CampeonatoPagosPage() {
                 </AcademiaExpansible>
               )
             })}
-            {grupos.length === 0 && <p style={{ color: 'var(--label3)' }}>Sin líneas en este filtro</p>}
+            {grupos.length === 0 && <p className="camp-empty">Sin líneas en este filtro</p>}
+            </section>
           </>
         )}
       </div>

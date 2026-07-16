@@ -205,7 +205,7 @@ export default function PantallaCancha({ data, loading }) {
             ) : (
               <div className="pantalla-lista">
                 {(actual ? proximos : proximos.slice(1)).map((c, i) => (
-                  <ProximoMini key={c.id_llave} combate={c} index={i} />
+                  <ProximoMini key={c.id_llave} combate={c} index={i} cancha={cancha} />
                 ))}
               </div>
             )}

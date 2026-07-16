@@ -80,6 +80,9 @@ export default function CredencialesPage() {
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
             />
+            <button type="button" className="ios-btn ios-btn-secondary" onClick={cargar} disabled={loading}>
+              {loading ? '…' : 'Actualizar'}
+            </button>
             <button type="button" className="ios-btn ios-btn-primary" onClick={() => imprimir('all')}>
               Imprimir todas ({totalCredenciales})
             </button>
@@ -96,7 +99,8 @@ export default function CredencialesPage() {
           />
 
           <p className="credenciales-hint">
-            Plantilla 54×86 mm · Márgenes <strong>Ninguno</strong> + gráficos de fondo al imprimir. Usa <strong>Plantilla y zonas</strong> para subir tu diseño y marcar dónde va la foto y los datos.
+            Solo aparecen competidores con <strong>dorsal asignado</strong> (estado aprobado). Tras inscribir una academia nueva, pulsa <strong>Actualizar</strong>.
+            Plantilla 54×86 mm · Márgenes <strong>Ninguno</strong> + gráficos de fondo al imprimir.
           </p>
         </div>
 

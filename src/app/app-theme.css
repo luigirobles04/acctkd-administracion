@@ -451,6 +451,234 @@
   font-size: 24px;
 }
 
+.app-quick-card-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--label);
+  line-height: 1.3;
+}
+
+.app-quick-card--primary {
+  border-color: rgba(225, 6, 0, 0.25);
+  background: linear-gradient(135deg, rgba(225, 6, 0, 0.04), #fff);
+}
+
+.app-quick-card--danger:hover {
+  border-color: rgba(255, 59, 48, 0.35);
+}
+
+button.app-quick-card {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+/* ── Vista campeonato / pagos ─────────────────────────────────────── */
+.camp-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 4px 32px;
+}
+
+.camp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+
+.camp-back .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.camp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.camp-stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.06);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.camp-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.camp-stat-icon .material-symbols-rounded {
+  font-size: 22px;
+}
+
+.camp-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: var(--label);
+}
+
+.camp-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label3);
+  margin-top: 4px;
+}
+
+.camp-slug-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.06);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  font-size: 13px;
+}
+
+.camp-slug-bar .material-symbols-rounded {
+  font-size: 20px;
+  color: #5856D6;
+}
+
+.camp-slug-bar code {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--label2);
+  background: rgba(13, 13, 15, 0.04);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.camp-slug-link {
+  margin-left: auto;
+  color: var(--red);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.camp-section {
+  margin-bottom: 28px;
+}
+
+.camp-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 14px;
+  color: var(--label);
+}
+
+.camp-card {
+  padding: 4px 18px;
+}
+
+.camp-comprobante-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--separator);
+}
+
+.camp-comprobante-row:last-child {
+  border-bottom: none;
+}
+
+.camp-comprobante-meta {
+  font-size: 13px;
+  color: var(--label3);
+  margin-top: 4px;
+}
+
+.camp-voucher-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--red);
+  text-decoration: none;
+}
+
+.camp-voucher-link .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.camp-comprobante-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.camp-monto-input {
+  width: 108px;
+  padding: 8px 10px !important;
+}
+
+.camp-btn-sm {
+  font-size: 12px !important;
+  padding: 8px 14px !important;
+}
+
+.camp-btn-danger {
+  color: var(--red) !important;
+}
+
+.camp-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.camp-alert {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.camp-alert--error {
+  background: rgba(255, 59, 48, 0.12);
+  color: #c0000a;
+}
+
+.camp-loading,
+.camp-empty {
+  color: var(--label3);
+  margin-top: 16px;
+}
+
 .portal-shell--fest .portal-bar-totales {
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid rgba(13, 13, 15, 0.08);

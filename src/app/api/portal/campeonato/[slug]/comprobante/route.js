@@ -34,15 +34,13 @@ export async function POST(request, { params }) {
       .upload(fileName, buffer, { contentType: contentType || 'image/jpeg', upsert: false })
     if (errStorage) throw errStorage
 
-    const { data: { publicUrl } } = sb.storage.from('inscripcion-vouchers').getPublicUrl(fileName)
-
     const { data: comp, error } = await sb
       .from('comprobante_pago')
       .insert({
         id_academia_campeonato: ac.id,
         monto_declarado: Number(monto_declarado),
         numero_operacion,
-        archivo_url: publicUrl,
+        archivo_url: fileName,
         estado: 'pendiente',
       })
       .select()

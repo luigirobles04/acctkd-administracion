@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { voucherInscripcionProxyUrl } from '@/lib/campeonato/voucher-inscripcion'
 import {
   aplicarFifoPagos,
   asignarDorsalLinea,
@@ -84,8 +85,13 @@ export async function GET(_request, { params }) {
       comprobantesPendientes: comprobantes.filter((c) => c.estado === 'pendiente').length,
     }
 
+    const comprobantesConUrl = (comprobantes || []).map((c) => ({
+      ...c,
+      archivo_proxy_url: voucherInscripcionProxyUrl(c.archivo_url),
+    }))
+
     return NextResponse.json({
-      comprobantes,
+      comprobantes: comprobantesConUrl,
       lineas: lineasConPago,
       academias: (acs || []).map((ac) => ({
         id: ac.id,
