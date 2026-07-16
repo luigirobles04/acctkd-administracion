@@ -7,6 +7,20 @@
   "installCommand": "npm install",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.festcup2026.com" }],
+      "destination": "https://festcup2026.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "acctkd-administracion-an52.vercel.app" }],
+      "destination": "https://festcup2026.com/:path*",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/backup-campeonato",

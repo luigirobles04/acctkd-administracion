@@ -1,4 +1,6 @@
-const PRODUCTION_FALLBACK = 'https://acctkd-administracion-an52.vercel.app'
+import { PRODUCTION_SITE_URL, getSiteUrl, getSiteHostname } from '@/lib/site-config'
+
+const PRODUCTION_FALLBACK = PRODUCTION_SITE_URL
 
 export function getProductionAppUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL
@@ -10,14 +12,15 @@ export function getProductionHostname() {
   try {
     return new URL(getProductionAppUrl()).hostname
   } catch {
-    return 'acctkd-administracion-an52.vercel.app'
+    return 'festcup2026.com'
   }
 }
 
 /** URLs *.vercel.app con hash de preview (Deployment Protection → APIs fallan con 401) */
 export function isProtectedPreviewHost(hostname) {
   if (!hostname) return false
-  if (hostname === getProductionHostname()) return false
+  const canonical = getSiteHostname()
+  if (hostname === getProductionHostname() || hostname === canonical) return false
   if (hostname.endsWith('-projects.vercel.app')) return true
   if (hostname.startsWith('acctkd-administracion-an52-') && hostname.endsWith('.vercel.app')) return true
   return false

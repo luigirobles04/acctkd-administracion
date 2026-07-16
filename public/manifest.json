@@ -1,7 +1,7 @@
 {
-  "name": "ACCTKD · Administración",
-  "short_name": "ACCTKD",
-  "description": "Sistema administrativo · Christopher Cabrera Tae Kwon Do",
+  "name": "FestCup 2026 · ACCTKD",
+  "short_name": "FestCup",
+  "description": "Campeonato Taekwondo FestCup — inscripciones, llaves, resultados y administración ACCTKD",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

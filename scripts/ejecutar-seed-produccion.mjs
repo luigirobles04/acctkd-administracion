@@ -4,7 +4,7 @@
  *
  * Uso: npx vercel env run -- node scripts/ejecutar-seed-produccion.mjs
  */
-const BASE = process.env.SEED_BASE_URL || 'https://acctkd-administracion-an52.vercel.app'
+const BASE = process.env.SEED_BASE_URL || 'https://festcup2026.com'
 const SECRET = process.env.CRON_SECRET
 
 if (!SECRET) {

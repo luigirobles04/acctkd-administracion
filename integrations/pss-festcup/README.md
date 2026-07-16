@@ -18,7 +18,9 @@ Todas requieren header `X-PSS-Token` (o `Authorization: Bearer`).
 | PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/marcador` | `{ puntaje1, puntaje2 }` en vivo |
 | PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/finalizar` | `{ ganadorIdLinea, puntaje1?, puntaje2? }` |
 
-**Token:** variable de entorno `PSS_API_SECRET` en Vercel (default dev: `acctkd-pss-dev-2026`), o `campeonato.pss_token` en BD.
+**Token:** variable de entorno `PSS_API_SECRET` en Vercel, o `campeonato.pss_token` en BD.
+
+**Producción:** https://festcup2026.com
 
 ## Mapeo colores
 

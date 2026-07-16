@@ -1,17 +1,58 @@
 import './globals.css'
+import { PRODUCTION_SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site-config'
+
+const siteUrl = PRODUCTION_SITE_URL
 
 export const metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: 'ACCTKD · Administración',
-    template: '%s · ACCTKD',
+    default: SITE_NAME,
+    template: '%s · FestCup ACCTKD',
   },
-  description: 'Sistema Administrativo · Christopher Cabrera Tae Kwon Do',
-  applicationName: 'ACCTKD',
+  description: SITE_DESCRIPTION,
+  applicationName: 'FestCup ACCTKD',
   manifest: '/manifest.json',
+  keywords: [
+    'FestCup',
+    'taekwondo',
+    'Trujillo',
+    'Perú',
+    'ACCTKD',
+    'campeonato taekwondo',
+    'kyorugi',
+    'poomsae',
+    'inscripción academias',
+    'Christopher Cabrera',
+  ],
+  authors: [{ name: 'ACCTKD · Academia Christopher Cabrera' }],
+  creator: 'ACCTKD',
+  openGraph: {
+    type: 'website',
+    locale: 'es_PE',
+    url: siteUrl,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [{ url: '/branding/festcup-2026-flyer.png', width: 1200, height: 630, alt: 'FestCup 2026 ACCTKD' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ['/branding/festcup-2026-flyer.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'ACCTKD',
+    title: 'FestCup',
   },
 }
 
