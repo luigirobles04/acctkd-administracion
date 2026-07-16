@@ -17,6 +17,27 @@ export function getSupabaseAdmin() {
   })
 }
 
+/** Supabase/PostgREST devuelve como máximo ~1000 filas por consulta. */
+export const SUPABASE_PAGE_SIZE = 1000
+
+/**
+ * Ejecuta una consulta paginada con .range() hasta agotar resultados.
+ * `buildQuery` recibe el cliente y debe devolver la query ya filtrada/ordenada (sin .range).
+ */
+export async function fetchAllSupabaseRows(sb, buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
+  const all = []
+  let from = 0
+  while (true) {
+    const { data, error } = await buildQuery(sb).range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    all.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
 export function getClientIp(request) {
   return (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||

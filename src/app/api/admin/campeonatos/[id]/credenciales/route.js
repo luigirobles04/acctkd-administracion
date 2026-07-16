@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { fetchAllSupabaseRows, getSupabaseAdmin } from '@/lib/supabase-server'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import { credencialTemplateSrc } from '@/lib/campeonato/credencial-layout'
+
+const LINEA_SELECT = `
+  id_linea, dorsal_display, dorsal_numero, modalidad, id_academia_campeonato,
+  categoria:categoria_campeonato(nombre),
+  academia_campeonato(
+    id,
+    academia(id_academia, nombre, codigo_prefijo)
+  ),
+  miembros:linea_inscripcion_miembro(
+    perfil:competidor_perfil(id_perfil, nombres, apellidos, foto_url, documento_numero)
+  )
+`
 
 function mapCanchaPorLinea(llaves) {
   const canchaPorLinea = {}
@@ -28,38 +40,31 @@ export async function GET(_request, { params }) {
 
     const sb = getSupabaseAdmin()
 
-    const [{ data: campeonato, error: errCamp }, { data: lineas, error }, { data: llaves }] = await Promise.all([
+    const [{ data: campeonato, error: errCamp }, lineas, llaves] = await Promise.all([
       sb
         .from('campeonato')
         .select('id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio, template_competidor_url, credencial_layout')
         .eq('id_campeonato', idCampeonato)
         .single(),
-      sb
-        .from('linea_inscripcion')
-        .select(`
-          id_linea, dorsal_display, dorsal_numero, modalidad, id_academia_campeonato,
-          categoria:categoria_campeonato(nombre),
-          academia_campeonato(
-            id,
-            academia(id_academia, nombre, codigo_prefijo)
-          ),
-          miembros:linea_inscripcion_miembro(
-            perfil:competidor_perfil(id_perfil, nombres, apellidos, foto_url, documento_numero)
-          )
-        `)
-        .eq('id_campeonato', idCampeonato)
-        .eq('estado', 'aprobado')
-        .not('dorsal_numero', 'is', null)
-        .order('dorsal_numero', { ascending: true }),
-      sb
-        .from('llave_kyorugi')
-        .select('id_linea1, id_linea2, cancha, ronda')
-        .eq('id_campeonato', idCampeonato)
-        .not('cancha', 'is', null),
+      fetchAllSupabaseRows(sb, (client) =>
+        client
+          .from('linea_inscripcion')
+          .select(LINEA_SELECT)
+          .eq('id_campeonato', idCampeonato)
+          .eq('estado', 'aprobado')
+          .not('dorsal_numero', 'is', null)
+          .order('dorsal_numero', { ascending: true })
+      ),
+      fetchAllSupabaseRows(sb, (client) =>
+        client
+          .from('llave_kyorugi')
+          .select('id_linea1, id_linea2, cancha, ronda')
+          .eq('id_campeonato', idCampeonato)
+          .not('cancha', 'is', null)
+      ),
     ])
 
     if (errCamp) throw errCamp
-    if (error) throw error
 
     const canchaPorLinea = mapCanchaPorLinea(llaves)
 
@@ -70,7 +75,7 @@ export async function GET(_request, { params }) {
         id_linea: l.id_linea,
         id_academia_campeonato: l.id_academia_campeonato,
         id_academia: ac?.id_academia || l.academia_campeonato?.id || l.id_academia_campeonato,
-        codigo_academia: ac?.id_academia ?? ac?.codigo_prefijo ?? '',
+        codigo_academia: ac?.codigo_prefijo ?? ac?.id_academia ?? '',
         dorsal: l.dorsal_display,
         dorsal_numero: l.dorsal_numero,
         nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim().toUpperCase() : '',
@@ -111,6 +116,7 @@ export async function GET(_request, { params }) {
         : campeonato,
       competidores,
       academias,
+      total: competidores.length,
     })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

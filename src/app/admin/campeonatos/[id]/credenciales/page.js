@@ -16,8 +16,10 @@ export default function CredencialesPage() {
   const [templateUrl, setTemplateUrl] = useState('/credenciales/plantilla-frente.png')
   const [credencialLayout, setCredencialLayout] = useState(null)
   const [academias, setAcademias] = useState([])
+  const [totalCargado, setTotalCargado] = useState(0)
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('')
+  const [expandidas, setExpandidas] = useState({})
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -29,6 +31,7 @@ export default function CredencialesPage() {
       setTemplateUrl(json.campeonato?.template_url || '/credenciales/plantilla-frente.png')
       setCredencialLayout(json.campeonato?.credencial_layout || null)
       setAcademias(json.academias || [])
+      setTotalCargado(json.total ?? json.competidores?.length ?? 0)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -54,6 +57,31 @@ export default function CredencialesPage() {
   }, [academias, filtro])
 
   const totalCredenciales = academiasFiltradas.reduce((n, a) => n + a.competidores.length, 0)
+  const todasExpandidas = academiasFiltradas.length > 0 && academiasFiltradas.every((a) => expandidas[a.id_academia_campeonato])
+
+  useEffect(() => {
+    const q = filtro.trim()
+    if (!q) return
+    setExpandidas((prev) => {
+      const next = { ...prev }
+      for (const a of academiasFiltradas) {
+        next[a.id_academia_campeonato] = true
+      }
+      return next
+    })
+  }, [filtro, academiasFiltradas])
+
+  function toggleAcademia(idAcademia) {
+    setExpandidas((e) => ({ ...e, [idAcademia]: !e[idAcademia] }))
+  }
+
+  function expandirTodas() {
+    setExpandidas(Object.fromEntries(academiasFiltradas.map((a) => [a.id_academia_campeonato, true])))
+  }
+
+  function colapsarTodas() {
+    setExpandidas({})
+  }
 
   function imprimir(scope) {
     const sheets = document.querySelectorAll('.credencial-sheet')
@@ -83,10 +111,21 @@ export default function CredencialesPage() {
             <button type="button" className="ios-btn ios-btn-secondary" onClick={cargar} disabled={loading}>
               {loading ? '…' : 'Actualizar'}
             </button>
+            <button type="button" className="ios-btn ios-btn-secondary" onClick={todasExpandidas ? colapsarTodas : expandirTodas} disabled={academiasFiltradas.length === 0}>
+              {todasExpandidas ? 'Colapsar todas' : 'Expandir todas'}
+            </button>
             <button type="button" className="ios-btn ios-btn-primary" onClick={() => imprimir('all')}>
               Imprimir todas ({totalCredenciales})
             </button>
           </div>
+
+          {!loading && totalCargado > 0 && (
+            <p className="credenciales-summary">
+              <span className="material-symbols-rounded">badge</span>
+              {totalCargado} credenciales · {academias.length} academias
+              {filtro.trim() && ` · ${academiasFiltradas.length} coincidencias`}
+            </p>
+          )}
 
           <CredencialTemplateEditor
             idCampeonato={idCampeonato}
@@ -99,7 +138,7 @@ export default function CredencialesPage() {
           />
 
           <p className="credenciales-hint">
-            Solo aparecen competidores con <strong>dorsal asignado</strong> (estado aprobado). Tras inscribir una academia nueva, pulsa <strong>Actualizar</strong>.
+            Solo aparecen competidores con <strong>dorsal asignado</strong> (estado aprobado). Usa <strong>Ver más</strong> por academia para mantener la lista ordenada.
             Plantilla 54×86 mm · Márgenes <strong>Ninguno</strong> + gráficos de fondo al imprimir.
           </p>
         </div>
@@ -107,43 +146,65 @@ export default function CredencialesPage() {
         {loading ? (
           <p className="no-print">Cargando credenciales…</p>
         ) : academiasFiltradas.length === 0 ? (
-          <p className="no-print">No hay competidores con dorsal aprobado.</p>
+          <p className="no-print">No hay competidores con dorsal aprobado{filtro.trim() ? ' para esa búsqueda' : ''}.</p>
         ) : (
-          academiasFiltradas.map((academia) => (
-            <section
-              key={academia.id_academia_campeonato}
-              className="credenciales-academia"
-              data-academia={academia.id_academia_campeonato}
-            >
-              <header className="no-print credenciales-academia-head">
-                <div>
-                  <h2>{academia.nombre}</h2>
-                  <p>
-                    {academia.codigo_academia ? `${academia.codigo_academia} · ` : ''}
-                    {academia.competidores.length} credencial{academia.competidores.length !== 1 ? 'es' : ''}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="ios-btn ios-btn-secondary"
-                  onClick={() => imprimir(String(academia.id_academia_campeonato))}
-                >
-                  Imprimir academia
-                </button>
-              </header>
+          academiasFiltradas.map((academia) => {
+            const abierta = Boolean(expandidas[academia.id_academia_campeonato])
+            return (
+              <section
+                key={academia.id_academia_campeonato}
+                className={`credenciales-academia ${abierta ? 'is-open' : 'is-collapsed'}`}
+                data-academia={academia.id_academia_campeonato}
+              >
+                <header className="no-print credenciales-academia-head">
+                  <button
+                    type="button"
+                    className="credenciales-academia-toggle"
+                    onClick={() => toggleAcademia(academia.id_academia_campeonato)}
+                    aria-expanded={abierta}
+                  >
+                    <span className={`credenciales-chevron material-symbols-rounded ${abierta ? 'is-open' : ''}`}>
+                      chevron_right
+                    </span>
+                    <div className="credenciales-academia-titles">
+                      <h2>{academia.nombre}</h2>
+                      <p>
+                        {academia.codigo_academia ? `${academia.codigo_academia} · ` : ''}
+                        {academia.competidores.length} credencial{academia.competidores.length !== 1 ? 'es' : ''}
+                      </p>
+                    </div>
+                  </button>
+                  <div className="credenciales-academia-actions">
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-secondary cred-btn-sm"
+                      onClick={() => imprimir(String(academia.id_academia_campeonato))}
+                    >
+                      Imprimir
+                    </button>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-secondary cred-btn-sm"
+                      onClick={() => toggleAcademia(academia.id_academia_campeonato)}
+                    >
+                      {abierta ? 'Ver menos' : 'Ver más'}
+                    </button>
+                  </div>
+                </header>
 
-              <div className="credenciales-stack">
-                {academia.competidores.map((c) => (
-                  <CredencialCard
-                    key={c.id_linea}
-                    competidor={c}
-                    templateUrl={templateUrl}
-                    layout={credencialLayout}
-                  />
-                ))}
-              </div>
-            </section>
-          ))
+                <div className="credenciales-stack">
+                  {academia.competidores.map((c) => (
+                    <CredencialCard
+                      key={c.id_linea}
+                      competidor={c}
+                      templateUrl={templateUrl}
+                      layout={credencialLayout}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })
         )}
       </div>
     </AdminLayout>

@@ -33,23 +33,98 @@
   color: var(--text-secondary, #666);
 }
 
+.credenciales-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label2, #444);
+  background: rgba(225, 6, 0, 0.06);
+  border: 1px solid rgba(225, 6, 0, 0.12);
+  border-radius: 12px;
+}
+
+.credenciales-summary .material-symbols-rounded {
+  font-size: 20px;
+  color: var(--red);
+}
+
 .credenciales-academia {
-  margin-bottom: 40px;
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(13, 13, 15, 0.06);
+  overflow: hidden;
+}
+
+.credenciales-academia.is-collapsed .credenciales-stack {
+  display: none;
 }
 
 .credenciales-academia-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 10px;
+  margin-bottom: 0;
+  padding: 14px 16px;
+  border-bottom: none;
+}
+
+.credenciales-academia.is-open .credenciales-academia-head {
   border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.credenciales-academia-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.credenciales-chevron {
+  font-size: 22px;
+  color: var(--label3, #888);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.credenciales-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.credenciales-academia-titles {
+  min-width: 0;
+}
+
+.credenciales-academia-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.cred-btn-sm {
+  font-size: 12px !important;
+  padding: 8px 12px !important;
 }
 
 .credenciales-academia-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 800;
 }
 
 .credenciales-academia-head p {
@@ -62,6 +137,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
+  padding: 16px;
 }
 
 /* ── Credencial: solo frente con plantilla PNG ── */
@@ -299,6 +375,10 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 54mm !important;
+  }
+
+  .credenciales-academia.is-collapsed .credenciales-stack {
+    display: flex !important;
   }
 
   .credenciales-root,
