@@ -71,6 +71,35 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 160px;
+}
+
+.pantalla-stats-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.pantalla-stats-pct {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.pantalla-progress {
+  height: 4px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pantalla-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #fbbf24);
+  border-radius: 4px;
+  transition: width 0.4s ease;
 }
 
 .pantalla-live {
@@ -87,23 +116,20 @@
 .pantalla-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr minmax(280px, 340px);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 24px;
   padding: 24px 28px 32px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .pantalla-actual {
   display: flex;
   flex-direction: column;
-  align-items: center;
   width: 100%;
+  min-width: 0;
 }
 
 .pantalla-actual h2 {
-  align-self: flex-start;
-  width: 100%;
-  max-width: 960px;
   margin: 0 0 16px;
   font-size: 14px;
   font-weight: 800;
@@ -115,57 +141,70 @@
 .pantalla-espera {
   text-align: center;
   width: 100%;
-  max-width: 960px;
-}
-
-.pantalla-espera > p {
-  color: #64748b;
-  margin-bottom: 16px;
-}
-
-.pantalla-combate {
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid #334155;
-  background: #111827;
 }
 
 .pantalla-combate--grande {
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
   width: 100%;
-  max-width: 960px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .pantalla-combate-meta {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   background: #1e293b;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #e2e8f0;
 }
 
-.pantalla-combate-meta span:last-child {
+.pantalla-combate-meta-cat {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pantalla-combate-meta-ronda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: #94a3b8;
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.pantalla-combate-no {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 13px;
+  color: #fbbf24;
+  background: #0f172a;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
 }
 
 .pantalla-combate-vs {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 88px 1fr;
   align-items: stretch;
-  position: relative;
-  min-height: 160px;
+  flex: 1;
+  min-height: 200px;
 }
 
 .pantalla-combate--grande .pantalla-combate-vs {
-  min-height: 220px;
+  min-height: clamp(240px, 42vh, 420px);
 }
 
 .pantalla-competidor {
-  padding: 20px 16px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -178,22 +217,35 @@
   align-items: flex-end;
   text-align: right;
   border-right: none;
-  border-radius: 0;
+  padding-right: 28px;
 }
 
 .pantalla-competidor--der {
   align-items: flex-start;
   text-align: left;
   border-left: none;
+  padding-left: 28px;
 }
 
 .pantalla-competidor--grande {
-  padding: 28px 20px;
+  padding: clamp(24px, 4vw, 40px) clamp(20px, 3vw, 36px);
 }
 
 .pantalla-competidor--ganador {
   background: linear-gradient(145deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%) !important;
   border-color: #b45309 !important;
+}
+
+.pantalla-competidor--ganador .pantalla-nombre {
+  color: #78350f !important;
+}
+
+.pantalla-competidor--ganador .pantalla-academia {
+  color: #92400e !important;
+}
+
+.pantalla-competidor--ganador .pantalla-dorsal {
+  color: #78350f !important;
 }
 
 .pantalla-badge {
@@ -263,23 +315,20 @@
   font-size: clamp(1.3rem, 2.8vw, 2.1rem);
   font-weight: 800;
   line-height: 1.15;
-  color: #f1f5f9;
   word-break: break-word;
+  color: #f1f5f9;
 }
 
 .pantalla-competidor--grande .pantalla-nombre {
-  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-size: clamp(1.6rem, 3.4vw, 2.8rem);
 }
 
 .pantalla-academia {
-  margin-top: 6px;
-  font-size: 14px;
-  color: #94a3b8;
+  margin-top: 8px;
+  font-size: clamp(13px, 1.6vw, 17px);
   font-weight: 600;
-}
-
-.pantalla-competidor--grande .pantalla-academia {
-  font-size: 16px;
+  opacity: 0.92;
+  color: #94a3b8;
 }
 
 .pantalla-vacio {
@@ -288,29 +337,42 @@
   font-weight: 600;
 }
 
-.pantalla-vs {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+.pantalla-vs-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #0a0a0f;
+  border-top: 2px solid #334155;
+  border-bottom: 2px solid #334155;
+}
+
+.pantalla-vs {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #111827;
   border: 3px solid #fbbf24;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 900;
   color: #fbbf24;
+  flex-shrink: 0;
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.2);
+}
+
+.pantalla-combate--grande .pantalla-vs {
+  width: 76px;
+  height: 76px;
+  font-size: 17px;
 }
 
 .pantalla-lateral {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
 }
 
 .pantalla-bloque {
@@ -318,7 +380,13 @@
   border: 1px solid #334155;
   border-radius: 14px;
   padding: 16px;
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pantalla-bloque:first-child {
+  flex: 1.2;
 }
 
 .pantalla-bloque h3 {
@@ -340,6 +408,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  max-height: min(52vh, 520px);
+  padding-right: 4px;
+}
+
+.pantalla-lista::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pantalla-lista::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
 }
 
 .pantalla-proximo-mini {
@@ -378,6 +458,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pantalla-proximo-badge {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fbbf24;
+  background: #0f172a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .pantalla-proximo-vs {
@@ -482,6 +576,18 @@
   color: #dc2626;
 }
 
+.pantalla-espera > p {
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.pantalla-combate {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #334155;
+  background: #111827;
+}
+
 @media (max-width: 900px) {
   .pantalla-header {
     grid-template-columns: 1fr;
@@ -495,6 +601,23 @@
 
   .pantalla-main {
     grid-template-columns: 1fr;
+  }
+
+  .pantalla-combate-vs {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .pantalla-vs-col {
+    border: none;
+    padding: 8px 0;
+    background: transparent;
+  }
+
+  .pantalla-competidor--izq,
+  .pantalla-competidor--der {
+    border: 2px solid #334155;
+    padding: 20px 16px;
   }
 }
 

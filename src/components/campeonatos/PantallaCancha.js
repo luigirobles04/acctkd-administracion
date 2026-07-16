@@ -3,8 +3,13 @@
 import { ganadorCombate } from '@/lib/campeonato/canchas-data'
 
 const COLOR = {
-  azul: { bg: '#1d4ed8', panel: '#dbeafe', text: '#1e3a8a', label: 'AZUL' },
-  rojo: { bg: '#b91c1c', panel: '#fee2e2', text: '#7f1d1d', label: 'ROJO' },
+  azul: { bg: '#1d4ed8', panel: '#dbeafe', text: '#1e3a8a', sub: '#1e40af', label: 'AZUL' },
+  rojo: { bg: '#b91c1c', panel: '#fee2e2', text: '#7f1d1d', sub: '#991b1b', label: 'ROJO' },
+}
+
+function fmtCombateTV(orden, cancha) {
+  if (!orden) return null
+  return `${cancha || 1}/${String(orden).padStart(2, '0')}`
 }
 
 function CompetidorTV({ data, color, lado, esGanador, grande }) {
@@ -47,25 +52,35 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
               {data.dorsal}
             </span>
           </div>
-          <span className="pantalla-nombre">{data.nombres}</span>
-          {data.academia && <span className="pantalla-academia">{data.academia}</span>}
+          <span className="pantalla-nombre" style={c && !esGanador ? { color: c.text } : undefined}>
+            {data.nombres}
+          </span>
+          {data.academia && (
+            <span className="pantalla-academia" style={c && !esGanador ? { color: c.sub } : undefined}>
+              {data.academia}
+            </span>
+          )}
         </>
       )}
     </div>
   )
 }
 
-function CombateTV({ combate, grande = false, showMeta = true }) {
+function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
   if (!combate) return null
   const g1 = combate.ganador_id_linea === combate.id_linea1
   const g2 = combate.ganador_id_linea === combate.id_linea2
+  const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
 
   return (
     <div className={`pantalla-combate${grande ? ' pantalla-combate--grande' : ''}`}>
       {showMeta && (
         <div className="pantalla-combate-meta">
-          <span>{combate.categoria_nombre}</span>
-          <span>{combate.rondaLabel}</span>
+          <span className="pantalla-combate-meta-cat">{combate.categoria_nombre}</span>
+          <span className="pantalla-combate-meta-ronda">
+            {combateNo && <em className="pantalla-combate-no">{combateNo}</em>}
+            {combate.rondaLabel}
+          </span>
         </div>
       )}
       <div className="pantalla-combate-vs">
@@ -76,7 +91,9 @@ function CombateTV({ combate, grande = false, showMeta = true }) {
           esGanador={g1}
           grande={grande}
         />
-        <div className="pantalla-vs">VS</div>
+        <div className="pantalla-vs-col" aria-hidden>
+          <div className="pantalla-vs">VS</div>
+        </div>
         <CompetidorTV
           data={combate.competidor2}
           color={combate.color2 || 'rojo'}
@@ -107,12 +124,16 @@ function ResultadoMini({ combate }) {
   )
 }
 
-function ProximoMini({ combate, index }) {
+function ProximoMini({ combate, index, cancha = 1 }) {
+  const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
   return (
     <div className="pantalla-proximo-mini">
       <span className="pantalla-proximo-num">{index + 1}</span>
       <div className="pantalla-proximo-info">
-        <span className="pantalla-proximo-cat">{combate.categoria_nombre}</span>
+        <span className="pantalla-proximo-cat">
+          {combateNo && <em className="pantalla-proximo-badge">{combateNo}</em>}
+          {combate.categoria_nombre}
+        </span>
         <span className="pantalla-proximo-vs">
           {combate.competidor1?.dorsal || '—'} vs {combate.competidor2?.dorsal || '—'}
         </span>
@@ -125,6 +146,7 @@ export default function PantallaCancha({ data, loading }) {
   const camp = data?.campeonato
   const cancha = data?.cancha || 1
   const { actual, proximos, recientes, stats } = data || {}
+  const pct = stats?.total ? Math.round((stats.terminados / stats.total) * 100) : 0
 
   return (
     <div className="pantalla-cancha">
@@ -143,7 +165,13 @@ export default function PantallaCancha({ data, loading }) {
         <div className="pantalla-header-stats">
           {stats && (
             <>
-              <span>{stats.terminados}/{stats.total} combates</span>
+              <span className="pantalla-stats-line">
+                {stats.terminados}/{stats.total} combates
+                <span className="pantalla-stats-pct">{pct}%</span>
+              </span>
+              <div className="pantalla-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                <div className="pantalla-progress-fill" style={{ width: `${pct}%` }} />
+              </div>
               <span className={loading ? 'pantalla-live pantalla-live--sync' : 'pantalla-live'}>● EN VIVO</span>
             </>
           )}
@@ -154,13 +182,13 @@ export default function PantallaCancha({ data, loading }) {
         <section className="pantalla-actual">
           <h2>{actual ? 'En pista' : stats?.pendientes === 0 && stats?.total > 0 ? 'Completado' : 'Esperando combates'}</h2>
           {actual ? (
-            <CombateTV combate={actual} grande showMeta />
+            <CombateTV combate={actual} grande showMeta cancha={cancha} />
           ) : (
             <div className="pantalla-espera">
               {proximos?.[0] ? (
                 <>
                   <p>Próximo combate</p>
-                  <CombateTV combate={proximos[0]} grande showMeta />
+                  <CombateTV combate={proximos[0]} grande showMeta cancha={cancha} />
                 </>
               ) : (
                 <p>No hay combates programados en esta área.</p>
