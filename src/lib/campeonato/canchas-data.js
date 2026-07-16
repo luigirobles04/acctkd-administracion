@@ -29,6 +29,9 @@ function enrichCombate(l, lineaMap, catMap) {
     ganador_id_linea: l.ganador_id_linea,
     id_linea1: l.id_linea1,
     id_linea2: l.id_linea2,
+    puntaje1: l.puntaje1 ?? 0,
+    puntaje2: l.puntaje2 ?? 0,
+    siguiente_llave: l.siguiente_llave ?? null,
     categoria_nombre: cat?.nombre || '',
     competidor1,
     competidor2,
@@ -94,17 +97,18 @@ export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltado
 }
 
 function combateListo(c) {
-  return c.estado === 'pendiente' && c.id_linea1 && c.id_linea2 && c.competidor1 && c.competidor2
+  return (c.estado === 'pendiente' || c.estado === 'en_curso') && c.id_linea1 && c.id_linea2 && c.competidor1 && c.competidor2
 }
 
 /** Organiza datos para pantalla pública de una cancha */
 export function organizarPantallaCancha(combates) {
   const lista = [...(combates || [])].sort((a, b) => (a.orden_pista || 9999) - (b.orden_pista || 9999))
-  const pendientes = lista.filter(combateListo)
+  const enCurso = lista.filter((c) => c.estado === 'en_curso' && combateListo(c))
+  const pendientes = lista.filter((c) => c.estado === 'pendiente' && combateListo(c))
   const finalizados = lista.filter((c) => c.estado === 'finalizado' && c.ganador_id_linea)
 
-  const actual = pendientes[0] || null
-  const proximos = pendientes.slice(1, 8)
+  const actual = enCurso[0] || pendientes[0] || null
+  const proximos = actual?.estado === 'en_curso' ? pendientes.slice(0, 8) : pendientes.slice(1, 8)
   const recientes = finalizados.slice(-4).reverse()
 
   const terminados = finalizados.length

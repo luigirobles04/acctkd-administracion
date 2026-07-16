@@ -71,16 +71,34 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
   const g1 = combate.ganador_id_linea === combate.id_linea1
   const g2 = combate.ganador_id_linea === combate.id_linea2
   const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
+  const enVivo = combate.estado === 'en_curso'
+  const p1 = combate.puntaje1 ?? 0
+  const p2 = combate.puntaje2 ?? 0
+  const showMarcador = enVivo || combate.estado === 'finalizado' || p1 > 0 || p2 > 0
 
   return (
-    <div className={`pantalla-combate${grande ? ' pantalla-combate--grande' : ''}`}>
+    <div className={`pantalla-combate${grande ? ' pantalla-combate--grande' : ''}${enVivo ? ' pantalla-combate--vivo' : ''}`}>
       {showMeta && (
         <div className="pantalla-combate-meta">
           <span className="pantalla-combate-meta-cat">{combate.categoria_nombre}</span>
           <span className="pantalla-combate-meta-ronda">
             {combateNo && <em className="pantalla-combate-no">{combateNo}</em>}
             {combate.rondaLabel}
+            {enVivo && <span className="pantalla-en-vivo-badge">EN CURSO</span>}
           </span>
+        </div>
+      )}
+      {showMarcador && (
+        <div className="pantalla-marcador-live" aria-live="polite">
+          <div className="pantalla-marcador-puntos pantalla-marcador-puntos--azul">
+            <span className="pantalla-marcador-label">AZUL</span>
+            <strong>{p1}</strong>
+          </div>
+          <span className="pantalla-marcador-sep">—</span>
+          <div className="pantalla-marcador-puntos pantalla-marcador-puntos--rojo">
+            <span className="pantalla-marcador-label">ROJO</span>
+            <strong>{p2}</strong>
+          </div>
         </div>
       )}
       <div className="pantalla-combate-vs">

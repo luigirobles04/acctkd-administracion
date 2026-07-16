@@ -203,6 +203,75 @@
   min-height: clamp(240px, 42vh, 420px);
 }
 
+.pantalla-combate--vivo {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.45);
+}
+
+.pantalla-en-vivo-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-style: normal;
+}
+
+.pantalla-marcador-live {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px 24px;
+  margin-bottom: 12px;
+  background: #111827;
+  border-radius: 14px;
+  border: 1px solid #334155;
+}
+
+.pantalla-marcador-puntos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.pantalla-marcador-puntos strong {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pantalla-marcador-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.pantalla-marcador-puntos--azul .pantalla-marcador-label,
+.pantalla-marcador-puntos--azul strong {
+  color: #60a5fa;
+}
+
+.pantalla-marcador-puntos--rojo .pantalla-marcador-label,
+.pantalla-marcador-puntos--rojo strong {
+  color: #f87171;
+}
+
+.pantalla-marcador-sep {
+  font-size: 2rem;
+  color: #475569;
+  font-weight: 300;
+}
+
+.pantalla-combate--grande .pantalla-marcador-live {
+  padding: 20px 32px;
+}
+
 .pantalla-competidor {
   padding: 24px 20px;
   display: flex;
