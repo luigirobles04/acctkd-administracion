@@ -27,10 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-dvh flex items-center justify-center p-5"
-      style={{ background: '#0A0A0B' }}
-    >
+    <div className="login-shell min-h-dvh flex items-center justify-center p-5">
       {/* Volver al inicio */}
       <Link
         href="/"
@@ -88,7 +85,7 @@ export default function LoginPage() {
               color: '#FFFFFF', marginTop: 20,
             }}
           >
-            ACCTK<span style={{ color: '#E53935' }}>D</span>MINISTRACIÓN
+            ACCTK<span style={{ color: '#e10600' }}>D</span>MINISTRACIÓN
           </h1>
           <p style={{
             fontSize: 13, color: 'rgba(235,235,245,0.45)', marginTop: 4,

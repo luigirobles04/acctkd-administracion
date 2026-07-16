@@ -21,12 +21,13 @@ export default function AdminLayout({ children, title, subtitle, actions }) {
   }, [router, pathname])
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>
+    <div className="app-shell">
+      <div className="app-shell-bg" aria-hidden />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="ios-main">
+      <div className="ios-main app-main">
         {/* Navbar */}
-        <header className="ios-navbar">
+        <header className="ios-navbar app-navbar">
           {/* Botón hamburguesa — solo móvil/tablet */}
           <button
             onClick={() => setSidebarOpen(true)}

@@ -370,26 +370,13 @@ export default function DashboardPage() {
               key={s.key}
               type="button"
               onClick={() => router.push(s.href)}
+              className="stat-card"
               style={{
-                background: '#fff',
-                borderRadius: 18,
-                padding: '16px',
-                border: '0.5px solid var(--separator)',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
                 textAlign: 'left',
                 cursor: 'pointer',
-                transition: 'transform 0.15s, box-shadow 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = ''
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                alignItems: 'flex-start',
               }}
             >
               <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -471,21 +458,22 @@ export default function DashboardPage() {
         </div>
 
         <div className="anim-fade-up" style={{ animationDelay: '0.08s' }}>
-          <p className="ios-headline" style={{ marginBottom: 12, color: 'var(--label)' }}>Acceso rápido</p>
-          <div className="ios-group">
-            {ACCESOS.map((a, i) => (
+          <p className="app-section-title">
+            <span className="material-symbols-rounded">bolt</span>
+            Acceso rápido
+          </p>
+          <div className="app-quick-grid">
+            {ACCESOS.map((a) => (
               <button
-                key={i}
+                key={a.href}
                 type="button"
                 onClick={() => router.push(a.href)}
-                className="ios-group-row"
-                style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left' }}
+                className="app-quick-card"
               >
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span className="material-symbols-rounded" style={{ fontSize: 18, color: a.color, fontVariationSettings: "'FILL' 1" }}>{a.icon}</span>
+                <div className="app-quick-card-icon" style={{ background: `${a.color}18` }}>
+                  <span className="material-symbols-rounded" style={{ color: a.color, fontVariationSettings: "'FILL' 1" }}>{a.icon}</span>
                 </div>
-                <span style={{ flex: 1, fontSize: 15, fontWeight: 500, color: 'var(--label)' }}>{a.label}</span>
-                <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--label4)' }}>chevron_right</span>
+                <span className="app-quick-card-label">{a.label}</span>
               </button>
             ))}
           </div>

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./app-theme.css";
 
 /* ── SF Pro / iOS Typography ──────────────────────────────────────
    La fuente Inter se carga desde src/app/layout.js con <link>,

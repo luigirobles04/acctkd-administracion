@@ -24,15 +24,19 @@ export default function PortalShell({
   const firstName = representante?.nombre?.split(/\s+/)[0]
 
   return (
-    <div className="portal-shell">
+    <div className="portal-shell portal-shell--fest">
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
           <Link href="/portal" className="portal-topbar-brand">
-            <Image src="/logo-dark.png" alt="" width={28} height={28} className="portal-topbar-logo" />
-            <span>ACCTKD</span>
+            <Image src="/logo-dark.png" alt="" width={32} height={32} className="portal-topbar-logo" />
+            <span>
+              ACCTKD
+              <small>Portal de inscripción</small>
+            </span>
           </Link>
           {onLogout && (
             <button type="button" className="portal-topbar-logout" onClick={onLogout}>
+              <span className="material-symbols-rounded" style={{ fontSize: 18 }}>logout</span>
               Salir
             </button>
           )}

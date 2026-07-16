@@ -100,7 +100,7 @@ export default function RegistroAcademiaPage() {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
 
   return (
-    <div className="portal-shell">
+    <div className="portal-shell portal-shell--fest">
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
           <Link href="/" className="portal-topbar-brand">

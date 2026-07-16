@@ -94,24 +94,22 @@ export default function Sidebar({ open, onClose }) {
         />
       )}
 
-      <aside className={`ios-sidebar ${open ? 'open' : ''}`}>
+      <aside className={`ios-sidebar app-sidebar ${open ? 'open' : ''}`}>
         {/* Header */}
         <div style={{ padding: '22px 18px 18px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Image
               src="/logo-dark.png"
               alt="Logo"
-              width={38}
-              height={38}
-              style={{ objectFit: 'contain', flexShrink: 0 }}
+              width={40}
+              height={40}
+              style={{ objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 12px rgba(225,6,0,0.35))' }}
             />
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: -0.4, lineHeight: 1.1 }}>
-                ACCTK<span style={{ color: '#E53935' }}>D</span>
+              <p style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: -0.4, lineHeight: 1.1 }}>
+                ACCTK<span style={{ color: '#e10600' }}>D</span>
               </p>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', letterSpacing: 0.4, marginTop: 2, fontWeight: 600, textTransform: 'uppercase' }}>
-                Administración
-              </p>
+              <span className="app-brand-tag">Sistema de gestión</span>
             </div>
           </div>
         </div>
