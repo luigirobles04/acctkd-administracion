@@ -12,6 +12,40 @@ function fmtCombateTV(orden, cancha) {
   return `${cancha || 1}/${String(orden).padStart(2, '0')}`
 }
 
+function roundWinnerLabel(ganador, combate) {
+  if (ganador === 1) return combate.color1 === 'rojo' ? 'ROJO' : 'AZUL'
+  if (ganador === 2) return combate.color2 === 'rojo' ? 'ROJO' : 'AZUL'
+  return null
+}
+
+function RoundsTV({ combate }) {
+  const rounds = [
+    { n: 1, g: combate.round1_ganador },
+    { n: 2, g: combate.round2_ganador },
+    { n: 3, g: combate.round3_ganador },
+  ]
+  const any = rounds.some((r) => r.g === 1 || r.g === 2)
+  if (!any) return null
+
+  return (
+    <div className="pantalla-rounds-live" aria-label="Ganadores por round">
+      {rounds.map(({ n, g }) => {
+        const winner = roundWinnerLabel(g, combate)
+        const played = g === 1 || g === 2
+        return (
+          <div
+            key={n}
+            className={`pantalla-round-chip${played ? ` pantalla-round-chip--${winner === 'ROJO' ? 'rojo' : 'azul'}` : ''}`}
+          >
+            <span className="pantalla-round-chip-num">R{n}</span>
+            <span className="pantalla-round-chip-winner">{played ? winner : '—'}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function CompetidorTV({ data, color, lado, esGanador, grande }) {
   const c = esGanador ? null : COLOR[color] || null
   const vacio = !data?.id_linea
@@ -92,15 +126,16 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
         <div className="pantalla-marcador-live" aria-live="polite">
           <div className="pantalla-marcador-puntos pantalla-marcador-puntos--azul">
             <span className="pantalla-marcador-label">AZUL</span>
-            <strong>{p1}</strong>
+            <strong className={p1 > p2 ? 'pantalla-marcador--lider' : ''}>{p1}</strong>
           </div>
           <span className="pantalla-marcador-sep">—</span>
           <div className="pantalla-marcador-puntos pantalla-marcador-puntos--rojo">
             <span className="pantalla-marcador-label">ROJO</span>
-            <strong>{p2}</strong>
+            <strong className={p2 > p1 ? 'pantalla-marcador--lider' : ''}>{p2}</strong>
           </div>
         </div>
       )}
+      {enVivo && <RoundsTV combate={combate} />}
       <div className="pantalla-combate-vs">
         <CompetidorTV
           data={combate.competidor1}

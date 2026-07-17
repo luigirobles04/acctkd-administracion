@@ -262,6 +262,61 @@
   color: #f87171;
 }
 
+.pantalla-marcador--lider {
+  color: #facc15 !important;
+  text-shadow: 0 0 20px rgba(250, 204, 21, 0.45);
+}
+
+.pantalla-rounds-live {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.pantalla-round-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 72px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #1f2937;
+  border: 1px solid #374151;
+}
+
+.pantalla-round-chip-num {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.pantalla-round-chip-winner {
+  font-size: 15px;
+  font-weight: 900;
+  color: #64748b;
+}
+
+.pantalla-round-chip--azul {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.pantalla-round-chip--azul .pantalla-round-chip-winner {
+  color: #60a5fa;
+}
+
+.pantalla-round-chip--rojo {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.pantalla-round-chip--rojo .pantalla-round-chip-winner {
+  color: #f87171;
+}
+
 .pantalla-marcador-sep {
   font-size: 2rem;
   color: #475569;

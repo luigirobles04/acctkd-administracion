@@ -39,6 +39,9 @@ export async function buildPssAreaSnapshot(sb, idCampeonato, cancha) {
     ganador_id_linea: c.ganador_id_linea,
     puntaje1: c.puntaje1 ?? 0,
     puntaje2: c.puntaje2 ?? 0,
+    round1_ganador: c.round1_ganador ?? null,
+    round2_ganador: c.round2_ganador ?? null,
+    round3_ganador: c.round3_ganador ?? null,
     siguiente_llave: c.siguiente_llave ?? null,
     competidor1: c.competidor1,
     competidor2: c.competidor2,
@@ -74,7 +77,7 @@ export async function iniciarCombatePss(sb, idCampeonato, idLlave) {
   if (match.cancha) {
     await sb
       .from('llave_kyorugi')
-      .update({ estado: 'pendiente', puntaje1: 0, puntaje2: 0 })
+      .update({ estado: 'pendiente', puntaje1: 0, puntaje2: 0, round1_ganador: null, round2_ganador: null, round3_ganador: null })
       .eq('id_campeonato', idCampeonato)
       .eq('cancha', match.cancha)
       .eq('estado', 'en_curso')
@@ -83,20 +86,27 @@ export async function iniciarCombatePss(sb, idCampeonato, idLlave) {
 
   const { error: upErr } = await sb
     .from('llave_kyorugi')
-    .update({ estado: 'en_curso', puntaje1: 0, puntaje2: 0 })
+    .update({
+      estado: 'en_curso',
+      puntaje1: 0,
+      puntaje2: 0,
+      round1_ganador: null,
+      round2_ganador: null,
+      round3_ganador: null,
+    })
     .eq('id_llave', id)
   if (upErr) throw upErr
 
   return { ok: true, id_llave: id, estado: 'en_curso' }
 }
 
-export async function actualizarMarcadorPss(sb, idCampeonato, idLlave, { puntaje1, puntaje2 } = {}) {
+export async function actualizarMarcadorPss(sb, idCampeonato, idLlave, { puntaje1, puntaje2, round1Ganador, round2Ganador, round3Ganador } = {}) {
   const id = Number(idLlave)
   if (!id) throw new Error('ID de combate inválido')
 
   const { data: match, error } = await sb
     .from('llave_kyorugi')
-    .select('id_llave, id_campeonato, estado')
+    .select('id_llave, id_campeonato, estado, round1_ganador, round2_ganador, round3_ganador')
     .eq('id_llave', id)
     .eq('id_campeonato', idCampeonato)
     .maybeSingle()
@@ -113,10 +123,32 @@ export async function actualizarMarcadorPss(sb, idCampeonato, idLlave, { puntaje
   const patch = { puntaje1: p1, puntaje2: p2 }
   if (match.estado === 'pendiente') patch.estado = 'en_curso'
 
+  const r1 = parseRoundGanador(round1Ganador)
+  const r2 = parseRoundGanador(round2Ganador)
+  const r3 = parseRoundGanador(round3Ganador)
+  if (r1 != null) patch.round1_ganador = r1
+  if (r2 != null) patch.round2_ganador = r2
+  if (r3 != null) patch.round3_ganador = r3
+
   const { error: upErr } = await sb.from('llave_kyorugi').update(patch).eq('id_llave', id)
   if (upErr) throw upErr
 
-  return { ok: true, id_llave: id, puntaje1: p1, puntaje2: p2, estado: patch.estado || match.estado }
+  return {
+    ok: true,
+    id_llave: id,
+    puntaje1: p1,
+    puntaje2: p2,
+    round1_ganador: r1 ?? match.round1_ganador ?? null,
+    round2_ganador: r2 ?? match.round2_ganador ?? null,
+    round3_ganador: r3 ?? match.round3_ganador ?? null,
+    estado: patch.estado || match.estado,
+  }
+}
+
+function parseRoundGanador(value) {
+  const n = Number(value)
+  if (n === 1 || n === 2) return n
+  return null
 }
 
 export async function finalizarCombatePss(sb, idCampeonato, idLlave, { ganadorIdLinea, puntaje1, puntaje2 } = {}) {

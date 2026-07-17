@@ -12,12 +12,18 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'IDs inválidos' }, { status: 400 })
     }
 
-    const { puntaje1, puntaje2 } = await request.json()
+    const { puntaje1, puntaje2, round1Ganador, round2Ganador, round3Ganador } = await request.json()
     const sb = getSupabaseAdmin()
     const auth = await verifyPssAccess(sb, request, idCampeonato)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-    const result = await actualizarMarcadorPss(sb, idCampeonato, idCombate, { puntaje1, puntaje2 })
+    const result = await actualizarMarcadorPss(sb, idCampeonato, idCombate, {
+      puntaje1,
+      puntaje2,
+      round1Ganador,
+      round2Ganador,
+      round3Ganador,
+    })
     return NextResponse.json(result)
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
