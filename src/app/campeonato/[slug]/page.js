@@ -49,13 +49,22 @@ export default function CampeonatoPublicoPage() {
               </div>
             )}
             {camp?.slug && (
-              <Link
-                href={`/campeonato/${slug}/canchas`}
-                className="ios-btn ios-btn-secondary"
-                style={{ display: 'inline-flex', justifyContent: 'center', marginTop: 16 }}
-              >
-                Pantallas por área (TV)
-              </Link>
+              <>
+                <Link
+                  href={`/campeonato/${slug}/resultados`}
+                  className="ios-btn ios-btn-primary"
+                  style={{ display: 'inline-flex', justifyContent: 'center', marginTop: 16 }}
+                >
+                  Resultados y medallero
+                </Link>
+                <Link
+                  href={`/campeonato/${slug}/canchas`}
+                  className="ios-btn ios-btn-secondary"
+                  style={{ display: 'inline-flex', justifyContent: 'center', marginTop: 10 }}
+                >
+                  Pantallas por área (TV)
+                </Link>
+              </>
             )}
             {camp.bases_pdf_url && (
               <a href={camp.bases_pdf_url} target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: 16, color: 'var(--red)' }}>

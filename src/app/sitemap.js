@@ -28,6 +28,7 @@ export default async function sitemap() {
       return [
         { url: `${base}/campeonato/${slug}`, lastModified: last, changeFrequency: 'weekly', priority: 0.9 },
         { url: `${base}/campeonato/${slug}/canchas`, lastModified: last, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${base}/campeonato/${slug}/resultados`, lastModified: last, changeFrequency: 'daily', priority: 0.88 },
         { url: `${base}/campeonato/${slug}/podios`, lastModified: last, changeFrequency: 'daily', priority: 0.8 },
         { url: `${base}/inscripcion/${slug}`, lastModified: last, changeFrequency: 'weekly', priority: 0.75 },
       ]

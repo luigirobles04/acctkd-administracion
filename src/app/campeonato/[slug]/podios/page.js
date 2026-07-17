@@ -39,8 +39,13 @@ export default function PodiosPublicosPage() {
         <header style={{ marginBottom: 24, textAlign: 'center' }}>
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', color: '#dc2626' }}>ACCTKD</span>
           <h1 style={{ margin: '8px 0 4px', fontSize: '1.5rem' }}>{camp?.nombre || 'Podios'}</h1>
-          <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Resultados Kyorugi · Medallero</p>
+          <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Resultados Kyorugi · redirigiendo al medallero…</p>
         </header>
+        <p style={{ textAlign: 'center' }}>
+          <Link href={`/campeonato/${slug}/resultados`} style={{ color: '#dc2626', fontWeight: 700 }}>
+            Ver resultados completos →
+          </Link>
+        </p>
 
         {loading ? (
           <p style={{ textAlign: 'center' }}>Cargando…</p>

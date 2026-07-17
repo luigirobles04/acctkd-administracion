@@ -2,7 +2,7 @@
 
 import { MEDALLA_EMOJI } from '@/lib/campeonato/podio-kyorugi'
 
-function Medallista({ tipo, competidor, compact }) {
+function Medallista({ tipo, competidor, compact, modalidad }) {
   if (!competidor) {
     return (
       <div className={`podio-puesto podio-puesto--${tipo} podio-puesto--vacio${compact ? ' podio-puesto--compact' : ''}`}>
@@ -17,12 +17,15 @@ function Medallista({ tipo, competidor, compact }) {
       <span className="podio-medalla">{MEDALLA_EMOJI[tipo]}</span>
       <span className="podio-dorsal">{competidor.dorsal}</span>
       <span className="podio-nombre">{competidor.nombres}</span>
+      {modalidad === 'poomsae' && competidor.puntaje != null && (
+        <span className="podio-puntaje">{Number(competidor.puntaje).toFixed(3)} pts</span>
+      )}
       {competidor.academia && <span className="podio-academia">{competidor.academia}</span>}
     </div>
   )
 }
 
-export default function PodioCard({ categoria, compact = false }) {
+export default function PodioCard({ categoria, compact = false, modalidad = 'kyorugi' }) {
   const { nombre, estado, podio } = categoria
 
   if (estado !== 'completo' || !podio) {
@@ -30,7 +33,7 @@ export default function PodioCard({ categoria, compact = false }) {
       <article className={`podio-card podio-card--${estado}${compact ? ' podio-card--compact' : ''}`}>
         <h3 className="podio-cat-nombre">{nombre}</h3>
         <p className="podio-estado">
-          {estado === 'en_curso' && 'En curso — falta la final'}
+          {estado === 'en_curso' && (modalidad === 'poomsae' ? 'Calificación en curso' : 'En curso — falta la final')}
           {estado === 'sin_llave' && 'Sin llave generada'}
           {estado === 'sin_final' && 'Llave incompleta'}
         </p>
@@ -44,12 +47,12 @@ export default function PodioCard({ categoria, compact = false }) {
       <div className="podio-plataforma">
         <div className="podio-col podio-col--bronce">
           {(podio.bronce?.length ? podio.bronce : [null]).map((c, i) => (
-            <Medallista key={c?.id_linea || `b${i}`} tipo="bronce" competidor={c} compact={compact} />
+            <Medallista key={c?.id_linea || `b${i}`} tipo="bronce" competidor={c} compact={compact} modalidad={modalidad} />
           ))}
         </div>
         <div className="podio-col podio-col--centro">
-          <Medallista tipo="plata" competidor={podio.plata} compact={compact} />
-          <Medallista tipo="oro" competidor={podio.oro} compact={compact} />
+          <Medallista tipo="plata" competidor={podio.plata} compact={compact} modalidad={modalidad} />
+          <Medallista tipo="oro" competidor={podio.oro} compact={compact} modalidad={modalidad} />
         </div>
       </div>
     </article>

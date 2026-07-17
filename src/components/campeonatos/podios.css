@@ -164,6 +164,12 @@
   line-height: 1.2;
 }
 
+.podio-puntaje {
+  font-size: 12px;
+  font-weight: 800;
+  color: #78350f;
+}
+
 .podio-vacio-text {
   font-size: 14px;
   color: #9ca3af;

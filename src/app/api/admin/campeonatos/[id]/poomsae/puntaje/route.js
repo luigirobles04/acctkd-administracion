@@ -28,19 +28,9 @@ export async function POST(request, { params }) {
     }
 
     if (body.idLinea) {
-      const puntaje = Number(body.puntaje)
-      if (Number.isNaN(puntaje) || puntaje < 0 || puntaje > 10) {
-        return NextResponse.json({ error: 'Puntaje inválido (0 a 10)' }, { status: 400 })
-      }
-      const { data, error } = await sb
-        .from('linea_inscripcion')
-        .update({ poomsae_puntaje: puntaje, poomsae_estado: 'calificado', updated_at: new Date().toISOString() })
-        .eq('id_linea', Number(body.idLinea))
-        .eq('id_campeonato', idCampeonato)
-        .select('id_linea, id_categoria, poomsae_puntaje, poomsae_estado')
-        .single()
-      if (error) throw error
-      return NextResponse.json({ ok: true, linea: data })
+      const { guardarPuntajePoomsaePss } = await import('@/lib/campeonato/poomsae-pss')
+      const result = await guardarPuntajePoomsaePss(sb, idCampeonato, body.idLinea, body.puntaje)
+      return NextResponse.json({ ok: true, linea: result.linea })
     }
 
     if (body.idCategoria && body.cerrarCategoria) {
