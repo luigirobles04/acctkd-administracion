@@ -676,7 +676,7 @@
   box-shadow: 0 40px 100px rgba(245,197,24,.2), 0 0 60px rgba(225,6,0,.15);
 }
 .lp-medalla-hero-frame img {
-  width: 100%; display: block; aspect-ratio: 3/4; object-fit: cover;
+  width: 100%; display: block; aspect-ratio: 3/4; object-fit: contain; background: #0d0d0f;
 }
 .lp-medalla-year--hero {
   top: 16px; left: 16px; font-size: 13px; padding: 6px 14px;
@@ -720,7 +720,7 @@
   box-shadow: 0 24px 50px rgba(0,0,0,.5), 0 0 30px rgba(245,197,24,.12);
 }
 .lp-medalla-frame img {
-  width: 100%; display: block; aspect-ratio: 3/4; object-fit: cover;
+  width: 100%; display: block; aspect-ratio: 3/4; object-fit: contain; background: #0d0d0f;
 }
 .lp-medalla-shine {
   position: absolute; inset: 0; pointer-events: none;

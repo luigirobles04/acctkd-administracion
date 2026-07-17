@@ -49,7 +49,7 @@ export const FESTCUP_LEGADO = [
     alt: 'Poster FestCup 2023',
     title: 'FestCup 2023',
     fecha: 'Sab 25 de Noviembre',
-    lugar: 'Coliseo Gran Chimú · Trujillo',
+    lugar: 'Coliseo Inca · Jr. Estete 410 · Trujillo',
     desc: 'Consolidamos Trujillo como la capital del taekwondo competitivo del norte del Perú.',
     tag: '#UniendoCampeones',
   },
