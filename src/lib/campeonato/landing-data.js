@@ -35,12 +35,12 @@ export const FESTCUP_LEGADO = [
   },
   {
     year: '2024',
-    poster: '/landing/galeria/festcup-2024-poster.png',
-    alt: 'Poster FestCup 2024',
+    poster: '/landing/galeria/festcup-2024-kyorugi.png',
+    alt: 'Poster Kyorugi FestCup 2024',
     title: 'FestCup 2024',
     fecha: 'Sab 23 de Noviembre',
     lugar: 'Coliseo Gran Chimú · Trujillo',
-    desc: 'Trofeos dorados, combates épicos y podios que quedaron en la memoria de cada academia.',
+    desc: 'Combate, adrenalina y podios épicos — la edición que consolidó el formato Kyorugi + Poomsae + Free Style.',
     tag: 'Edición 2024',
   },
   {
@@ -109,18 +109,20 @@ export const FESTCUP_MOMENTOS = [
 export const FESTCUP_MEDALLAS = [
   {
     year: '2026',
-    src: '/landing/medallas/medallas-2026-preview.png',
+    src: '/landing/medallas/medallas-2026.png',
     alt: 'Medallas oro, plata y bronce FestCup 2026',
     title: 'Medallas FestCup 2026',
     tag: 'Edición actual',
     highlight: true,
+    metal: 'gold',
   },
   {
     year: '2025',
     src: '/landing/medallas/medalla-2025.png',
-    alt: 'Medalla oficial FestCup 2025',
+    alt: 'Medalla oficial FestCup 2025 en estuche premium',
     title: 'Medalla FestCup 2025',
     tag: 'Edición 2025',
+    metal: 'gold',
   },
   {
     year: '2024',
@@ -128,6 +130,7 @@ export const FESTCUP_MEDALLAS = [
     alt: 'Medalla oro FestCup 2024',
     title: 'Medalla FestCup 2024',
     tag: 'Edición 2024',
+    metal: 'gold',
   },
   {
     year: '2023',
@@ -135,6 +138,7 @@ export const FESTCUP_MEDALLAS = [
     alt: 'Medalla FestCup 2023',
     title: 'Medalla FestCup 2023',
     tag: '#UniendoCampeones',
+    metal: 'gold',
   },
 ]
 

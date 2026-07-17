@@ -157,6 +157,7 @@ export default function LandingPage() {
           <a href="#ver-en-vivo" onClick={() => setMenuOpen(false)}>Ver en vivo</a>
           <a href="#sede" onClick={() => setMenuOpen(false)}>Sede</a>
           <a href="#documentos" onClick={() => setMenuOpen(false)}>Documentos</a>
+          <a href="#medallas" onClick={() => setMenuOpen(false)}>Medallas</a>
           <a href="#legado" onClick={() => setMenuOpen(false)}>Legado</a>
           <a href="#por-que" onClick={() => setMenuOpen(false)}>¿Por qué?</a>
           <Link href="/login" className="lp-btn lp-btn-ghost" onClick={() => setMenuOpen(false)}>
@@ -368,24 +369,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MEDALLAS — ediciones anteriores */}
+      {/* MEDALLAS — showcase animado */}
       <section className="lp-section lp-medallas-section" id="medallas">
+        <div className="lp-medallas-bg" aria-hidden>
+          <span className="lp-medallas-spark lp-medallas-spark-1" />
+          <span className="lp-medallas-spark lp-medallas-spark-2" />
+          <span className="lp-medallas-spark lp-medallas-spark-3" />
+        </div>
         <div className="lp-container">
           <p className="lp-kicker reveal">Premiación oficial</p>
           <h2 className="lp-h2 reveal d1">Medallas FestCup</h2>
           <p className="lp-lead reveal d1">
             Medallas oficiales World Taekwondo — cada edición con diseño exclusivo que tus atletas atesoran.
           </p>
+
+          <div className="lp-medallas-showcase reveal d2">
+            {FESTCUP_MEDALLAS.filter((m) => m.highlight).map((m) => (
+              <button
+                type="button"
+                key={`hero-${m.year}`}
+                className="lp-medalla-hero"
+                onClick={() => setLightbox({ src: m.src, alt: m.alt, caption: m.title })}
+              >
+                <span className="lp-medalla-hero-glow" aria-hidden />
+                <span className="lp-medalla-hero-ring" aria-hidden />
+                <span className="lp-medalla-year lp-medalla-year--hero">{m.year}</span>
+                <div className="lp-medalla-hero-frame">
+                  <img src={m.src} alt={m.alt} loading="lazy" />
+                  <span className="lp-medalla-shine" aria-hidden />
+                </div>
+                <span className="lp-medalla-tag lp-medalla-tag--hero">{m.tag}</span>
+                <span className="lp-medalla-tap">Toca para ampliar</span>
+              </button>
+            ))}
+          </div>
+
           <div className="lp-medallas-grid">
-            {FESTCUP_MEDALLAS.map((m, i) => (
+            {FESTCUP_MEDALLAS.filter((m) => !m.highlight).map((m, i) => (
               <button
                 type="button"
                 key={m.year}
-                className={`lp-medalla-card reveal d${(i % 4) + 1} ${m.highlight ? 'current' : ''}`}
+                className={`lp-medalla-card reveal d${(i % 3) + 1}`}
+                style={{ animationDelay: `${i * 0.12}s` }}
                 onClick={() => setLightbox({ src: m.src, alt: m.alt, caption: m.title })}
               >
+                <span className="lp-medalla-card-glow" aria-hidden />
                 <span className="lp-medalla-year">{m.year}</span>
-                <img src={m.src} alt={m.alt} loading="lazy" />
+                <div className="lp-medalla-frame">
+                  <img src={m.src} alt={m.alt} loading="lazy" />
+                  <span className="lp-medalla-shine" aria-hidden />
+                </div>
                 <span className="lp-medalla-tag">{m.tag}</span>
               </button>
             ))}
