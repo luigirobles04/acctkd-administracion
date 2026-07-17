@@ -127,6 +127,11 @@ export async function GET(request, { params }) {
         nombre: ac.campeonato.nombre,
         slug: ac.campeonato.slug,
         bases_pdf_url: ac.campeonato.bases_pdf_url,
+        documentos: {
+          bases: '/docs/festcup-2026/bases-festcup-2026.pdf',
+          programa: '/docs/festcup-2026/programa-festcup-2026.pdf',
+          plantillaExcel: '/docs/festcup-2026/plantilla-inscripcion-festcup.xlsx',
+        },
         cuenta_bancaria_info: ac.campeonato.cuenta_bancaria_info,
         fecha_cierre_inscripcion: ac.campeonato.fecha_cierre_inscripcion,
         fecha_gracia_pago: ac.campeonato.fecha_gracia_pago,

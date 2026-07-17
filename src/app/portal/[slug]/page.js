@@ -24,12 +24,14 @@ import {
 import { categoriasValidas, categoriasPoomsaeValidas, parseGrado, nombreCategoria, poomsaeCategoriaSugerida } from '@/lib/campeonato/validar-categoria'
 import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
 import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
+import PortalImportExcel from '@/components/campeonatos/PortalImportExcel'
 import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 import { getCurrentUser, isRepresentante } from '@/lib/services/auth.service'
 import { portalFetch } from '@/lib/portal-client'
 
 const TABS = [
   { id: 'inscribir', label: 'Inscribir' },
+  { id: 'excel', label: 'Excel' },
   { id: 'plantel', label: 'Plantel' },
   { id: 'pagos', label: 'Pagos' },
 ]
@@ -561,6 +563,14 @@ export default function PortalCampeonatoPage() {
       )}
 
       <PortalTabs tabs={TABS} active={tab} onChange={setTab} />
+
+      {tab === 'excel' && ac.aceptacion_bases_at && !rechazada && (
+        <PortalImportExcel
+          slug={slug}
+          disabled={data.inscripcion?.soloPago}
+          onSuccess={cargar}
+        />
+      )}
 
       {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && (
         <div className="portal-card">

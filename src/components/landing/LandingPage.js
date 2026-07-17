@@ -8,6 +8,10 @@ import {
   FESTCUP_POSTERS,
   FESTCUP_MOMENTOS,
   FESTCUP_RAZONES,
+  FESTCUP_MEDALLAS,
+  FESTCUP_DOCUMENTOS,
+  FESTCUP_SOCIAL,
+  FESTCUP_VENUE,
 } from '@/lib/campeonato/landing-data'
 import './landing.css'
 
@@ -151,6 +155,8 @@ export default function LandingPage() {
         </Link>
         <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
           <a href="#ver-en-vivo" onClick={() => setMenuOpen(false)}>Ver en vivo</a>
+          <a href="#sede" onClick={() => setMenuOpen(false)}>Sede</a>
+          <a href="#documentos" onClick={() => setMenuOpen(false)}>Documentos</a>
           <a href="#legado" onClick={() => setMenuOpen(false)}>Legado</a>
           <a href="#por-que" onClick={() => setMenuOpen(false)}>¿Por qué?</a>
           <Link href="/login" className="lp-btn lp-btn-ghost" onClick={() => setMenuOpen(false)}>
@@ -281,6 +287,108 @@ export default function LandingPage() {
                 </p>
               )}
             </article>
+          </div>
+        </div>
+      </section>
+
+      {/* SEDE — Coliseo Gran Chimú + Google Maps */}
+      <section className="lp-section lp-sede-section" id="sede">
+        <div className="lp-container">
+          <p className="lp-kicker reveal">¿Dónde será?</p>
+          <h2 className="lp-h2 reveal d1">{FESTCUP_VENUE.name}</h2>
+          <p className="lp-lead reveal d1">
+            {FESTCUP_VENUE.city}, {FESTCUP_VENUE.country} · {FESTCUP_VENUE.eventDate}
+          </p>
+          <div className="lp-sede-grid reveal d2">
+            <button
+              type="button"
+              className="lp-sede-visual"
+              onClick={() => window.open(FESTCUP_VENUE.mapsUrl, '_blank', 'noopener,noreferrer')}
+            >
+              <img src={FESTCUP_VENUE.image} alt={FESTCUP_VENUE.name} loading="lazy" />
+              <span className="lp-sede-map-hint">Toca para abrir en Google Maps →</span>
+            </button>
+            <div className="lp-sede-body">
+              <p>
+                El <strong>Coliseo Gran Chimú</strong> es la sede oficial de FestCup en Trujillo.
+                Tres áreas simultáneas, graderías para familiares y la energía del campeonato más grande del norte del Perú.
+              </p>
+              <p className="lp-sede-address">{FESTCUP_VENUE.address}</p>
+              <a
+                href={FESTCUP_VENUE.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lp-btn lp-btn-primary lp-btn-lg lp-btn-shine"
+              >
+                Cómo llegar · Google Maps →
+              </a>
+              <div className="lp-sede-social">
+                <a href={FESTCUP_SOCIAL.facebook} target="_blank" rel="noopener noreferrer" className="lp-social-btn">
+                  Facebook ACCTKD
+                </a>
+                <a href={FESTCUP_SOCIAL.instagram} target="_blank" rel="noopener noreferrer" className="lp-social-btn lp-social-ig">
+                  Instagram
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* DOCUMENTOS — bases, programa, plantilla Excel */}
+      <section className="lp-section alt" id="documentos">
+        <div className="lp-container">
+          <p className="lp-kicker reveal">Para profesores</p>
+          <h2 className="lp-h2 reveal d1">Bases, programa e inscripción</h2>
+          <p className="lp-lead reveal d1">
+            Descarga los documentos oficiales del FestCup 2026. Usa la misma plantilla Excel de siempre para inscribir a tu plantel.
+          </p>
+          <div className="lp-docs-grid">
+            {FESTCUP_DOCUMENTOS.map((doc, i) => (
+              <a
+                key={doc.href}
+                href={doc.href}
+                download={doc.tipo !== 'PDF' ? '' : undefined}
+                target={doc.tipo === 'PDF' ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                className={`lp-doc-card reveal d${(i % 3) + 1}`}
+              >
+                <span className="lp-doc-icon">{doc.icon}</span>
+                <span className="lp-doc-tipo">{doc.tipo}</span>
+                <h3>{doc.titulo}</h3>
+                <p>{doc.desc}</p>
+                <span className="lp-doc-cta">Descargar →</span>
+              </a>
+            ))}
+          </div>
+          <p className="lp-docs-hint reveal d3">
+            También puedes subir tu Excel directamente desde el{' '}
+            <Link href="/login">portal de academias</Link> una vez registrado.
+          </p>
+        </div>
+      </section>
+
+      {/* MEDALLAS — ediciones anteriores */}
+      <section className="lp-section lp-medallas-section" id="medallas">
+        <div className="lp-container">
+          <p className="lp-kicker reveal">Premiación oficial</p>
+          <h2 className="lp-h2 reveal d1">Medallas FestCup</h2>
+          <p className="lp-lead reveal d1">
+            Medallas oficiales World Taekwondo — cada edición con diseño exclusivo que tus atletas atesoran.
+          </p>
+          <div className="lp-medallas-grid">
+            {FESTCUP_MEDALLAS.map((m, i) => (
+              <button
+                type="button"
+                key={m.year}
+                className={`lp-medalla-card reveal d${(i % 4) + 1} ${m.highlight ? 'current' : ''}`}
+                onClick={() => setLightbox({ src: m.src, alt: m.alt, caption: m.title })}
+              >
+                <span className="lp-medalla-year">{m.year}</span>
+                <img src={m.src} alt={m.alt} loading="lazy" />
+                <span className="lp-medalla-tag">{m.tag}</span>
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -426,7 +534,12 @@ export default function LandingPage() {
             <Link href="/registro-academia" className="lp-btn lp-btn-primary lp-btn-xl lp-btn-shine">
               {cfg.ctaPrimario} →
             </Link>
-            <span className="lp-cta-note">Coliseo Gran Chimú · Trujillo · World Taekwondo</span>
+            <span className="lp-cta-note">
+              <a href={FESTCUP_VENUE.mapsUrl} target="_blank" rel="noopener noreferrer">
+                {FESTCUP_VENUE.name} · {FESTCUP_VENUE.city}
+              </a>
+              {' '}· World Taekwondo
+            </span>
           </div>
         </div>
       </section>
@@ -444,9 +557,17 @@ export default function LandingPage() {
           <div className="lp-footer-links">
             <Link href="/registro-academia">Inscribir academia</Link>
             <Link href="/login">Academia inscrita</Link>
+            <a href="#documentos">Documentos</a>
+            <a href="#sede">Sede</a>
             <a href="#ver-en-vivo">Ver en vivo</a>
             <a href="#legado">Legado</a>
+            <a href={FESTCUP_SOCIAL.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a href={FESTCUP_SOCIAL.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>
             <Link href="/login">Organizadores</Link>
+          </div>
+          <div className="lp-footer-social">
+            <a href={FESTCUP_SOCIAL.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">f</a>
+            <a href={FESTCUP_SOCIAL.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">◎</a>
           </div>
           <small>
             © {new Date().getFullYear()} FestCup · Trujillo, Perú · #UniendoCampeones

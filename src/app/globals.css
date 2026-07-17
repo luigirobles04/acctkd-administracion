@@ -995,6 +995,31 @@ body {
   align-items: center;
   gap: 12px;
 }
+
+.portal-import-docs {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+}
+.portal-import-drop {
+  border: 2px dashed rgba(0,0,0,0.12); border-radius: 14px; padding: 28px 20px;
+  text-align: center; cursor: pointer; background: rgba(0,0,0,0.02);
+  transition: border-color 0.2s, background 0.2s;
+}
+.portal-import-drop.drag,
+.portal-import-drop:hover {
+  border-color: var(--red); background: rgba(229,57,53,0.04);
+}
+.portal-import-drop-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+.portal-import-stats {
+  display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; font-size: 14px;
+}
+.portal-import-stats .warn { color: var(--red); }
+.portal-import-table-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--separator); border-radius: 10px; }
+.portal-import-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.portal-import-table th,
+.portal-import-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--separator); }
+.portal-import-table tr.err { background: rgba(229,57,53,0.06); }
+.portal-alert--ok { background: rgba(52,199,89,0.1); border: 1px solid rgba(52,199,89,0.3); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
+
 .portal-spinner {
   width: 24px;
   height: 24px;

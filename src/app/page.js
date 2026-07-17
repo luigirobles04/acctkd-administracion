@@ -25,8 +25,13 @@ const jsonLd = {
   eventStatus: 'https://schema.org/EventScheduled',
   location: {
     '@type': 'Place',
-    name: 'Trujillo, Perú',
-    address: { '@type': 'PostalAddress', addressLocality: 'Trujillo', addressCountry: 'PE' },
+    name: 'Coliseo Gran Chimú',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Trujillo',
+      addressRegion: 'La Libertad',
+      addressCountry: 'PE',
+    },
   },
   organizer: {
     '@type': 'Organization',

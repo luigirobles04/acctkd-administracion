@@ -1,4 +1,7 @@
 /** Contenido del landing FestCup — enfoque en inscripción de academias. */
+import { FESTCUP_DOCS, FESTCUP_SOCIAL, FESTCUP_VENUE } from '@/lib/site-config'
+
+export { FESTCUP_DOCS, FESTCUP_SOCIAL, FESTCUP_VENUE }
 
 export const FESTCUP_STATS = [
   { value: 4, label: 'Años organizando', suffix: '+' },
@@ -100,6 +103,63 @@ export const FESTCUP_MOMENTOS = [
   { src: '/landing/galeria/trofeos-2023.png', alt: 'Trofeos', caption: 'Trofeos que inspiran' },
   { src: '/landing/galeria/reunion-coaches.png', alt: 'Coaches', caption: 'Coaches de todo el país' },
   { src: '/landing/galeria/evento-gymnasium.png', alt: 'Cientos de competidores', caption: '500+ en el tatami' },
+]
+
+/** Medallas oficiales por edición */
+export const FESTCUP_MEDALLAS = [
+  {
+    year: '2026',
+    src: '/landing/medallas/medallas-2026-preview.png',
+    alt: 'Medallas oro, plata y bronce FestCup 2026',
+    title: 'Medallas FestCup 2026',
+    tag: 'Edición actual',
+    highlight: true,
+  },
+  {
+    year: '2025',
+    src: '/landing/medallas/medalla-2025.png',
+    alt: 'Medalla oficial FestCup 2025',
+    title: 'Medalla FestCup 2025',
+    tag: 'Edición 2025',
+  },
+  {
+    year: '2024',
+    src: '/landing/medallas/medalla-2024.png',
+    alt: 'Medalla oro FestCup 2024',
+    title: 'Medalla FestCup 2024',
+    tag: 'Edición 2024',
+  },
+  {
+    year: '2023',
+    src: '/landing/medallas/medalla-2023.png',
+    alt: 'Medalla FestCup 2023',
+    title: 'Medalla FestCup 2023',
+    tag: '#UniendoCampeones',
+  },
+]
+
+export const FESTCUP_DOCUMENTOS = [
+  {
+    titulo: 'Bases del campeonato',
+    desc: 'Reglamento oficial, categorías, tarifas y normativa WT/FDPTKD.',
+    href: FESTCUP_DOCS.bases,
+    icon: '📋',
+    tipo: 'PDF',
+  },
+  {
+    titulo: 'Programa del evento',
+    desc: 'Cronograma, áreas, horarios y actividades FestCup 2026.',
+    href: FESTCUP_DOCS.programa,
+    icon: '🗓️',
+    tipo: 'PDF',
+  },
+  {
+    titulo: 'Plantilla de inscripción',
+    desc: 'Excel oficial — igual que años anteriores. Kyorugi, Poomsae, parejas, equipos y festival.',
+    href: FESTCUP_DOCS.plantillaExcel,
+    icon: '📊',
+    tipo: 'Excel',
+  },
 ]
 
 export const FESTCUP_RAZONES = [

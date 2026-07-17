@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import PortalLayout from '@/components/campeonatos/PortalLayout'
 import { formatFecha } from '@/lib/utils/format'
+import { FESTCUP_DOCS, FESTCUP_VENUE } from '@/lib/site-config'
 
 export default function CampeonatoPublicoPage() {
   const { slug } = useParams()
@@ -26,7 +27,16 @@ export default function CampeonatoPublicoPage() {
           <>
             <p style={{ marginBottom: 12 }}>{camp.descripcion || 'Campeonato oficial ACCTKD.'}</p>
             <p><strong>Fechas evento:</strong> {formatFecha(camp.fecha_inicio)} – {formatFecha(camp.fecha_fin)}</p>
-            <p><strong>Lugar:</strong> {camp.lugar || 'Por confirmar'}</p>
+            <p><strong>Lugar:</strong> {camp.lugar || FESTCUP_VENUE.name}</p>
+            <a
+              href={FESTCUP_VENUE.mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ios-btn ios-btn-secondary"
+              style={{ display: 'inline-flex', marginTop: 12, justifyContent: 'center' }}
+            >
+              📍 Ver en Google Maps
+            </a>
             <p style={{ marginTop: 8, fontSize: 13, color: 'var(--label3)' }}>
               Inscripciones hasta {formatFecha(camp.fecha_cierre_inscripcion)}
             </p>
@@ -71,6 +81,17 @@ export default function CampeonatoPublicoPage() {
                 Descargar bases (PDF)
               </a>
             )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+              <a href={FESTCUP_DOCS.bases} target="_blank" rel="noreferrer" style={{ color: 'var(--red)' }}>
+                Bases FestCup 2026 (PDF)
+              </a>
+              <a href={FESTCUP_DOCS.programa} target="_blank" rel="noreferrer" style={{ color: 'var(--red)' }}>
+                Programa del evento (PDF)
+              </a>
+              <a href={FESTCUP_DOCS.plantillaExcel} download style={{ color: 'var(--red)' }}>
+                Plantilla inscripción Excel
+              </a>
+            </div>
           </>
         ) : (
           <p>Cargando…</p>
