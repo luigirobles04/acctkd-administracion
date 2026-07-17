@@ -4,6 +4,20 @@ import { registrarGanadorCombate } from '@/lib/campeonato/llaves-kyorugi'
 const COLOR_CHUNG = 'azul'
 const COLOR_HONG = 'rojo'
 
+/** Slot 1 = azul, slot 2 = rojo (nunca heredar color del combate anterior). */
+function normalizarColoresCombate(c) {
+  if (!c) return c
+  let color1 = c.color1 || (c.id_linea1 ? COLOR_CHUNG : null)
+  let color2 = c.color2 || (c.id_linea2 ? COLOR_HONG : null)
+  if (c.id_linea1) color1 = COLOR_CHUNG
+  if (c.id_linea2) color2 = COLOR_HONG
+  if (c.id_linea1 && c.id_linea2 && color1 === color2) {
+    color1 = COLOR_CHUNG
+    color2 = COLOR_HONG
+  }
+  return { ...c, color1, color2 }
+}
+
 /** Snapshot completo para PSS FESTCUP (cola + llaves de un área, modo offline). */
 export async function buildPssAreaSnapshot(sb, idCampeonato, cancha) {
   const area = Number(cancha)
@@ -190,20 +204,19 @@ export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje
     const si = lista.findIndex((c) => c.id_llave === match.siguiente_llave)
     if (si >= 0) {
       const sig = { ...lista[si] }
-      const colorGanador = g === match.id_linea1 ? match.color1 : match.color2
       if (!sig.id_linea1) {
         sig.id_linea1 = g
-        sig.color1 = colorGanador || COLOR_CHUNG
+        sig.color1 = COLOR_CHUNG
         if (match.competidor1?.id_linea === g) sig.competidor1 = match.competidor1
         else if (match.competidor2?.id_linea === g) sig.competidor1 = match.competidor2
       } else if (!sig.id_linea2 && sig.id_linea1 !== g) {
         sig.id_linea2 = g
-        sig.color2 = colorGanador || COLOR_HONG
+        sig.color2 = COLOR_HONG
         if (match.competidor1?.id_linea === g) sig.competidor2 = match.competidor1
         else if (match.competidor2?.id_linea === g) sig.competidor2 = match.competidor2
       }
       if (sig.id_linea1 && sig.id_linea2 && sig.estado !== 'finalizado') sig.estado = 'pendiente'
-      lista[si] = sig
+      lista[si] = normalizarColoresCombate(sig)
     }
   }
 
@@ -215,19 +228,18 @@ export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje
     if (finIdx >= 0 && byeSf) {
       const fin = { ...lista[finIdx] }
       const byeId = byeSf.id_linea1 || byeSf.id_linea2
-      const byeColor = byeSf.id_linea1 === byeId ? byeSf.color1 : byeSf.color2
       const byeComp = byeSf.competidor1 || byeSf.competidor2
       if (fin.id_linea1 && !fin.id_linea2 && fin.id_linea1 !== byeId) {
         fin.id_linea2 = byeId
-        fin.color2 = byeColor || COLOR_HONG
+        fin.color2 = COLOR_HONG
         fin.competidor2 = byeComp
       } else if (fin.id_linea2 && !fin.id_linea1 && fin.id_linea2 !== byeId) {
         fin.id_linea1 = byeId
-        fin.color1 = byeColor || COLOR_CHUNG
+        fin.color1 = COLOR_CHUNG
         fin.competidor1 = byeComp
       }
       if (fin.id_linea1 && fin.id_linea2) fin.estado = 'pendiente'
-      lista[finIdx] = fin
+      lista[finIdx] = normalizarColoresCombate(fin)
     }
   }
 

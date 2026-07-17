@@ -8,13 +8,26 @@ export const RONDA_LABEL = {
   5: 'Dieciseisavos de final',
 }
 
+function normalizarColoresCombate(row) {
+  if (!row) return row
+  let color1 = row.id_linea1 ? 'azul' : row.color1 || null
+  let color2 = row.id_linea2 ? 'rojo' : row.color2 || null
+  if (row.id_linea1) color1 = 'azul'
+  if (row.id_linea2) color2 = 'rojo'
+  if (row.id_linea1 && row.id_linea2 && color1 === color2) {
+    color1 = 'azul'
+    color2 = 'rojo'
+  }
+  return { ...row, color1, color2 }
+}
+
 function enrichCombate(l, lineaMap, catMap) {
   const c1 = l.id_linea1 ? lineaMap[l.id_linea1] : null
   const c2 = l.id_linea2 ? lineaMap[l.id_linea2] : null
   const cat = catMap[l.id_categoria]
   const competidor1 = parseCompetidor(c1)
   const competidor2 = parseCompetidor(c2)
-  return {
+  return normalizarColoresCombate({
     id_llave: l.id_llave,
     id_categoria: l.id_categoria,
     ronda: l.ronda,
@@ -38,7 +51,7 @@ function enrichCombate(l, lineaMap, catMap) {
     categoria_nombre: cat?.nombre || '',
     competidor1,
     competidor2,
-  }
+  })
 }
 
 export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltados = false } = {}) {

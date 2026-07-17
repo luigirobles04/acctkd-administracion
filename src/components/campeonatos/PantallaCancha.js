@@ -100,12 +100,19 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
   )
 }
 
+function inferRoundActual(combate) {
+  if (combate.round2_ganador) return 3
+  if (combate.round1_ganador) return 2
+  return 1
+}
+
 function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
   if (!combate) return null
   const g1 = combate.ganador_id_linea === combate.id_linea1
   const g2 = combate.ganador_id_linea === combate.id_linea2
   const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
   const enVivo = combate.estado === 'en_curso'
+  const roundActual = inferRoundActual(combate)
   const p1 = combate.puntaje1 ?? 0
   const p2 = combate.puntaje2 ?? 0
   const showMarcador = enVivo || combate.estado === 'finalizado' || p1 > 0 || p2 > 0
@@ -124,6 +131,9 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
       )}
       {showMarcador && (
         <div className="pantalla-marcador-live" aria-live="polite">
+          {enVivo && (
+            <span className="pantalla-marcador-round-tag">ROUND {roundActual}</span>
+          )}
           <div className="pantalla-marcador-puntos pantalla-marcador-puntos--azul">
             <span className="pantalla-marcador-label">AZUL</span>
             <strong className={p1 > p2 ? 'pantalla-marcador--lider' : ''}>{p1}</strong>
@@ -139,7 +149,7 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
       <div className="pantalla-combate-vs">
         <CompetidorTV
           data={combate.competidor1}
-          color={combate.color1 || 'azul'}
+          color="azul"
           lado="izq"
           esGanador={g1}
           grande={grande}
@@ -149,7 +159,7 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
         </div>
         <CompetidorTV
           data={combate.competidor2}
-          color={combate.color2 || 'rojo'}
+          color="rojo"
           lado="der"
           esGanador={g2}
           grande={grande}

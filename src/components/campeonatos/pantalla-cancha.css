@@ -225,11 +225,24 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  padding: 16px 24px;
+  flex-wrap: wrap;
+  padding: 20px 28px;
   margin-bottom: 12px;
   background: #111827;
   border-radius: 14px;
   border: 1px solid #334155;
+  position: relative;
+}
+
+.pantalla-marcador-round-tag {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
 }
 
 .pantalla-marcador-puntos {
@@ -240,7 +253,7 @@
 }
 
 .pantalla-marcador-puntos strong {
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-size: clamp(3.5rem, 11vw, 7.5rem);
   font-weight: 900;
   line-height: 1;
 }
@@ -324,7 +337,11 @@
 }
 
 .pantalla-combate--grande .pantalla-marcador-live {
-  padding: 20px 32px;
+  padding: 28px 40px;
+}
+
+.pantalla-combate--grande .pantalla-marcador-puntos strong {
+  font-size: clamp(5rem, 14vw, 10rem);
 }
 
 .pantalla-competidor {

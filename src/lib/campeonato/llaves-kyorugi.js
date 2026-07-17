@@ -501,13 +501,12 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
     const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', match.siguiente_llave).maybeSingle()
     if (sig) {
       const patch = {}
-      const colorGanador = g === match.id_linea1 ? match.color1 : match.color2
       if (!sig.id_linea1) {
         patch.id_linea1 = g
-        patch.color1 = colorGanador || COLOR_CHUNG
+        patch.color1 = COLOR_CHUNG
       } else if (!sig.id_linea2 && sig.id_linea1 !== g) {
         patch.id_linea2 = g
-        patch.color2 = colorGanador || COLOR_HONG
+        patch.color2 = COLOR_HONG
       }
       if (Object.keys(patch).length) {
         await sb.from('llave_kyorugi').update(patch).eq('id_llave', match.siguiente_llave)
@@ -530,10 +529,10 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
       const patch = {}
       if (fin.id_linea1 && !fin.id_linea2 && fin.id_linea1 !== byeId) {
         patch.id_linea2 = byeId
-        patch.color2 = byeColor || COLOR_HONG
+        patch.color2 = COLOR_HONG
       } else if (fin.id_linea2 && !fin.id_linea1 && fin.id_linea2 !== byeId) {
         patch.id_linea1 = byeId
-        patch.color1 = byeColor || COLOR_CHUNG
+        patch.color1 = COLOR_CHUNG
       }
       if (Object.keys(patch).length) {
         await sb.from('llave_kyorugi').update(patch).eq('id_llave', fin.id_llave)
