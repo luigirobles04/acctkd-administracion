@@ -1,5 +1,8 @@
 # Checklist FestCup — Día del evento
 
+**Campeonato oficial:** Taekwondo FestCup 2026 · slug `festcup-2026` · id `10`  
+**Ensayo técnico:** slug `prueba-llaves-cnu-2026` · id `9` (despublicado; TV sigue funcionando por URL directa)
+
 ## Antes del campeonato (con internet)
 
 - [ ] Cerrar inscripciones y completar pesaje
@@ -46,7 +49,8 @@ Por cada área (1, 2, 3):
 ```bash
 cd taekwondo-erp
 npm test
-node scripts/simular-evento-festcup.mjs   # si existe
+npm run preparar:festcup    # crea/actualiza FestCup 2026 oficial
+npm run ensayo:festcup        # ensayo completo (usa campeonato prueba id=9)
 ```
 
 - [ ] 10+ combates Unity offline → reconectar → verificar web

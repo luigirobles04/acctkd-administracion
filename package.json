@@ -14,6 +14,8 @@
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
     "seed:prueba-llaves": "node scripts/crear-campeonato-prueba-llaves.mjs",
+    "preparar:festcup": "node scripts/preparar-festcup-2026.mjs",
+    "ensayo:festcup": "node scripts/ensayo-general-festcup.mjs",
     "pdf:llaves": "node scripts/generar-pdf-llaves-nombres.mjs",
     "acbracket": "node scripts/generar-pdf-llaves-nombres.mjs"
   },

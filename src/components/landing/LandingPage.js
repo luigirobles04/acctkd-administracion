@@ -131,7 +131,12 @@ export default function LandingPage() {
     : '/landing/galeria/festcup-2026-poster.png'
 
   const poster2026 = FESTCUP_LEGADO.find((e) => e.highlight) || FESTCUP_LEGADO[0]
-  const campActivo = camps.find((c) => c.inscripciones_abiertas) || camps[0] || null
+  const campActivo =
+    camps.find((c) => c.slug === 'festcup-2026') ||
+    camps.find((c) => c.inscripciones_abiertas && !String(c.slug || '').includes('prueba')) ||
+    camps.find((c) => c.inscripciones_abiertas) ||
+    camps[0] ||
+    null
   const campSlug = campActivo?.slug
   const campNombre = campActivo?.nombre || 'FestCup'
 
