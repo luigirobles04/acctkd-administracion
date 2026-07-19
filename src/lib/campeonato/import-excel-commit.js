@@ -8,6 +8,7 @@ import {
   precioModalidad,
 } from '@/lib/campeonato/inscripcion-server'
 import { normTxt } from '@/lib/campeonato/import-excel-categorias'
+import { asegurarTarifasCampeonato } from '@/lib/campeonato/categorias-wt'
 
 async function upsertPerfilImport(sb, ac, perfil) {
   const { data: existente } = await sb
@@ -103,16 +104,34 @@ export async function commitFestcupImport(sb, ac, parsed) {
   const validas = parsed.lineas.filter((l) => !l.errores?.length)
   if (!validas.length) throw new Error('No hay líneas válidas para importar')
 
+  await asegurarTarifasCampeonato(sb, ac.id_campeonato)
+
   const keyToId = new Map()
   for (const p of parsed.perfiles) {
     const saved = await upsertPerfilImport(sb, ac, p)
     keyToId.set(p.key, saved.id_perfil)
   }
 
+  const { data: existentesRaw } = await sb
+    .from('linea_inscripcion')
+    .select(`
+      id_linea, modalidad, id_categoria, tipo_oficial, estado,
+      miembros:linea_inscripcion_miembro(id_perfil)
+    `)
+    .eq('id_academia_campeonato', ac.id)
+    .neq('estado', 'anulado')
+
+  const lineasExistentes = existentesRaw || []
   const creadas = []
   const fallidas = []
+  const omitidas = []
 
   for (const l of validas) {
+    if (lineaYaExiste(lineasExistentes, l, keyToId)) {
+      omitidas.push(l.label)
+      continue
+    }
+
     try {
       const idPerfiles = l.perfilKeys.map((k) => keyToId.get(k)).filter(Boolean)
       if (!idPerfiles.length) throw new Error('Perfiles no resueltos')
@@ -125,6 +144,13 @@ export async function commitFestcupImport(sb, ac, parsed) {
         tipoOficial: l.tipoOficial,
       })
       creadas.push(linea)
+      lineasExistentes.push({
+        modalidad: l.tipo,
+        id_categoria: l.idCategoria,
+        tipo_oficial: l.tipoOficial || null,
+        estado: linea.estado,
+        miembros: idPerfiles.map((id_perfil) => ({ id_perfil })),
+      })
     } catch (e) {
       fallidas.push({ label: l.label, error: e.message })
     }
@@ -140,20 +166,35 @@ export async function commitFestcupImport(sb, ac, parsed) {
       perfiles: parsed.perfiles.length,
       lineas_ok: creadas.length,
       lineas_fail: fallidas.length,
+      lineas_omitidas: omitidas.length,
     },
     actor: 'portal',
   })
 
-  return { creadas: creadas.length, fallidas }
+  return { creadas: creadas.length, fallidas, omitidas }
 }
 
 /** Evita duplicar misma inscripción si reimportan */
 export function lineaYaExiste(lineasExistentes, nueva, keyToIdPerfil) {
-  const ids = nueva.perfilKeys.map((k) => keyToIdPerfil.get(k)).sort().join(',')
+  const ids = nueva.perfilKeys
+    .map((k) => keyToIdPerfil.get(k))
+    .filter(Boolean)
+    .sort()
+    .join(',')
+  if (!ids) return false
+
   return lineasExistentes.some((ex) => {
     if (ex.modalidad !== nueva.tipo || ex.estado === 'anulado') return false
     const miembros = (ex.miembros || []).map((m) => m.id_perfil).sort().join(',')
-    return miembros === ids && String(ex.id_categoria) === String(nueva.idCategoria)
+    if (miembros !== ids) return false
+
+    if (nueva.tipo === 'festival') return true
+
+    if (nueva.tipo === 'oficial') {
+      return String(ex.tipo_oficial || '') === String(nueva.tipoOficial || '')
+    }
+
+    return String(ex.id_categoria ?? '') === String(nueva.idCategoria ?? '')
   })
 }
 

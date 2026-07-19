@@ -1,4 +1,4 @@
-import { generarSlugUnico, sembrarCampeonatoCompleto, catalogoNecesitaReseed, resincronizarCatalogo, MIN_CATEGORIAS_CATALOGO, CATALOG_VERSION } from '@/lib/campeonato/categorias-wt'
+import { generarSlugUnico, sembrarCampeonatoCompleto, catalogoNecesitaReseed, resincronizarCatalogo, asegurarTarifasCampeonato, MIN_CATEGORIAS_CATALOGO, CATALOG_VERSION } from '@/lib/campeonato/categorias-wt'
 import { throwSupabase } from '@/lib/supabase-errors'
 
 /** Crea campeonato publicado con slug, categorías WT y tarifas FDPTKD */
@@ -114,6 +114,8 @@ export async function activarCampeonatoCompleto(sb, idCampeonato) {
       .eq('id_campeonato', idCampeonato)
     categoriasReseed = count || 0
   }
+
+  await asegurarTarifasCampeonato(sb, idCampeonato)
 
   return { campeonato, categorias_creadas: categoriasReseed, catalogo_version: CATALOG_VERSION }
 }

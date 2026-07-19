@@ -54,6 +54,7 @@ export async function POST(request, { params }) {
       ok: true,
       importado: result.creadas,
       fallidas: result.fallidas,
+      omitidas: result.omitidas,
       resumen: preview.resumen,
     })
   } catch (e) {

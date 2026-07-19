@@ -299,7 +299,29 @@ export async function sembrarCampeonatoCompleto(sb, idCampeonato) {
     }))
     const { error: errTar } = await sb.from('campeonato_tarifa').insert(tarifas)
     if (errTar) throw errTar
+  } else {
+    await asegurarTarifasCampeonato(sb, idCampeonato)
   }
+}
+
+/** Inserta tarifas faltantes (p. ej. festival en campeonatos creados antes de ampliar el catálogo) */
+export async function asegurarTarifasCampeonato(sb, idCampeonato) {
+  const { data: existentes, error } = await sb
+    .from('campeonato_tarifa')
+    .select('modalidad')
+    .eq('id_campeonato', idCampeonato)
+    .eq('activo', true)
+  if (error) throw error
+
+  const have = new Set((existentes || []).map((t) => t.modalidad))
+  const faltantes = TARIFAS_FDPTKD_DEFAULT.filter((t) => !have.has(t.modalidad))
+  if (!faltantes.length) return 0
+
+  const { error: errIns } = await sb.from('campeonato_tarifa').insert(
+    faltantes.map((t) => ({ ...t, id_campeonato: idCampeonato, activo: true })),
+  )
+  if (errIns) throw errIns
+  return faltantes.length
 }
 
 /** Detecta catálogo viejo (poomsae con subdivisión kyorugi o pocas filas) */
