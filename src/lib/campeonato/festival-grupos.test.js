@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { divisionFestivalPorEdad, compararParticipantesFestival, FESTIVAL_GRUPOS } from '@/lib/campeonato/festival-grupos'
+import { divisionFestivalPorEdad, compararParticipantesFestival, FESTIVAL_GRUPOS, divisionFestivalFromText } from '@/lib/campeonato/festival-grupos'
 
 describe('festival-grupos', () => {
   it('resuelve PRE INFANTIL 4-5 años', () => {
@@ -24,5 +24,11 @@ describe('festival-grupos', () => {
 
   it('tiene 7 grupos oficiales', () => {
     expect(FESTIVAL_GRUPOS).toHaveLength(7)
+  })
+
+  it('resuelve IA / IB como festival', () => {
+    expect(divisionFestivalFromText('IA')?.division).toBe('INFANTIL A')
+    expect(divisionFestivalFromText('IB NOVELES')?.division).toBe('INFANTIL B')
+    expect(divisionFestivalFromText('PRE CADETE')?.division).toBe('PRE CADETE')
   })
 })

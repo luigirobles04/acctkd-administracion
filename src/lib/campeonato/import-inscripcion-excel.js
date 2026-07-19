@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { edadWT } from '@/lib/campeonato/constants'
-import { divisionFestivalPorEdad } from '@/lib/campeonato/festival-grupos'
+import { divisionFestivalPorEdad, divisionFestivalFromText, parseEdadTextoExcel, fechaDesdeEdadDeclarada } from '@/lib/campeonato/festival-grupos'
 import {
   inferGradoFromPoomsae,
   matchPerfilPorNombre,
@@ -15,10 +15,37 @@ import {
   docTemporalImport,
 } from '@/lib/campeonato/import-excel-categorias'
 
-function sheetRows(wb, name) {
-  const ws = wb.Sheets[name]
-  if (!ws) return []
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false })
+function sheetRows(wb, ...names) {
+  for (const want of names) {
+    const hit = wb.SheetNames.find((n) => {
+      const a = normTxt(n)
+      const b = normTxt(want)
+      return a === b || a.includes(b) || b.includes(a)
+    })
+    if (hit) {
+      const ws = wb.Sheets[hit]
+      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false })
+    }
+  }
+  return []
+}
+
+/** Encuentra fila de cabecera (N° + Nombres…) — datos empiezan en la siguiente. */
+function dataStartIndex(rows) {
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const r = rows[i] || []
+    const c0 = normTxt(r[0])
+    const c1 = normTxt(r[1])
+    if ((c0 === 'N' || c0.startsWith('N°') || c0 === 'NO') && c1.includes('NOMBRE')) {
+      return i + 1
+    }
+  }
+  return 9
+}
+
+function looksLikeWeightText(s) {
+  const n = normTxt(s)
+  return /-\s*\d+\s*KG|\+\s*\d+\s*KG|\d+\s*KG/.test(n) || /^-\s*\d+/.test(n)
 }
 
 function isSectionHeader(row) {
@@ -59,7 +86,17 @@ function parseKyorugiRow(row, ctx) {
   let pesoRaw = row[5] ?? row[6]
   let sexo = parseSexo(row[5] ?? row[6])
 
-  if (looksLikeCategoryText(row[3]) && (typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
+  if (looksLikeCategoryText(row[3]) && (looksLikeWeightText(row[4]) || typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
+    categoriaTxt = String(row[3] || '').trim()
+    pesoRaw = typeof row[6] === 'number' && row[6] > 0 ? row[6] : row[4]
+    sexo = parseSexo(row[5]) || sexo
+    codigo = ''
+  } else if (looksLikeCategoryText(codigo) && looksLikeWeightText(categoriaTxt)) {
+    pesoRaw = typeof row[6] === 'number' && row[6] > 0 ? row[6] : categoriaTxt
+    sexo = parseSexo(row[5]) || sexo
+    categoriaTxt = codigo
+    codigo = ''
+  } else if (looksLikeCategoryText(row[3]) && (typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
     categoriaTxt = String(row[3] || '').trim()
     pesoRaw = row[4]
     sexo = parseSexo(row[5]) || sexo
@@ -130,22 +167,48 @@ function parseFestivalRow(row, ctx) {
   const nombre = String(row[1] || '').trim()
   if (!nombre) return null
 
-  const fecha = parseFechaExcel(row[2])
-  const sexo = parseSexo(row[5])
+  let fecha = parseFechaExcel(row[2])
+  const edadDeclarada = parseEdadTextoExcel(row[2])
+  if (!fecha && edadDeclarada != null) {
+    fecha = fechaDesdeEdadDeclarada(edadDeclarada, ctx.anio)
+  }
+
+  const col3 = String(row[3] || '').trim()
+  const col4 = String(row[4] || '').trim()
+  let sexo = parseSexo(row[5])
+  if (!sexo && looksLikeWeightText(col4)) sexo = parseSexo(row[5])
+
+  let divisionHint = col4
+  if (normTxt(col3) === 'FESTIVAL' && col4) {
+    divisionHint = col4
+    sexo = parseSexo(row[5]) || sexo
+  } else if (normTxt(col4) === 'FESTIVAL' && col3) {
+    divisionHint = col3
+  } else if (divisionFestivalFromText(col3) && !divisionFestivalFromText(col4)) {
+    divisionHint = col3
+  } else if (normTxt(col3) === 'FESTIVAL' && looksLikeWeightText(col4)) {
+    divisionHint = null
+    sexo = parseSexo(row[5]) || sexo
+  }
+
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
 
-  const edad = fecha ? edadWT(fecha, ctx.anio) : null
-  const grupo = divisionFestivalPorEdad(edad)
+  const edad = fecha ? edadWT(fecha, ctx.anio) : edadDeclarada
+  const grupo = divisionFestivalFromText(divisionHint) || divisionFestivalPorEdad(edad)
+
+  const advertencias = ['Importado desde hoja Festival']
+  if (!fecha && !edadDeclarada && divisionHint) advertencias.push('Sin fecha — división tomada del Excel')
+  if (edadDeclarada && !parseFechaExcel(row[2])) advertencias.push(`Edad declarada: ${edadDeclarada} años`)
 
   return {
     tipo: 'festival',
     perfilKeys: [perfil.key],
     idCategoria: null,
-    categoriaNombre: grupo?.division || 'Festival',
-    label: `${nombre} · Festival ${grupo?.division || ''}`.trim(),
+    categoriaNombre: grupo?.division || divisionHint || 'Festival',
+    label: `${nombre} · Festival ${grupo?.division || divisionHint || ''}`.trim(),
     hoja: 'FESTIVAL',
-    errores: grupo ? [] : ['Festival: edad fuera de rango o falta fecha de nacimiento'],
-    advertencias: ['Importado desde hoja Festival'],
+    errores: grupo ? [] : ['Festival: no se pudo determinar división (revisa edad o categoría)'],
+    advertencias,
   }
 }
 
@@ -200,27 +263,115 @@ function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
 
 function parseEntrenadores(rows, ctx) {
   const lineas = []
-  const roles = [
-    { row: 7, tipo: 'coach', label: 'Coach' },
-    { row: 8, tipo: 'delegado', label: 'Delegado' },
-    { row: 9, tipo: 'delegado', label: 'Delegado' },
-  ]
-  for (const r of roles) {
-    const row = rows[r.row]
-    if (!row) continue
-    const nombre = String(row[1] || '').trim()
-    if (!nombre || normTxt(nombre).includes('ENTRENADOR')) continue
+  const seen = new Set()
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || []
+    const label = normTxt(row[0] || row[1])
+    let tipoOficial = null
+    if (/ENTRENADOR\s*1|^COACH$/.test(label)) tipoOficial = 'coach'
+    else if (/ENTRENADOR\s*2|DELEGADO/.test(label) && !/ENTRENADOR\s*3/.test(label)) tipoOficial = 'delegado'
+    else if (/ENTRENADOR\s*3/.test(label)) tipoOficial = 'delegado'
+    if (!tipoOficial) continue
+
+    const nombre = String(row[1] || row[2] || '').trim()
+    if (!nombre || normTxt(nombre).includes('ENTRENADOR') || normTxt(nombre).includes('INSTITUCION')) continue
+    const key = `${tipoOficial}:${normTxt(nombre)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
     const perfil = ctx.ensurePerfil({ nombre, fecha: null, sexo: null, grado: null, sheet: 'ENTRENADORES' })
     lineas.push({
       tipo: 'oficial',
       perfilKeys: [perfil.key],
-      tipoOficial: r.tipo,
+      tipoOficial,
       idCategoria: null,
-      categoriaNombre: r.label,
-      label: `${nombre} · ${r.label}`,
+      categoriaNombre: tipoOficial === 'coach' ? 'Coach' : 'Delegado',
+      label: `${nombre} · ${tipoOficial === 'coach' ? 'Coach' : 'Delegado'}`,
       hoja: 'ENTRENADORES',
       errores: [],
       advertencias: ['Oficial importado — confirma rol y DNI en el portal'],
+    })
+    if (lineas.length >= 3) break
+  }
+
+  if (!lineas.length) {
+    for (const r of [
+      { row: 7, tipo: 'coach', label: 'Coach' },
+      { row: 8, tipo: 'delegado', label: 'Delegado' },
+      { row: 9, tipo: 'delegado', label: 'Delegado' },
+    ]) {
+      const row = rows[r.row]
+      if (!row) continue
+      const nombre = String(row[1] || row[2] || '').trim()
+      if (!nombre || normTxt(nombre).includes('ENTRENADOR')) continue
+      const perfil = ctx.ensurePerfil({ nombre, fecha: null, sexo: null, grado: null, sheet: 'ENTRENADORES' })
+      lineas.push({
+        tipo: 'oficial',
+        perfilKeys: [perfil.key],
+        tipoOficial: r.tipo,
+        idCategoria: null,
+        categoriaNombre: r.label,
+        label: `${nombre} · ${r.label}`,
+        hoja: 'ENTRENADORES',
+        errores: [],
+        advertencias: ['Oficial importado — confirma rol y DNI en el portal'],
+      })
+    }
+  }
+
+  return lineas
+}
+
+/** Formato alternativo ASOC. DEL RIO (Hoja1 simplificada). */
+function parseDelRioAltRows(rows, ctx) {
+  const lineas = []
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] || []
+    const nombre = String(row[1] || '').trim()
+    if (!nombre || /NOMBRES|KYERUGUI|ENTRENADOR|KYORUGUI/i.test(nombre)) continue
+
+    const edadMatch = String(row[3] || '').match(/(\d{1,2})/)
+    const edad = edadMatch ? Number(edadMatch[1]) : null
+    const divisionTxt = String(row[4] || '').trim()
+    const nivel = normTxt(row[5] || '')
+    const peso = parsePesoExcel(row[6])
+
+    let fecha = edad != null ? fechaDesdeEdadDeclarada(edad, ctx.anio) : null
+    const perfil = ctx.ensurePerfil({ nombre, fecha, sexo: null, grado: null, sheet: 'Hoja1' })
+
+    if (nivel.includes('FESTIVAL')) {
+      const grupo = divisionFestivalFromText(divisionTxt) || divisionFestivalPorEdad(edad)
+      lineas.push({
+        tipo: 'festival',
+        perfilKeys: [perfil.key],
+        idCategoria: null,
+        categoriaNombre: grupo?.division || divisionTxt,
+        label: `${nombre} · Festival ${grupo?.division || divisionTxt}`,
+        hoja: 'Hoja1',
+        errores: grupo ? [] : ['Festival: revisa edad/división'],
+        advertencias: ['Formato planilla alternativa (Del Río)'],
+      })
+      continue
+    }
+
+    const cat = resolverCategoriaKyorugi(ctx.categorias, {
+      categoriaTexto: `${divisionTxt} ${nivel}`.trim(),
+      pesoRaw: peso ?? row[6],
+      sexo: perfil.sexo,
+      perfil,
+      anio: ctx.anio,
+    })
+    lineas.push({
+      tipo: 'kyorugi_individual',
+      perfilKeys: [perfil.key],
+      idCategoria: cat?.id_categoria || null,
+      categoriaNombre: cat?.nombre || divisionTxt,
+      pesoDeclarado: peso,
+      label: `${nombre} · Kyorugi ${cat?.nombre || divisionTxt}`,
+      hoja: 'Hoja1',
+      errores: cat ? [] : ['No se pudo resolver categoría kyorugi'],
+      advertencias: ['Formato planilla alternativa (Del Río)'],
     })
   }
   return lineas
@@ -267,8 +418,9 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
     },
   }
 
-  const kyorugi = sheetRows(wb, 'KYORUGUI')
-  for (let i = 9; i < kyorugi.length; i++) {
+  const kyorugi = sheetRows(wb, 'KYORUGUI', 'KYORUGI')
+  const kyStart = dataStartIndex(kyorugi)
+  for (let i = kyStart; i < kyorugi.length; i++) {
     const row = kyorugi[i]
     if (!row?.[1]) continue
     const linea = parseKyorugiRow(row, ctx)
@@ -276,8 +428,9 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
   }
 
   const poomsae = sheetRows(wb, 'POOMSAE')
+  const pmStart = dataStartIndex(poomsae)
   let mode = 'individual'
-  for (let i = 9; i < poomsae.length; i++) {
+  for (let i = pmStart; i < poomsae.length; i++) {
     const row = poomsae[i]
     if (isSectionHeader(row)) {
       mode = sectionType(row) || mode
@@ -303,21 +456,31 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
   }
 
   const festival = sheetRows(wb, 'FESTIVAL')
-  for (let i = 9; i < festival.length; i++) {
+  const festStart = dataStartIndex(festival)
+  for (let i = festStart; i < festival.length; i++) {
     const row = festival[i]
     if (!row?.[1]) continue
     const linea = parseFestivalRow(row, ctx)
     if (linea) lineas.push(linea)
   }
 
-  lineas.push(...parseEntrenadores(sheetRows(wb, 'ENTRENADORES'), ctx))
+  lineas.push(...parseEntrenadores(sheetRows(wb, 'ENTRENADORES', 'ENTRENADOR'), ctx))
 
   const freestyleSheet = sheetRows(wb, 'FREESTYLE')
-  for (let i = 9; i < freestyleSheet.length; i++) {
+  const fsStart = dataStartIndex(freestyleSheet)
+  for (let i = fsStart; i < freestyleSheet.length; i++) {
     const row = freestyleSheet[i]
     if (!row?.[1]) continue
     const linea = parseGrupoRow(row, ctx, { modalidad: 'poomsae_pareja_freestyle', miembros: 2, hoja: 'FREESTYLE' })
     if (linea && !linea.skip) lineas.push(linea)
+  }
+
+  if (!lineas.some((l) => ['KYORUGUI', 'POOMSAE', 'FESTIVAL', 'FREESTYLE', 'Hoja1'].includes(l.hoja))) {
+    const hoja1 = sheetRows(wb, 'Hoja1')
+    const header = normTxt((hoja1[0] || [])[1] || '')
+    if (header.includes('NOMBRES') && (hoja1[0]?.[3] || hoja1[0]?.[4])) {
+      lineas.push(...parseDelRioAltRows(hoja1, ctx))
+    }
   }
 
   const errores = lineas.filter((l) => l.errores?.length).length

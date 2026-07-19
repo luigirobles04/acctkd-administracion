@@ -20,10 +20,12 @@ export function tokensNombre(s) {
 
 /** Divide nombre completo en nombres + apellidos (heurística peruana) */
 export function splitNombreCompleto(full) {
-  const parts = String(full || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
+  const raw = String(full || '').trim()
+  if (raw.includes(',')) {
+    const [a, b] = raw.split(',').map((s) => s.trim())
+    if (a && b) return { nombres: a, apellidos: b }
+  }
+  const parts = raw.split(/\s+/).filter(Boolean)
   if (!parts.length) return { nombres: '', apellidos: '' }
   if (parts.length === 1) return { nombres: parts[0], apellidos: '—' }
   if (parts.length === 2) return { nombres: parts[0], apellidos: parts[1] }
