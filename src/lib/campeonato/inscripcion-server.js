@@ -162,8 +162,8 @@ export function puedeEnviarLista(ac) {
   if (ac.estado_aprobacion === 'rechazada') {
     return { ok: false, reason: ac.motivo_rechazo || 'Academia rechazada' }
   }
-  if (ac.estado_aprobacion !== 'aprobada') {
-    return { ok: false, reason: 'Espera la aprobación de ACCTKD para enviar la lista' }
+  if (!ac.aceptacion_bases_at) {
+    return { ok: false, reason: 'Acepta las bases del campeonato primero' }
   }
   return { ok: true }
 }
@@ -240,7 +240,7 @@ export async function registrarAcademiaRepresentante(sb, {
     .insert({
       id_academia: academia.id_academia,
       id_campeonato: idCampeonato,
-      estado_aprobacion: 'pendiente',
+      estado_aprobacion: 'aprobada',
       token: generarToken(32),
     })
     .select('*')
@@ -280,7 +280,7 @@ export async function unirAcademiaACampeonato(sb, idAcademia, idCampeonato) {
     .insert({
       id_academia: idAcademia,
       id_campeonato: idCampeonato,
-      estado_aprobacion: 'pendiente',
+      estado_aprobacion: 'aprobada',
       token: generarToken(32),
     })
     .select('*, academia:id_academia(*), campeonato:id_campeonato(*)')

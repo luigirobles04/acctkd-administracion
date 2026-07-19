@@ -13,8 +13,8 @@ import {
 } from '@/lib/campeonato/export-ficha-nominal-client'
 
 const ESTADO_APRO = {
-  pendiente: { label: 'Pendiente', cls: 'badge-yellow' },
-  aprobada: { label: 'Aprobada', cls: 'badge-green' },
+  pendiente: { label: 'Registrada', cls: 'badge-green' },
+  aprobada: { label: 'Registrada', cls: 'badge-green' },
   rechazada: { label: 'Rechazada', cls: 'badge-red' },
 }
 
@@ -45,7 +45,6 @@ export default function CampeonatoAcademiasPage() {
   const [academias, setAcademias] = useState([])
   const [lineas, setLineas] = useState([])
   const [recaudacion, setRecaudacion] = useState(null)
-  const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(null)
@@ -79,25 +78,6 @@ export default function CampeonatoAcademiasPage() {
     cargar()
   }, [cargar])
 
-  async function aprobar(acId) {
-    setProcesando(acId)
-    setError(null)
-    try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acId, accion: 'aprobar' }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-      await cargar()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setProcesando(null)
-    }
-  }
-
   async function rechazar(acId) {
     const motivo = prompt('Motivo del rechazo (opcional):') || 'No cumple requisitos'
     setProcesando(acId)
@@ -119,8 +99,7 @@ export default function CampeonatoAcademiasPage() {
   }
 
   const slug = campeonato?.slug
-  const pendientes = academias.filter((a) => a.estado_aprobacion === 'pendiente')
-  const listado = filtro === 'pendiente' ? pendientes : academias
+  const listado = academias
 
   function lineasAcademia(acId) {
     return lineas.filter((l) => l.id_academia_campeonato === acId)
@@ -139,7 +118,7 @@ export default function CampeonatoAcademiasPage() {
     try {
       const data = await fetchExportFichaNominal(idCampeonato)
       if (!data.academias?.length) {
-        alert('No hay fichas nominales — academias aprobadas sin inscripciones pagadas/aprobadas')
+        alert('No hay fichas nominales — academias con inscripciones activas')
         return
       }
       const opts = idAcademia ? { idAcademia } : {}
@@ -193,7 +172,8 @@ export default function CampeonatoAcademiasPage() {
         <div className="ios-card" style={{ padding: 16, marginTop: 16, marginBottom: 16 }}>
           <p className="ios-headline" style={{ marginBottom: 8 }}>Portal de inscripción</p>
           <p style={{ fontSize: 13, color: 'var(--label2)', lineHeight: 1.5, maxWidth: 640 }}>
-            Las academias se registran con DNI y contraseña. Aprueba aquí para habilitar el envío de lista y los pagos.
+            Las academias se registran solas, inscriben alumnos y obtienen dorsales al enviar su lista.
+            Aquí solo revisas inscripciones y rechazas academias si hace falta; los pagos se validan en Pagos.
           </p>
           {slug && (
             <Link href={`/campeonato/${slug}`} className="ios-btn ios-btn-secondary" style={{ marginTop: 12, display: 'inline-flex' }}>
@@ -202,19 +182,10 @@ export default function CampeonatoAcademiasPage() {
           )}
         </div>
 
-        {pendientes.length > 0 && (
-          <div className="badge badge-yellow" style={{ marginBottom: 12, display: 'inline-block' }}>
-            {pendientes.length} academia(s) pendiente(s) de aprobación
-          </div>
-        )}
-
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button type="button" className={filtro === 'todas' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('todas')}>
-            Todas ({academias.length})
-          </button>
-          <button type="button" className={filtro === 'pendiente' ? 'ios-btn ios-btn-primary' : 'ios-btn ios-btn-secondary'} onClick={() => setFiltro('pendiente')}>
-            Pendientes ({pendientes.length})
-          </button>
+          <span className="ios-caption" style={{ alignSelf: 'center' }}>
+            {academias.length} academia(s) registrada(s)
+          </span>
         </div>
 
         {loading ? (
@@ -273,7 +244,7 @@ export default function CampeonatoAcademiasPage() {
                       </td>
                       <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        {ac.estado_aprobacion === 'aprobada' && lineasAc.length > 0 && (
+                        {ac.estado_aprobacion !== 'rechazada' && lineasAc.length > 0 && (
                           <>
                             <button
                               type="button"
@@ -295,15 +266,10 @@ export default function CampeonatoAcademiasPage() {
                             </button>
                           </>
                         )}
-                        {ac.estado_aprobacion === 'pendiente' && (
-                          <>
-                            <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12, padding: '4px 10px', marginRight: 6 }} disabled={procesando === ac.id} onClick={() => aprobar(ac.id)}>
-                              Aprobar
-                            </button>
-                            <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} disabled={procesando === ac.id} onClick={() => rechazar(ac.id)}>
-                              Rechazar
-                            </button>
-                          </>
+                        {ac.estado_aprobacion !== 'rechazada' && (
+                          <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} disabled={procesando === ac.id} onClick={() => rechazar(ac.id)}>
+                            Rechazar
+                          </button>
                         )}
                         {ac.academia?.telefono && (
                           <a href={whatsappUrl(ac.academia.telefono, `Hola ${ac.academia.nombre}, tu inscripción en ${campeonato?.nombre} fue ${ac.estado_aprobacion}.`)} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#25D366' }}>WA</a>
@@ -320,7 +286,7 @@ export default function CampeonatoAcademiasPage() {
                               <div key={l.id_linea} style={{ fontSize: 13, padding: '4px 0' }}>
                                 <strong>{nombreLinea(l)}</strong>
                                 {' · '}{l.modalidad.replace(/_/g, ' ')}
-                                {' · '}<span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : 'badge-yellow'}`}>{l.estado}</span>
+                                {' · '}<span className={`badge ${l.dorsal_display ? 'badge-green' : 'badge-yellow'}`}>{l.dorsal_display ? 'con dorsal' : l.estado}</span>
                                 {l.dorsal_display && ` · ${l.dorsal_display}`}
                                 {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
                               </div>
@@ -336,9 +302,7 @@ export default function CampeonatoAcademiasPage() {
             </table>
             {listado.length === 0 && !error && (
               <p style={{ padding: 20, color: 'var(--label3)', lineHeight: 1.5 }}>
-                {filtro === 'pendiente'
-                  ? 'No hay academias pendientes de aprobación en este campeonato.'
-                  : 'Ninguna academia inscrita en este campeonato aún. Las academias eligen el evento al registrarse en el portal o en /registro-academia.'}
+                Ninguna academia inscrita en este campeonato aún. Las academias eligen el evento al registrarse en el portal o en /registro-academia.
               </p>
             )}
           </div>

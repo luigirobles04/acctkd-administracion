@@ -55,6 +55,7 @@ export async function POST(request, { params }) {
       importado: result.creadas,
       fallidas: result.fallidas,
       omitidas: result.omitidas,
+      dorsales: result.dorsales,
       resumen: preview.resumen,
     })
   } catch (e) {

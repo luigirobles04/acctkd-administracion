@@ -22,7 +22,7 @@ export function PortalEventCardLink({ href, nombre, ciudad, fecha, item }) {
           estado_lista={item.estado_lista}
           estado_pago={item.estado_pago}
           monto_total={item.monto_total}
-          showPago={item.estado_aprobacion === 'aprobada'}
+          showPago={Number(item.monto_total) > 0}
         />
       </div>
       <span className="portal-event-arrow" aria-hidden>→</span>

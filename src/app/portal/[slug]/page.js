@@ -478,8 +478,8 @@ export default function PortalCampeonatoPage() {
 
   const ac = data.academiaCampeonato
   const camp = data.campeonato
-  const aprobada = ac.estado_aprobacion === 'aprobada'
   const rechazada = ac.estado_aprobacion === 'rechazada'
+  const puedeEnviar = ac.aceptacion_bases_at && !rechazada
   const allCats = data.categorias || []
   const faltaLogo = !data.academia?.logo_url
 
@@ -973,9 +973,9 @@ export default function PortalCampeonatoPage() {
             <p className="portal-empty">Acepta las bases y completa al menos una inscripción para subir vouchers.</p>
           ) : (
             <>
-              {ac.estado_aprobacion !== 'aprobada' && (
+              {Number(ac.saldo ?? ac.monto_total - ac.monto_asignado) > 0 && (
                 <p className="portal-field-hint portal-field-hint--info" style={{ marginBottom: 14 }}>
-                  Puedes pagar en cualquier momento. La aprobación de ACCTKD es independiente del pago.
+                  Puedes inscribir y obtener dorsales ahora; el pago se valida por separado en ACCTKD.
                 </p>
               )}
               {camp.cuenta_bancaria_info && (
@@ -1014,7 +1014,7 @@ export default function PortalCampeonatoPage() {
         </div>
       )}
 
-      {aprobada && (
+      {puedeEnviar && (
         <button type="button" className="ios-btn ios-btn-primary portal-btn-block" onClick={enviarLista}>
           {ac.estado_lista === 'enviada' ? 'Reenviar lista (asigna dorsales nuevos)' : 'Enviar lista y obtener dorsales'}
         </button>

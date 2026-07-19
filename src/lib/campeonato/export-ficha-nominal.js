@@ -70,7 +70,7 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
         academia:id_academia(nombre, codigo_prefijo, representante_nombre, representante_dni, telefono, ciudad)
       `)
       .eq('id_campeonato', idCampeonato)
-      .eq('estado_aprobacion', 'aprobada')
+      .neq('estado_aprobacion', 'rechazada')
       .order('created_at', { ascending: true }),
     sb
       .from('linea_inscripcion')

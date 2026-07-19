@@ -1,6 +1,6 @@
 export const LABELS_APROBACION = {
-  pendiente: { label: 'Pendiente de aprobación', tone: 'yellow' },
-  aprobada: { label: 'Academia aprobada', tone: 'green' },
+  pendiente: { label: 'Registrada', tone: 'green' },
+  aprobada: { label: 'Registrada', tone: 'green' },
   rechazada: { label: 'Rechazada', tone: 'red' },
 }
 

@@ -100,6 +100,11 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
         <div className="portal-alert portal-alert--ok">
           <strong>Importación completada</strong>
           <p>{done.importado} inscripción(es) creada(s).</p>
+          {done.dorsales > 0 && (
+            <p style={{ margin: '8px 0 0', fontSize: 13 }}>
+              {done.dorsales} dorsal(es) asignado(s) automáticamente.
+            </p>
+          )}
           {done.omitidas?.length > 0 && (
             <p style={{ margin: '8px 0 0', fontSize: 13 }}>
               {done.omitidas.length} duplicada(s) omitida(s) (ya estaban inscritas).

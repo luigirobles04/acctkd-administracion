@@ -6,6 +6,7 @@ import {
   recalcularMontosAcademia,
   tipoTarifaActual,
   precioModalidad,
+  asignarDorsalesPendientes,
 } from '@/lib/campeonato/inscripcion-server'
 import { normTxt } from '@/lib/campeonato/import-excel-categorias'
 import { asegurarTarifasCampeonato } from '@/lib/campeonato/categorias-wt'
@@ -156,7 +157,15 @@ export async function commitFestcupImport(sb, ac, parsed) {
     }
   }
 
-  await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
+  const dorsales = creadas.length ? await asignarDorsalesPendientes(sb, ac.id) : []
+
+  await sb
+    .from('academia_campeonato')
+    .update({
+      ultimo_cambio_at: new Date().toISOString(),
+      ...(creadas.length ? { estado_lista: 'enviada', ultima_notificacion_at: new Date().toISOString() } : {}),
+    })
+    .eq('id', ac.id)
   await recalcularMontosAcademia(sb, ac.id)
 
   await sb.from('bitacora_inscripcion').insert({
@@ -167,11 +176,12 @@ export async function commitFestcupImport(sb, ac, parsed) {
       lineas_ok: creadas.length,
       lineas_fail: fallidas.length,
       lineas_omitidas: omitidas.length,
+      dorsales_asignados: dorsales.length,
     },
     actor: 'portal',
   })
 
-  return { creadas: creadas.length, fallidas, omitidas }
+  return { creadas: creadas.length, fallidas, omitidas, dorsales: dorsales.length }
 }
 
 /** Evita duplicar misma inscripción si reimportan */

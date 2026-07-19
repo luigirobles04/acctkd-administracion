@@ -18,7 +18,9 @@ export default function PortalStatusChips({
 
   return (
     <div className="portal-event-chips">
-      <span className={portalChipClass(apro.tone)}>{apro.label}</span>
+      {estado_aprobacion === 'rechazada' && (
+        <span className={portalChipClass(apro.tone)}>{apro.label}</span>
+      )}
       <span className={portalChipClass(lista.tone)}>{lista.label}</span>
       {showPago && estado_pago && estado_pago !== 'validado' && (
         <span className={portalChipClass(pago.tone)}>{pago.label}</span>
