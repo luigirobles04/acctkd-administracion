@@ -6,6 +6,7 @@ export const MODALIDADES = {
   poomsae_pareja_reconocida: { label: 'Pareja reconocida', cobra: true, miembros: 2 },
   poomsae_pareja_freestyle: { label: 'Pareja freestyle (mixta)', cobra: true, miembros: 2, soloMixta: true },
   poomsae_equipo: { label: 'Equipo WT (3)', cobra: true, miembros: 3 },
+  festival: { label: 'Festival Kyorugi', cobra: true, miembros: 1 },
 }
 
 export const TARIFAS_FDPTKD_DEFAULT = [
@@ -14,6 +15,7 @@ export const TARIFAS_FDPTKD_DEFAULT = [
   { modalidad: 'poomsae_pareja_reconocida', precio_regular: 140, precio_tardia: 160 },
   { modalidad: 'poomsae_pareja_freestyle', precio_regular: 140, precio_tardia: 160 },
   { modalidad: 'poomsae_equipo', precio_regular: 150, precio_tardia: 180 },
+  { modalidad: 'festival', precio_regular: 90, precio_tardia: 120 },
 ]
 
 export const ROLES_OFICIAL = [

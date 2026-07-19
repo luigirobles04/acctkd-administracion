@@ -10,7 +10,7 @@
 - [ ] **Generar todas las llaves** (una sola vez)
 - [ ] Categorías con **1 competidor** → botón **Oro único** en admin/llaves
 - [ ] Imprimir **PDF Área 1, 2 y 3** (backup en papel para árbitros)
-- [ ] Sorteo poomsae en admin
+- [ ] Planilla **Festival Kyorugi**: admin → Planilla Festival → PDF/Excel (no usa llaves)
 
 ## 3 laptops Unity (kyorugi)
 

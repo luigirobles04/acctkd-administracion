@@ -34,7 +34,7 @@ export const FESTCUP_VENUE = {
   eventDate: 'Sábado 7 de noviembre de 2026',
   mapsUrl:
     'https://www.google.com/maps/place/coliseo+gran+chimu/data=!4m2!3m1!1s0x91ad3d900f8bfbcd:0xbb76fd2b663d17d4?sa=X&ved=1t:242&ictx=111',
-  image: '/landing/galeria/coliseo-mats.png',
+  image: '/landing/galeria/coliseo-gran-chimu.jpg',
 }
 
 /** Documentos públicos descargables */

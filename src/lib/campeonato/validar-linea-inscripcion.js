@@ -12,6 +12,10 @@ export async function validarLineaInscripcion(sb, ac, body) {
   const mod = MODALIDADES?.[modalidad]
 
   if (modalidad === 'oficial') return
+  if (modalidad === 'festival') {
+    if (!idPerfiles?.length) throw new Error('Perfil requerido')
+    return
+  }
   if (esModalidadGrupo(modalidad)) {
     return validarGrupoInscripcion(sb, ac, body)
   }

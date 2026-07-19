@@ -30,6 +30,7 @@ const GESTION_LINKS = [
   { href: 'academias', label: 'Academias inscritas', icon: 'school', color: '#007AFF', primary: true },
   { href: 'pagos', label: 'Pagos y aprobación', icon: 'payments', color: '#34C759' },
   { href: 'llaves', label: 'Llaves Kyorugi', icon: 'account_tree', color: '#5856D6' },
+  { href: 'festival', label: 'Planilla Festival', icon: 'celebration', color: '#EC4899' },
   { href: 'poomsae', label: 'Orden Poomsae', icon: 'format_list_numbered', color: '#FF9500' },
   { href: 'podios', label: 'Podios', icon: 'emoji_events', color: '#F5C518' },
   { href: 'credenciales', label: 'Credenciales', icon: 'badge', color: '#DC2626' },

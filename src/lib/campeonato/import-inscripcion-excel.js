@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx'
+import { edadWT } from '@/lib/campeonato/constants'
+import { divisionFestivalPorEdad } from '@/lib/campeonato/festival-grupos'
 import {
   inferGradoFromPoomsae,
   matchPerfilPorNombre,
@@ -132,22 +134,17 @@ function parseFestivalRow(row, ctx) {
   const sexo = parseSexo(row[5])
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
 
-  const cat = resolverCategoriaPoomsae(ctx.categorias, {
-    divisionTexto: 'Infantil A',
-    poomsaeTexto: 'Kibom',
-    sexo: perfil.sexo,
-    perfil,
-    anio: ctx.anio,
-  })
+  const edad = fecha ? edadWT(fecha, ctx.anio) : null
+  const grupo = divisionFestivalPorEdad(edad)
 
   return {
-    tipo: 'poomsae_individual',
+    tipo: 'festival',
     perfilKeys: [perfil.key],
-    idCategoria: cat?.id_categoria || null,
-    categoriaNombre: cat?.nombre || 'Festival',
-    label: `${nombre} · Festival`,
+    idCategoria: null,
+    categoriaNombre: grupo?.division || 'Festival',
+    label: `${nombre} · Festival ${grupo?.division || ''}`.trim(),
     hoja: 'FESTIVAL',
-    errores: cat ? [] : ['Festival: no hay categoría compatible — revisa edad/sexo'],
+    errores: grupo ? [] : ['Festival: edad fuera de rango o falta fecha de nacimiento'],
     advertencias: ['Importado desde hoja Festival'],
   }
 }
