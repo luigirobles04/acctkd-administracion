@@ -33,7 +33,7 @@ export function divisionFestivalFromText(text) {
     [/^IB$|INFANTIL\s*B|IB\s*NOV/, 'infantil_b'],
     [/PRE\s*CAD|PRECADETE/, 'pre_cadete'],
     [/^CADETE$|CADETE\s/, 'cadete'],
-    [/JUVENIL|JUVENILES/, 'juvenil'],
+    [/JUVENIL|JUVENILES|^JUNIOR$/i, 'juvenil'],
     [/SENIOR|MAYORES/, 'senior'],
   ]
   for (const [re, key] of rules) {

@@ -47,11 +47,22 @@ describe('fichas reales FestCup 2025', () => {
     for (const r of results) {
       console.log(`${r.ok}/${r.lineas} ok | ${r.file} | err ${r.errores}`)
     }
+    const withErr = results.filter((r) => r.errores > 0)
+    if (withErr.length) {
+      console.log('\n--- ERRORES RESTANTES ---')
+      for (const file of withErr) {
+        const buffer = readFileSync(join(BASE, file.file))
+        const parsed = parseFestcupInscripcionExcel(buffer, { categorias, anioCampeonato: 2025 })
+        for (const l of parsed.lineas.filter((x) => x.errores?.length)) {
+          console.log(`  ${file.file}: ${l.label} → ${l.errores.join('; ')}`)
+        }
+      }
+    }
     const zero = results.filter((r) => r.lineas === 0)
     expect(zero.map((z) => z.file)).toEqual([])
 
     const totalOk = results.reduce((s, r) => s + r.ok, 0)
     const totalLines = results.reduce((s, r) => s + r.lineas, 0)
-    expect(totalOk / totalLines).toBeGreaterThan(0.87)
+    expect(totalOk / totalLines).toBeGreaterThan(0.92)
   })
 })

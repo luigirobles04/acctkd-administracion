@@ -2,7 +2,9 @@ import * as XLSX from 'xlsx'
 import { edadWT } from '@/lib/campeonato/constants'
 import { divisionFestivalPorEdad, divisionFestivalFromText, parseEdadTextoExcel, fechaDesdeEdadDeclarada } from '@/lib/campeonato/festival-grupos'
 import {
+  decodeKyorugiCodigoExcel,
   inferGradoFromPoomsae,
+  inferSexoFromNombre,
   matchPerfilPorNombre,
   normTxt,
   parseFechaExcel,
@@ -24,7 +26,7 @@ function sheetRows(wb, ...names) {
     })
     if (hit) {
       const ws = wb.Sheets[hit]
-      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false })
+      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true })
     }
   }
   return []
@@ -73,12 +75,14 @@ function parseSexo(val) {
 function looksLikeCategoryText(s) {
   const n = normTxt(s)
   if (!n) return false
-  return /CADET|JUNIOR|JUVENIL|SENIOR|MASTER|INFANTIL|PRE|MAYORES|NOVEL|AVANZ|FESTIVAL|KG/.test(n)
+  if (decodeKyorugiCodigoExcel(n).division) return true
+  return /CADET|JUNIOR|JUVENIL|SENIOR|MASTER|INFANTIL|PRE|MAYORES|NOVEL|AVANZ|FESTIVAL|KG|^IA$|^IB$|^I\s*B|^I\s*A|^C\s|^J\s|^C\d|^IB\d|^IA\d|MAS/.test(n)
 }
 
 function parseKyorugiRow(row, ctx) {
   const nombre = String(row[1] || '').trim()
   if (!nombre) return null
+  if (/^(COLEGIO|ACADEMIA|INSTITUCION|ASOCIACION|CLUB)\b/i.test(nombre)) return null
 
   const fecha = parseFechaExcel(row[2])
   let codigo = String(row[3] || '').trim()
@@ -86,7 +90,12 @@ function parseKyorugiRow(row, ctx) {
   let pesoRaw = row[5] ?? row[6]
   let sexo = parseSexo(row[5] ?? row[6])
 
-  if (looksLikeCategoryText(row[3]) && (looksLikeWeightText(row[4]) || typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
+  if (looksLikeCategoryText(String(row[4] || '')) && !looksLikeWeightText(row[4]) && parseSexo(row[5]) && (parsePesoExcel(row[6]) != null || looksLikeWeightText(row[6]))) {
+    categoriaTxt = String(row[4] || '').trim()
+    sexo = parseSexo(row[5])
+    pesoRaw = row[6]
+    codigo = String(row[3] || '').trim()
+  } else if (looksLikeCategoryText(row[3]) && (looksLikeWeightText(row[4]) || typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
     categoriaTxt = String(row[3] || '').trim()
     pesoRaw = typeof row[6] === 'number' && row[6] > 0 ? row[6] : row[4]
     sexo = parseSexo(row[5]) || sexo
@@ -105,7 +114,26 @@ function parseKyorugiRow(row, ctx) {
     codigo = ''
     pesoRaw = row[4]
     sexo = parseSexo(row[5]) || sexo
+  } else if (decodeKyorugiCodigoExcel(codigo).division || decodeKyorugiCodigoExcel(codigo).sexo) {
+    const decoded = decodeKyorugiCodigoExcel(codigo)
+    categoriaTxt = decoded.categoriaTexto || codigo
+    if (decoded.sexo) sexo = decoded.sexo
+    pesoRaw = typeof row[4] === 'number' ? row[4] : parsePesoExcel(row[4]) != null ? row[4] : row[5]
+    sexo = sexo || parseSexo(row[5])
+    codigo = ''
+  } else if (parsePesoExcel(categoriaTxt) != null && !looksLikeCategoryText(categoriaTxt)) {
+    pesoRaw = categoriaTxt
+    categoriaTxt = codigo || ''
+    codigo = ''
+    sexo = parseSexo(row[5]) || sexo
+  } else if (parsePesoExcel(codigo) != null && !looksLikeCategoryText(codigo)) {
+    pesoRaw = codigo
+    categoriaTxt = ''
+    codigo = ''
+    sexo = parseSexo(row[4]) || parseSexo(row[5]) || sexo
   }
+
+  if (!sexo) sexo = inferSexoFromNombre(nombre)
 
   const peso = parsePesoExcel(pesoRaw)
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: null, sheet: 'KYORUGUI', codigo })
@@ -138,6 +166,7 @@ function parsePoomsaeIndividualRow(row, ctx) {
   const fecha = parseFechaExcel(row[2])
   const division = String(row[3] || '').trim()
   const poomsae = String(row[4] || '').trim()
+  if (!division && !poomsae) return null
   const sexo = parseSexo(row[5])
   const gradoHint = inferGradoFromPoomsae(poomsae)
 
@@ -168,7 +197,10 @@ function parseFestivalRow(row, ctx) {
   if (!nombre) return null
 
   let fecha = parseFechaExcel(row[2])
-  const edadDeclarada = parseEdadTextoExcel(row[2])
+  let edadDeclarada = parseEdadTextoExcel(row[2])
+  if (edadDeclarada == null && typeof row[2] === 'number' && row[2] >= 4 && row[2] <= 30) {
+    edadDeclarada = row[2]
+  }
   if (!fecha && edadDeclarada != null) {
     fecha = fechaDesdeEdadDeclarada(edadDeclarada, ctx.anio)
   }
@@ -184,12 +216,20 @@ function parseFestivalRow(row, ctx) {
     sexo = parseSexo(row[5]) || sexo
   } else if (normTxt(col4) === 'FESTIVAL' && col3) {
     divisionHint = col3
+  } else if (normTxt(col3) === 'FESTIVAL' && divisionFestivalFromText(String(row[2] || ''))) {
+    divisionHint = String(row[2] || '').trim()
   } else if (divisionFestivalFromText(col3) && !divisionFestivalFromText(col4)) {
     divisionHint = col3
   } else if (normTxt(col3) === 'FESTIVAL' && looksLikeWeightText(col4)) {
     divisionHint = null
     sexo = parseSexo(row[5]) || sexo
+  } else if (normTxt(col3) === 'FESTIVAL' && !col4) {
+    divisionHint = null
+  } else if (looksLikeWeightText(col4) && !divisionFestivalFromText(col4)) {
+    divisionHint = divisionFestivalFromText(col3) ? col3 : null
   }
+
+  if (!sexo) sexo = inferSexoFromNombre(nombre)
 
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
 
@@ -222,14 +262,26 @@ function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
   if (!descripcion && !nombres.length) return null
 
   const matched = []
-  const missing = []
+  const advertenciasGrupo = []
   for (const n of nombres) {
-    const p = matchPerfilPorNombre(n, ctx.perfiles)
-    if (p) matched.push(p)
-    else missing.push(n)
+    let p = matchPerfilPorNombre(n, ctx.perfiles)
+    if (!p) {
+      for (const cand of ctx.perfiles.values()) {
+        const full = normTxt(`${cand.nombres} ${cand.apellidos}`)
+        if (full.includes(normTxt(n)) || normTxt(n).includes(normTxt(cand.nombres))) {
+          p = cand
+          break
+        }
+      }
+    }
+    if (!p) {
+      p = ctx.ensurePerfil({ nombre: n, fecha: null, sexo: inferSexoFromNombre(n), grado: null, sheet: hoja })
+      advertenciasGrupo.push(`Perfil creado desde grupo: ${n}`)
+    }
+    matched.push(p)
   }
 
-  if (matched.length !== miembros) {
+  if (nombres.length < miembros) {
     return {
       tipo: modalidad,
       perfilKeys: matched.map((p) => p.key),
@@ -237,8 +289,8 @@ function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
       categoriaNombre: '—',
       label: descripcion || nombres.join(' + '),
       hoja,
-      errores: [`Integrantes no encontrados: ${missing.join(', ')}`],
-      advertencias: [],
+      errores: [`Faltan integrantes (${nombres.length}/${miembros})`],
+      advertencias: advertenciasGrupo,
       skip: true,
     }
   }
@@ -257,7 +309,10 @@ function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
     label: descripcion || matched.map((p) => p.nombres).join(' + '),
     hoja,
     errores: cat ? [] : ['No se pudo resolver categoría del grupo'],
-    advertencias: esMixta && tipoFinal === 'poomsae_pareja_freestyle' ? ['Pareja mixta → Freestyle'] : [],
+    advertencias: [
+      ...advertenciasGrupo,
+      ...(esMixta && tipoFinal === 'poomsae_pareja_freestyle' ? ['Pareja mixta → Freestyle'] : []),
+    ],
   }
 }
 
@@ -338,7 +393,8 @@ function parseDelRioAltRows(rows, ctx) {
     const peso = parsePesoExcel(row[6])
 
     let fecha = edad != null ? fechaDesdeEdadDeclarada(edad, ctx.anio) : null
-    const perfil = ctx.ensurePerfil({ nombre, fecha, sexo: null, grado: null, sheet: 'Hoja1' })
+    let sexo = inferSexoFromNombre(nombre)
+    const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: null, sheet: 'Hoja1' })
 
     if (nivel.includes('FESTIVAL')) {
       const grupo = divisionFestivalFromText(divisionTxt) || divisionFestivalPorEdad(edad)
@@ -430,6 +486,8 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
   const poomsae = sheetRows(wb, 'POOMSAE')
   const pmStart = dataStartIndex(poomsae)
   let mode = 'individual'
+  const pendingGrupos = []
+
   for (let i = pmStart; i < poomsae.length; i++) {
     const row = poomsae[i]
     if (isSectionHeader(row)) {
@@ -439,20 +497,22 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
     if (!row?.[1] && !row?.[3]) continue
 
     if (mode === 'parejas' || mode === 'freestyle') {
-      const linea = parseGrupoRow(row, ctx, { modalidad: 'poomsae_pareja_reconocida', miembros: 2, hoja: 'POOMSAE' })
-      if (linea && !linea.skip) lineas.push(linea)
-      else if (linea?.errores?.length) lineas.push(linea)
+      pendingGrupos.push({ row, modalidad: 'poomsae_pareja_reconocida', miembros: 2 })
       continue
     }
     if (mode === 'equipo') {
-      const linea = parseGrupoRow(row, ctx, { modalidad: 'poomsae_equipo', miembros: 3, hoja: 'POOMSAE' })
-      if (linea && !linea.skip) lineas.push(linea)
-      else if (linea?.errores?.length) lineas.push(linea)
+      pendingGrupos.push({ row, modalidad: 'poomsae_equipo', miembros: 3 })
       continue
     }
 
     const linea = parsePoomsaeIndividualRow(row, ctx)
     if (linea) lineas.push(linea)
+  }
+
+  for (const g of pendingGrupos) {
+    const linea = parseGrupoRow(g.row, ctx, { modalidad: g.modalidad, miembros: g.miembros, hoja: 'POOMSAE' })
+    if (linea && !linea.skip) lineas.push(linea)
+    else if (linea?.errores?.length) lineas.push(linea)
   }
 
   const festival = sheetRows(wb, 'FESTIVAL')
