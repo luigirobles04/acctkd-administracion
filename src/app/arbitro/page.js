@@ -217,13 +217,13 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
     return () => clearInterval(t)
   }, [cargar])
 
-  async function marcarGanador(combate, idLinea) {
+  async function marcarGanador(combate, idLinea, { walkover = false } = {}) {
     setMarcando(combate.id_llave)
     try {
       const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idLlave: combate.id_llave, ganadorIdLinea: idLinea }),
+        body: JSON.stringify({ idLlave: combate.id_llave, ganadorIdLinea: idLinea, walkover }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
@@ -295,6 +295,24 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
                 🔴 Ganó Rojo
               </button>
             </div>
+            <div className="arb-win-btns" style={{ marginTop: 8 }}>
+              <button
+                className="arb-win-btn"
+                style={{ flex: 1, background: '#fef3c7', color: '#92400e', fontSize: 13 }}
+                disabled={marcando === c.id_llave}
+                onClick={() => { if (confirm('W/O — ¿Azul gana porque el rival no vino?')) marcarGanador(c, c.id_linea1, { walkover: true }) }}
+              >
+                W/O → Azul
+              </button>
+              <button
+                className="arb-win-btn"
+                style={{ flex: 1, background: '#fef3c7', color: '#92400e', fontSize: 13 }}
+                disabled={marcando === c.id_llave}
+                onClick={() => { if (confirm('W/O — ¿Rojo gana porque el rival no vino?')) marcarGanador(c, c.id_linea2, { walkover: true }) }}
+              >
+                W/O → Rojo
+              </button>
+            </div>
           </div>
         ))
       )}
@@ -309,7 +327,10 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
                 <div className="arb-combate-meta" style={{ marginBottom: 4 }}>
                   <span>{c.categoria_nombre} · {c.rondaLabel}</span>
                 </div>
-                <div className="arb-resultado-pill">★ Ganó {nombreLado(ganador)}</div>
+                <div className="arb-resultado-pill">
+                  ★ Ganó {nombreLado(ganador)}
+                  {c.motivo_resultado === 'walkover' ? ' · W/O' : ''}
+                </div>
               </div>
             )
           })}

@@ -85,13 +85,14 @@ function CompetidorBloque({ data, color, lado, esGanador, puedeMarcar, onMarcar,
   )
 }
 
-export default function CombateCard({ combate, compact, marcando, onMarcarGanador, showCancha = true }) {
+export default function CombateCard({ combate, compact, marcando, onMarcarGanador, onWalkover, showCancha = true }) {
   const tieneAlguno = combate.competidor1?.id_linea || combate.competidor2?.id_linea
   if (combate.estado === 'bye' || combate.estado === 'vacío' || !tieneAlguno) return null
 
   const puedeMarcar = combate.estado === 'pendiente' && combate.id_linea1 && combate.id_linea2
-
   const finalizado = combate.estado === 'finalizado'
+  const esWalkover = combate.motivo_resultado === 'walkover'
+  const esExhibicion = combate.es_exhibicion
 
   return (
     <div
@@ -101,12 +102,12 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
         boxShadow: '0 3px 14px rgba(0,0,0,0.07)',
         marginBottom: compact ? 0 : 12,
         position: 'relative',
-        border: finalizado ? '2px solid #fbbf24' : '1px solid var(--separator)',
+        border: finalizado ? '2px solid #fbbf24' : esExhibicion ? '2px solid #6366f1' : '1px solid var(--separator)',
       }}
     >
       {showCancha && combate.cancha && (
-        <div style={{ padding: '5px 12px', background: '#111', color: '#fff', fontSize: 10, fontWeight: 700 }}>
-          CANCHA {combate.cancha}
+        <div style={{ padding: '5px 12px', background: esExhibicion ? '#4338ca' : '#111', color: '#fff', fontSize: 10, fontWeight: 700 }}>
+          {esExhibicion ? 'EXHIBICIÓN' : `CANCHA ${combate.cancha}`}
           {combate.orden_pista ? (
             <span style={{ float: 'right', fontSize: 12, fontWeight: 800 }}>Combate #{combate.orden_pista}</span>
           ) : null}
@@ -161,6 +162,33 @@ export default function CombateCard({ combate, compact, marcando, onMarcarGanado
           VS
         </div>
       </div>
+      {finalizado && esWalkover && (
+        <div style={{ padding: '6px 12px', background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
+          W/O — rival no se presentó
+        </div>
+      )}
+      {puedeMarcar && onWalkover && (
+        <div style={{ display: 'flex', gap: 8, padding: '8px 10px', background: '#fafafa', borderTop: '1px solid var(--separator)' }}>
+          <button
+            type="button"
+            className="ios-btn ios-btn-secondary"
+            style={{ flex: 1, fontSize: 11, padding: '6px 8px' }}
+            disabled={marcando}
+            onClick={() => onWalkover(combate.id_linea1)}
+          >
+            W/O → gana Azul
+          </button>
+          <button
+            type="button"
+            className="ios-btn ios-btn-secondary"
+            style={{ flex: 1, fontSize: 11, padding: '6px 8px' }}
+            disabled={marcando}
+            onClick={() => onWalkover(combate.id_linea2)}
+          >
+            W/O → gana Rojo
+          </button>
+        </div>
+      )}
     </div>
   )
 }

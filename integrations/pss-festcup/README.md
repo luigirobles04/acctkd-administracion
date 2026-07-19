@@ -16,7 +16,7 @@ Todas requieren header `X-PSS-Token` (o `Authorization: Bearer`).
 | GET | `/api/pss/campeonato/{id}/area/{1-3}` | Descargar snapshot (cola + llaves) |
 | PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/iniciar` | Marcar combate en curso |
 | PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/marcador` | `{ puntaje1, puntaje2 }` en vivo |
-| PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/finalizar` | `{ ganadorIdLinea, puntaje1?, puntaje2? }` |
+| PATCH | `/api/pss/campeonato/{id}/combate/{idLlave}/finalizar` | `{ ganadorIdLinea, puntaje1?, puntaje2?, walkover?: true }` |
 
 **Token:** variable de entorno `PSS_API_SECRET` en Vercel, o `campeonato.pss_token` en BD.
 
@@ -42,3 +42,5 @@ Menú → COMBATE → COLA ACCTKD → Descargar → Mandos → Opciones (auto) �
 ```
 
 Al terminar combate: avance local → siguiente combate de la cola → sync en background.
+
+**Walkover (rival no vino):** en COLA ACCTKD → **W/O AZUL** o **W/O ROJO** tras cargar el combate. También disponible en `/arbitro` web.

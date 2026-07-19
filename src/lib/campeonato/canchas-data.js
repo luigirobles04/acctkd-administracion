@@ -1,6 +1,7 @@
 import { parseCompetidor } from '@/lib/campeonato/llaves-kyorugi'
 
 export const RONDA_LABEL = {
+  0: 'Exhibición',
   1: 'Final',
   2: 'Semifinal',
   3: 'Cuartos de final',
@@ -48,6 +49,8 @@ function enrichCombate(l, lineaMap, catMap) {
     round2_ganador: l.round2_ganador ?? null,
     round3_ganador: l.round3_ganador ?? null,
     siguiente_llave: l.siguiente_llave ?? null,
+    motivo_resultado: l.motivo_resultado || 'normal',
+    es_exhibicion: Boolean(l.es_exhibicion),
     categoria_nombre: cat?.nombre || '',
     competidor1,
     competidor2,

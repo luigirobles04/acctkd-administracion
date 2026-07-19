@@ -35,7 +35,7 @@ function BracketConnectors({ count, cellH, gap }) {
   )
 }
 
-export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
+export default function BracketVisual({ porRonda, marcando, onMarcarGanador, onWalkover }) {
   const rondas = Object.keys(porRonda)
     .map(Number)
     .sort((a, b) => b - a)
@@ -82,6 +82,7 @@ export default function BracketVisual({ porRonda, marcando, onMarcarGanador }) {
                         showCancha={false}
                         marcando={marcando === m.id_llave}
                         onMarcarGanador={(idLinea) => onMarcarGanador(m.id_llave, idLinea)}
+                        onWalkover={onWalkover ? (idLinea) => onWalkover(m.id_llave, idLinea) : undefined}
                       />
                     </div>
                   ))}

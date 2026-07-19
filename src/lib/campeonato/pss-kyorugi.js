@@ -1,5 +1,5 @@
 import { fetchCombatesCampeonato, organizarPantallaCancha } from '@/lib/campeonato/canchas-data'
-import { registrarGanadorCombate } from '@/lib/campeonato/llaves-kyorugi'
+import { registrarGanadorCombate, registrarWalkoverCombate } from '@/lib/campeonato/llaves-kyorugi'
 
 const COLOR_CHUNG = 'azul'
 const COLOR_HONG = 'rojo'
@@ -59,6 +59,8 @@ export async function buildPssAreaSnapshot(sb, idCampeonato, cancha) {
     siguiente_llave: c.siguiente_llave ?? null,
     competidor1: c.competidor1,
     competidor2: c.competidor2,
+    motivo_resultado: c.motivo_resultado || 'normal',
+    es_exhibicion: Boolean(c.es_exhibicion),
   }))
 
   return {
@@ -165,7 +167,7 @@ function parseRoundGanador(value) {
   return null
 }
 
-export async function finalizarCombatePss(sb, idCampeonato, idLlave, { ganadorIdLinea, puntaje1, puntaje2 } = {}) {
+export async function finalizarCombatePss(sb, idCampeonato, idLlave, { ganadorIdLinea, puntaje1, puntaje2, walkover } = {}) {
   const id = Number(idLlave)
   const g = Number(ganadorIdLinea)
   if (!id || !g) throw new Error('idLlave y ganadorIdLinea requeridos')
@@ -178,11 +180,20 @@ export async function finalizarCombatePss(sb, idCampeonato, idLlave, { ganadorId
     .maybeSingle()
   if (!combate) throw new Error('Combate no encontrado')
 
+  if (walkover) {
+    return registrarWalkoverCombate(sb, id, g)
+  }
+
   return registrarGanadorCombate(sb, id, g, { puntaje1, puntaje2 })
 }
 
+/** Avance local por walkover (rival no vino). */
+export function avanzarWalkoverLocal(combates, idLlave, ganadorIdLinea) {
+  return avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje1: 0, puntaje2: 0, motivoResultado: 'walkover' })
+}
+
 /** Avance local (misma lógica que registrarGanadorCombate) para snapshot offline en Unity. */
-export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje1 = 0, puntaje2 = 0 } = {}) {
+export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje1 = 0, puntaje2 = 0, motivoResultado = 'normal' } = {}) {
   const lista = combates.map((c) => ({ ...c }))
   const idx = lista.findIndex((c) => c.id_llave === idLlave)
   if (idx < 0) throw new Error('Combate no encontrado en snapshot')
@@ -198,6 +209,7 @@ export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje
     estado: 'finalizado',
     puntaje1: Number(puntaje1) || 0,
     puntaje2: Number(puntaje2) || 0,
+    motivo_resultado: motivoResultado,
   }
 
   if (match.siguiente_llave) {

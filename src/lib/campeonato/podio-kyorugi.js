@@ -8,7 +8,7 @@ function perdedorCombate(c) {
 }
 
 function combateUtil(c) {
-  return c && !['vacío', 'saltado', 'bye'].includes(c.estado)
+  return c && !c.es_exhibicion && !['vacío', 'saltado', 'bye'].includes(c.estado)
 }
 
 /**
@@ -19,10 +19,25 @@ export function calcularPodioCategoria(combates) {
   const list = (combates || []).filter(combateUtil)
   if (!list.length) return { estado: 'sin_llave', podio: null }
 
-  const final = list.find((c) => c.ronda === 1 && c.id_linea1 && c.id_linea2)
+  const final = list.find((c) => c.ronda === 1 && c.id_linea1 && (c.id_linea2 || c.motivo_resultado === 'unico'))
   if (!final) {
     const soloBye = list.every((c) => c.estado === 'finalizado' || c.estado === 'pendiente')
     return { estado: soloBye ? 'en_curso' : 'sin_final', podio: null }
+  }
+
+  if (final.motivo_resultado === 'unico' && final.estado === 'finalizado' && final.ganador_id_linea) {
+    return {
+      estado: 'completo',
+      podio: {
+        oro: final.ganador_id_linea,
+        plata: null,
+        bronce: [],
+      },
+    }
+  }
+
+  if (!final.id_linea2) {
+    return { estado: 'en_curso', podio: null }
   }
 
   if (final.estado !== 'finalizado' || !final.ganador_id_linea) {
@@ -73,7 +88,7 @@ export async function fetchPodiosCampeonato(sb, idCampeonato) {
 
   const { data: llaves, error: errL } = await sb
     .from('llave_kyorugi')
-    .select('id_llave, id_categoria, ronda, estado, id_linea1, id_linea2, ganador_id_linea')
+    .select('id_llave, id_categoria, ronda, estado, id_linea1, id_linea2, ganador_id_linea, motivo_resultado, es_exhibicion')
     .eq('id_campeonato', idCampeonato)
   if (errL) throw errL
 

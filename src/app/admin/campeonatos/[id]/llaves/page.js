@@ -172,6 +172,7 @@ export default function CampeonatoLlavesPage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(apiError(json, 'Error al registrar ganador'))
       if (porCancha) await cargarCanchas()
+      if (selCat) await verLlave(selCat)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -179,7 +180,75 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
+  async function marcarWalkover(idLlave, ganadorIdLinea) {
+    if (!idLlave || !ganadorIdLinea) return
+    if (!confirm('¿Walkover (W/O)? El rival no se presentó — avanzará sin pelear.')) return
+    setMarcando(idLlave)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLlave: Number(idLlave), ganadorIdLinea: Number(ganadorIdLinea), walkover: true }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(apiError(json, 'Error W/O'))
+      if (porCancha) await cargarCanchas()
+      if (selCat) await verLlave(selCat)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setMarcando(null)
+    }
+  }
+
+  async function oroUnico(cat) {
+    if (!confirm(`¿Oro automático para "${cat.nombre}" (1 solo competidor)?`)) return
+    setGenerando(cat.id_categoria)
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'oro_unico', idCategoria: cat.id_categoria }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(apiError(json, 'Error oro único'))
+      await cargarCats({ silent: true })
+      alert(`Oro registrado para ${cat.nombre}`)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setGenerando(null)
+    }
+  }
+
+  async function crearExhibicion(e) {
+    e.preventDefault()
+    const fd = new FormData(e.target)
+    const dorsal1 = String(fd.get('dorsal1') || '').trim()
+    const dorsal2 = String(fd.get('dorsal2') || '').trim()
+    const cancha = Number(fd.get('cancha') || 1)
+    if (!dorsal1 || !dorsal2) { alert('Ingresa dos dorsales'); return }
+    setExportando('exhibicion')
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'exhibicion', dorsal1, dorsal2, cancha }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(apiError(json, 'Error exhibición'))
+      e.target.reset()
+      await cargarCanchas()
+      alert(`Exhibición creada en área ${json.cancha} · combate #${json.orden_pista}`)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setExportando(null)
+    }
+  }
+
   const catsConInscritos = categorias.filter((c) => c.inscritos >= 2)
+  const catsSolo = categorias.filter((c) => c.inscritos === 1 && !c.tiene_llave)
   async function exportar(formato) {
     setExportando(formato)
     try {
@@ -296,24 +365,77 @@ export default function CampeonatoLlavesPage() {
         )}
 
         {generandoTodas && (
-          <div
-            className="ios-card"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 100,
-              margin: 'auto',
-              maxWidth: 380,
-              height: 'fit-content',
-              padding: 28,
-              textAlign: 'center',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-            }}
-          >
-            <p className="ios-headline" style={{ marginBottom: 8 }}>Generando llaves…</p>
-            <p className="ios-caption" style={{ color: 'var(--label3)' }}>
-              {catsConInscritos.length} categorías · canchas y colores · se actualiza al terminar
+          <>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 99 }} aria-hidden />
+            <div
+              className="ios-card camp-spinner-overlay"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 100,
+                margin: 'auto',
+                maxWidth: 380,
+                height: 'fit-content',
+                padding: 28,
+                textAlign: 'center',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+              }}
+            >
+              <div className="camp-spinner" aria-hidden />
+              <p className="ios-headline" style={{ marginBottom: 8, marginTop: 16 }}>Generando llaves…</p>
+              <p className="ios-caption" style={{ color: 'var(--label3)' }}>
+                {catsConInscritos.length} categorías · canchas y colores
+              </p>
+            </div>
+          </>
+        )}
+
+        {!loading && catsSolo.length > 0 && (
+          <div className="ios-card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid #f59e0b' }}>
+            <h3 style={{ margin: '0 0 8px' }}>Categorías con 1 competidor ({catsSolo.length})</h3>
+            <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12 }}>
+              Oro automático o agrega un combate de exhibición con otro dorsal del campeonato.
             </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {catsSolo.map((c) => (
+                <div key={c.id_categoria} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span><strong>{c.nombre}</strong></span>
+                  <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12 }} disabled={bloqueado || generando === c.id_categoria} onClick={() => oroUnico(c)}>
+                    {generando === c.id_categoria ? '…' : '🥇 Oro único'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && (
+          <div className="ios-card" style={{ padding: 16, marginBottom: 16 }}>
+            <h3 style={{ margin: '0 0 8px' }}>Combate de exhibición</h3>
+            <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12 }}>
+              No afecta el podio. Inserta en la cola del área indicada (ideal para categorías con un solo inscrito).
+            </p>
+            <form onSubmit={crearExhibicion} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ fontSize: 12 }}>
+                Dorsal 1
+                <input name="dorsal1" className="ios-input" placeholder="101" style={{ display: 'block', marginTop: 4, width: 80 }} />
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Dorsal 2
+                <input name="dorsal2" className="ios-input" placeholder="205" style={{ display: 'block', marginTop: 4, width: 80 }} />
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Área
+                <select name="cancha" className="ios-input" defaultValue="1" style={{ display: 'block', marginTop: 4 }}>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </label>
+              <button type="submit" className="ios-btn ios-btn-secondary" disabled={exportando === 'exhibicion'}>
+                {exportando === 'exhibicion' ? '…' : 'Agregar exhibición'}
+              </button>
+            </form>
           </div>
         )}
 
@@ -399,6 +521,7 @@ export default function CampeonatoLlavesPage() {
                                     compact
                                     marcando={marcando === m.id_llave}
                                     onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
+                                    onWalkover={(idLinea) => marcarWalkover(m.id_llave, idLinea)}
                                   />
                                 </div>
                               ))}
@@ -458,6 +581,7 @@ export default function CampeonatoLlavesPage() {
                     porRonda={porRonda}
                     marcando={marcando}
                     onMarcarGanador={marcarGanador}
+                    onWalkover={marcarWalkover}
                   />
                 ) : (
                   combatesFiltrados.map((m) => (
@@ -469,6 +593,7 @@ export default function CampeonatoLlavesPage() {
                         combate={m}
                         marcando={marcando === m.id_llave}
                         onMarcarGanador={(idLinea) => marcarGanador(m.id_llave, idLinea)}
+                        onWalkover={(idLinea) => marcarWalkover(m.id_llave, idLinea)}
                       />
                     </div>
                   ))

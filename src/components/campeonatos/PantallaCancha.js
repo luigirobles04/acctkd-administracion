@@ -125,7 +125,11 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
           <span className="pantalla-combate-meta-ronda">
             {combateNo && <em className="pantalla-combate-no">{combateNo}</em>}
             {combate.rondaLabel}
+            {combate.es_exhibicion && <span className="pantalla-en-vivo-badge" style={{ background: '#6366f1' }}>EXHIBICIÓN</span>}
             {enVivo && <span className="pantalla-en-vivo-badge">EN CURSO</span>}
+            {combate.motivo_resultado === 'walkover' && combate.estado === 'finalizado' && (
+              <span className="pantalla-en-vivo-badge" style={{ background: '#d97706' }}>W/O</span>
+            )}
           </span>
         </div>
       )}

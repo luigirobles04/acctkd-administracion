@@ -467,7 +467,7 @@ export async function generarTodasLasLlaves(sb, idCampeonato, { idsCategorias = 
   return { generadas: resultados.length, resultados, errores }
 }
 
-export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { puntaje1, puntaje2 } = {}) {
+export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { puntaje1, puntaje2, motivoResultado } = {}) {
   const id = Number(idLlave)
   if (!id) throw new Error('ID de combate inválido')
 
@@ -486,6 +486,7 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
 
   const p1 = puntaje1 != null ? Number(puntaje1) : 0
   const p2 = puntaje2 != null ? Number(puntaje2) : 0
+  const motivo = motivoResultado || 'normal'
 
   await sb
     .from('llave_kyorugi')
@@ -494,6 +495,7 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
       estado: 'finalizado',
       puntaje1: p1,
       puntaje2: p2,
+      motivo_resultado: motivo,
     })
     .eq('id_llave', id)
 
@@ -540,7 +542,155 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
     }
   }
 
-  return { ok: true, id_llave: id, ganador_id_linea: g }
+  return { ok: true, id_llave: id, ganador_id_linea: g, motivo_resultado: motivo }
+}
+
+/** Walkover: rival no se presentó — avanza el presente sin pelear. */
+export async function registrarWalkoverCombate(sb, idLlave, ganadorIdLinea) {
+  return registrarGanadorCombate(sb, idLlave, ganadorIdLinea, {
+    puntaje1: 0,
+    puntaje2: 0,
+    motivoResultado: 'walkover',
+  })
+}
+
+/** Llave mínima para categoría con 1 solo competidor → oro automático (motivo unico). */
+export async function generarLlaveCategoriaUnico(sb, idCampeonato, idCategoria, { asignarCanchas = true } = {}) {
+  const { data: cat, error: errCat } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria, nombre')
+    .eq('id_categoria', idCategoria)
+    .maybeSingle()
+  if (errCat || !cat) throw new Error('Categoría no encontrada')
+
+  const { data: lineas, error } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea, dorsal_numero, dorsal_display, academia_campeonato(academia(nombre)), miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))')
+    .eq('id_categoria', idCategoria)
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  if (error) throw error
+
+  const participantes = lineas || []
+  if (participantes.length !== 1) {
+    throw new Error(`Oro único requiere exactamente 1 competidor con dorsal (hay ${participantes.length})`)
+  }
+
+  await sb.from('llave_kyorugi').delete().eq('id_categoria', idCategoria)
+
+  const p = participantes[0]
+  const { data: sf, error: errSf } = await sb
+    .from('llave_kyorugi')
+    .insert({
+      id_campeonato: idCampeonato,
+      id_categoria: idCategoria,
+      ronda: 2,
+      match_numero: 1,
+      id_linea1: p.id_linea,
+      id_linea2: null,
+      es_bye: true,
+      ganador_id_linea: p.id_linea,
+      estado: 'saltado',
+      color1: COLOR_CHUNG,
+    })
+    .select('id_llave')
+    .single()
+  if (errSf) throw errSf
+
+  const { data: fin, error: errFin } = await sb
+    .from('llave_kyorugi')
+    .insert({
+      id_campeonato: idCampeonato,
+      id_categoria: idCategoria,
+      ronda: 1,
+      match_numero: 1,
+      id_linea1: p.id_linea,
+      id_linea2: null,
+      ganador_id_linea: p.id_linea,
+      estado: 'finalizado',
+      motivo_resultado: 'unico',
+      color1: COLOR_CHUNG,
+      siguiente_llave: null,
+    })
+    .select('id_llave')
+    .single()
+  if (errFin) throw errFin
+
+  await sb.from('llave_kyorugi').update({ siguiente_llave: fin.id_llave }).eq('id_llave', sf.id_llave)
+
+  if (asignarCanchas) await asignarCanchasCampeonato(sb, idCampeonato)
+
+  return {
+    categoria: cat.nombre,
+    participantes: 1,
+    oro_unico: true,
+    id_linea: p.id_linea,
+  }
+}
+
+/** Combates de exhibición entre atletas del campeonato (no afectan podio). */
+export async function insertarCombateExhibicion(sb, idCampeonato, { idLinea1, idLinea2, cancha = 1 } = {}) {
+  const l1 = Number(idLinea1)
+  const l2 = Number(idLinea2)
+  if (!l1 || !l2 || l1 === l2) throw new Error('Se requieren dos competidores distintos')
+
+  const { data: lineas, error: errL } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea, id_categoria, id_campeonato')
+    .in('id_linea', [l1, l2])
+    .eq('id_campeonato', idCampeonato)
+  if (errL) throw errL
+  if ((lineas || []).length !== 2) throw new Error('Competidores no encontrados en este campeonato')
+
+  const area = Math.min(3, Math.max(1, Number(cancha) || 1))
+  const idCategoria = lineas[0].id_categoria
+
+  const { data: existentes } = await sb
+    .from('llave_kyorugi')
+    .select('orden_pista, match_numero')
+    .eq('id_campeonato', idCampeonato)
+    .eq('cancha', area)
+    .order('orden_pista', { ascending: false })
+    .limit(1)
+
+  let ordenPista = ((existentes?.[0]?.orden_pista) || 0) + 1
+
+  const { data: maxMatch } = await sb
+    .from('llave_kyorugi')
+    .select('match_numero')
+    .eq('id_campeonato', idCampeonato)
+    .order('match_numero', { ascending: false })
+    .limit(1)
+
+  const matchNumero = ((maxMatch?.[0]?.match_numero) || 0) + 1
+
+  const { color1, color2 } = coloresCombate(l1, l2)
+
+  const { data: inserted, error: errI } = await sb
+    .from('llave_kyorugi')
+    .insert({
+      id_campeonato: idCampeonato,
+      id_categoria: idCategoria,
+      ronda: 0,
+      match_numero: matchNumero,
+      id_linea1: l1,
+      id_linea2: l2,
+      es_exhibicion: true,
+      es_bye: false,
+      estado: 'pendiente',
+      cancha: area,
+      orden_pista: ordenPista,
+      color1,
+      color2,
+      motivo_resultado: 'normal',
+    })
+    .select('id_llave')
+    .single()
+  if (errI) throw errI
+
+  return { ok: true, id_llave: inserted.id_llave, cancha: area, orden_pista: ordenPista, es_exhibicion: true }
 }
 
 export {

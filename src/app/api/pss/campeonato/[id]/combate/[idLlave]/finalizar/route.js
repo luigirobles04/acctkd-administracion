@@ -12,7 +12,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'IDs inválidos' }, { status: 400 })
     }
 
-    const { ganadorIdLinea, puntaje1, puntaje2 } = await request.json()
+    const { ganadorIdLinea, puntaje1, puntaje2, walkover } = await request.json()
     if (!ganadorIdLinea) {
       return NextResponse.json({ error: 'ganadorIdLinea requerido' }, { status: 400 })
     }
@@ -21,7 +21,7 @@ export async function PATCH(request, { params }) {
     const auth = await verifyPssAccess(sb, request, idCampeonato)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-    const result = await finalizarCombatePss(sb, idCampeonato, idCombate, { ganadorIdLinea, puntaje1, puntaje2 })
+    const result = await finalizarCombatePss(sb, idCampeonato, idCombate, { ganadorIdLinea, puntaje1, puntaje2, walkover })
     return NextResponse.json(result)
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
