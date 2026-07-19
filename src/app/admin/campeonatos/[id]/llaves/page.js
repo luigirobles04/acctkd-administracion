@@ -39,6 +39,10 @@ export default function CampeonatoLlavesPage() {
   const [generandoTodas, setGenerandoTodas] = useState(false)
   const [marcando, setMarcando] = useState(null)
   const [exportando, setExportando] = useState(null)
+  const [llavesSinPesaje, setLlavesSinPesaje] = useState(false)
+  const [requierePesaje, setRequierePesaje] = useState(true)
+  const [opsClicks, setOpsClicks] = useState(0)
+  const [opsPanel, setOpsPanel] = useState(false)
 
   const cargarCats = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -49,6 +53,8 @@ export default function CampeonatoLlavesPage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(apiError(json, 'Error al cargar categorías'))
       setCategorias(json.categorias || [])
+      setLlavesSinPesaje(Boolean(json.llaves_sin_pesaje))
+      setRequierePesaje(json.requiere_pesaje !== false)
       return json.categorias || []
     } catch (e) {
       if (!silent) alert(e.message)
@@ -90,10 +96,10 @@ export default function CampeonatoLlavesPage() {
   }
 
   async function generarTodas() {
-    const sinLlave = catsConInscritos.filter((c) => !c.tiene_llave)
+    const sinLlave = catsGenerables.filter((c) => !c.tiene_llave)
     const n = sinLlave.length
-    if (!n) { alert('Todas las categorías ya tienen llave generada.'); return }
-    if (!confirm(`¿Generar llaves para ${n} categoría(s) sin llave?\nSe asignarán canchas 1–3 y colores de peto.`)) return
+    if (!n) { alert('No hay categorías listas para generar llave (completa el pesaje primero).'); return }
+    if (!confirm(`¿Generar llaves para ${n} categoría(s) con pesaje OK?\nSe asignarán canchas 1–3 y colores de peto.`)) return
 
     const catPrev = selCat
     setGenerandoTodas(true)
@@ -136,6 +142,12 @@ export default function CampeonatoLlavesPage() {
   }
 
   async function generarLlave(cat) {
+    if (!cat.puede_generar) {
+      alert(requierePesaje
+        ? `"${cat.nombre}": faltan competidores con pesaje OK (${cat.aptos ?? 0} aptos de ${cat.inscritos ?? 0} inscritos).`
+        : `Se necesitan al menos 2 competidores con dorsal.`)
+      return
+    }
     if (!confirm(`¿Generar llave para "${cat.nombre}"?`)) return
     setGenerando(cat.id_categoria)
     try {
@@ -248,7 +260,53 @@ export default function CampeonatoLlavesPage() {
   }
 
   const catsConInscritos = categorias.filter((c) => c.inscritos >= 2)
-  const catsSolo = categorias.filter((c) => c.inscritos === 1 && !c.tiene_llave)
+  const catsGenerables = categorias.filter((c) => c.puede_generar)
+  const catsSolo = categorias.filter((c) => (requierePesaje ? c.aptos === 1 : c.inscritos === 1) && !c.tiene_llave)
+
+  function registrarClickOps() {
+    const n = opsClicks + 1
+    setOpsClicks(n)
+    if (n >= 5) {
+      setOpsClicks(0)
+      const clave = prompt('Clave operaciones:')
+      if (!clave) return
+      fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'config_ops', clave, llaves_sin_pesaje: llavesSinPesaje }),
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.error) {
+            alert(json.error)
+            return
+          }
+          setOpsPanel(true)
+        })
+        .catch((e) => alert(e.message))
+      return
+    }
+    window.setTimeout(() => setOpsClicks(0), 2500)
+  }
+
+  async function toggleLlavesSinPesaje() {
+    const clave = prompt('Clave operaciones:')
+    if (!clave) return
+    try {
+      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'config_ops', clave, llaves_sin_pesaje: !llavesSinPesaje }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error || 'No autorizado')
+      setLlavesSinPesaje(Boolean(json.llaves_sin_pesaje))
+      setRequierePesaje(!json.llaves_sin_pesaje)
+      await cargarCats({ silent: true })
+    } catch (e) {
+      alert(e.message)
+    }
+  }
   async function exportar(formato) {
     setExportando(formato)
     try {
@@ -306,14 +364,39 @@ export default function CampeonatoLlavesPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 8px 24px', position: 'relative' }}>
         <Link href={`/admin/campeonatos/${id}`} style={{ color: 'var(--red)', fontSize: 13 }}>← Campeonato</Link>
 
-        <p className="ios-caption" style={{ margin: '16px 0', color: 'var(--label2)', lineHeight: 1.5 }}>
+        <p
+          className="ios-caption"
+          style={{ margin: '16px 0', color: 'var(--label2)', lineHeight: 1.5, userSelect: 'none' }}
+          onClick={registrarClickOps}
+          title=""
+        >
           Llaves aleatorias · 3 canchas · peto azul (Chung) / rojo (Hong) · toca el ganador para avanzar.
+          {requierePesaje && (
+            <span style={{ display: 'block', marginTop: 6, color: '#b45309' }}>
+              Generación bloqueada hasta pesaje OK — completa Pesaje antes de armar llaves.
+            </span>
+          )}
         </p>
 
-        {!loading && catsConInscritos.length > 0 && (
+        {opsPanel && (
+          <div style={{
+            position: 'fixed', bottom: 16, right: 16, zIndex: 50, background: '#1a1a1a', color: '#fff',
+            padding: '10px 14px', borderRadius: 10, fontSize: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={llavesSinPesaje} onChange={toggleLlavesSinPesaje} />
+              Llaves sin pesaje (modo prueba)
+            </label>
+            <button type="button" onClick={() => setOpsPanel(false)} style={{ marginTop: 8, background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 11 }}>
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {!loading && catsGenerables.length > 0 && (
           <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" className="ios-btn ios-btn-primary" disabled={bloqueado} onClick={generarTodas}>
-              {generandoTodas ? `Generando ${catsConInscritos.length} llaves…` : `Generar todas (${catsConInscritos.length})`}
+              {generandoTodas ? `Generando ${catsGenerables.length} llaves…` : `Generar todas (${catsGenerables.filter((c) => !c.tiene_llave).length})`}
             </button>
             <button
               type="button"
@@ -451,7 +534,10 @@ export default function CampeonatoLlavesPage() {
                     <div>
                       <strong>{c.nombre}</strong>
                       <div style={{ fontSize: 12, color: 'var(--label3)', marginTop: 2 }}>
-                        {c.inscritos} inscritos · {c.tiene_llave ? 'Llave OK' : 'Sin llave'}
+                        {requierePesaje
+                          ? `${c.aptos ?? 0} aptos · ${c.inscritos ?? 0} inscritos`
+                          : `${c.inscritos ?? 0} inscritos`}
+                        {' · '}{c.tiene_llave ? 'Llave OK' : c.puede_generar ? 'Listo' : 'Falta pesaje'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -460,7 +546,13 @@ export default function CampeonatoLlavesPage() {
                           Ver
                         </button>
                       )}
-                      <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12 }} disabled={bloqueado || generando === c.id_categoria} onClick={() => generarLlave(c)}>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn-primary"
+                        style={{ fontSize: 12, opacity: c.puede_generar ? 1 : 0.45 }}
+                        disabled={bloqueado || generando === c.id_categoria || !c.puede_generar}
+                        onClick={() => generarLlave(c)}
+                      >
                         {generando === c.id_categoria ? '…' : c.tiene_llave ? 'Regenerar' : 'Generar'}
                       </button>
                     </div>

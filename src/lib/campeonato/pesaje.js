@@ -1,5 +1,13 @@
 export const MAX_INTENTOS_PESAJE = 2
 
+/** Estados de pesaje que permiten entrar a llave kyorugi */
+export const PESAJE_ESTADOS_APTOS_LLAVE = ['ok', 'subido']
+
+export function lineaAptaParaLlave(pesajeEstado, { omitirPesaje = false } = {}) {
+  if (omitirPesaje) return true
+  return PESAJE_ESTADOS_APTOS_LLAVE.includes(pesajeEstado || 'pendiente')
+}
+
 export function evaluarPesoEnCategoria(peso, categoria) {
   const p = Number(peso)
   if (!Number.isFinite(p) || p <= 0) {

@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { generarLlaveCategoria, generarTodasLasLlaves, asignarCanchasCampeonato } from '@/lib/campeonato/llaves-kyorugi'
+import {
+  generarLlaveCategoria,
+  generarTodasLasLlaves,
+  asignarCanchasCampeonato,
+  campeonatoLlavesSinPesaje,
+  conteosKyorugiLlave,
+} from '@/lib/campeonato/llaves-kyorugi'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
+
+function claveOpsValida(clave) {
+  const esperada = process.env.ACCTKD_OPS_KEY || process.env.CRON_SECRET || ''
+  return Boolean(esperada && clave && clave === esperada)
+}
 
 export async function GET(_request, { params }) {
   try {
@@ -12,6 +23,7 @@ export async function GET(_request, { params }) {
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
     const sb = getSupabaseAdmin()
+    const llavesSinPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
 
     const { data: categorias, error: errC } = await sb
       .from('categoria_campeonato')
@@ -21,18 +33,7 @@ export async function GET(_request, { params }) {
       .order('orden', { ascending: true })
     if (errC) throw errC
 
-    const { data: counts } = await sb
-      .from('linea_inscripcion')
-      .select('id_categoria')
-      .eq('id_campeonato', idCampeonato)
-      .eq('modalidad', 'kyorugi_individual')
-      .eq('estado', 'aprobado')
-      .not('dorsal_numero', 'is', null)
-
-    const porCat = (counts || []).reduce((acc, l) => {
-      if (l.id_categoria) acc[l.id_categoria] = (acc[l.id_categoria] || 0) + 1
-      return acc
-    }, {})
+    const { inscritosPorCat, aptosPorCat } = await conteosKyorugiLlave(sb, idCampeonato, llavesSinPesaje)
 
     const { data: llavesExistentes } = await sb
       .from('llave_kyorugi')
@@ -41,13 +42,23 @@ export async function GET(_request, { params }) {
 
     const conLlave = new Set((llavesExistentes || []).map((l) => l.id_categoria))
 
-    const cats = (categorias || []).map((c) => ({
-      ...c,
-      inscritos: porCat[c.id_categoria] || 0,
-      tiene_llave: conLlave.has(c.id_categoria),
-    }))
+    const cats = (categorias || []).map((c) => {
+      const inscritos = inscritosPorCat[c.id_categoria] || 0
+      const aptos = aptosPorCat[c.id_categoria] || 0
+      return {
+        ...c,
+        inscritos,
+        aptos,
+        puede_generar: aptos >= 2,
+        tiene_llave: conLlave.has(c.id_categoria),
+      }
+    })
 
-    return NextResponse.json({ categorias: cats })
+    return NextResponse.json({
+      categorias: cats,
+      llaves_sin_pesaje: llavesSinPesaje,
+      requiere_pesaje: !llavesSinPesaje,
+    })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -78,6 +89,39 @@ export async function POST(request, { params }) {
 
     const result = await generarLlaveCategoria(sb, idCampeonato, Number(idCategoria))
     return NextResponse.json({ ok: true, ...result })
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+/** Config interna (clave ops): omitir pesaje en llaves */
+export async function PATCH(request, { params }) {
+  try {
+    const { id } = await params
+    const idCampeonato = Number(id)
+    if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+
+    const body = await request.json()
+    if (body.accion !== 'config_ops') {
+      return NextResponse.json({ error: 'Acción no válida' }, { status: 400 })
+    }
+    if (!claveOpsValida(body.clave)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+    if (typeof body.llaves_sin_pesaje !== 'boolean') {
+      return NextResponse.json({ error: 'llaves_sin_pesaje requerido' }, { status: 400 })
+    }
+
+    const sb = getSupabaseAdmin()
+    const { data, error } = await sb
+      .from('campeonato')
+      .update({ llaves_sin_pesaje: body.llaves_sin_pesaje })
+      .eq('id_campeonato', idCampeonato)
+      .select('llaves_sin_pesaje')
+      .single()
+    if (error) throw error
+
+    return NextResponse.json({ ok: true, llaves_sin_pesaje: Boolean(data?.llaves_sin_pesaje) })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

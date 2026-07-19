@@ -1,4 +1,76 @@
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import { lineaAptaParaLlave, PESAJE_ESTADOS_APTOS_LLAVE } from '@/lib/campeonato/pesaje'
+
+const SELECT_LINEA_LLAVE = `
+  id_linea, id_categoria, dorsal_display, dorsal_numero, id_academia_campeonato, pesaje_estado,
+  miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
+`
+
+export async function campeonatoLlavesSinPesaje(sb, idCampeonato) {
+  const { data } = await sb
+    .from('campeonato')
+    .select('llaves_sin_pesaje')
+    .eq('id_campeonato', idCampeonato)
+    .maybeSingle()
+  return Boolean(data?.llaves_sin_pesaje)
+}
+
+function queryLineasKyorugiLlave(sb, idCampeonato, { idCategoria, omitirPesaje } = {}) {
+  let q = sb
+    .from('linea_inscripcion')
+    .select(SELECT_LINEA_LLAVE)
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  if (idCategoria) q = q.eq('id_categoria', idCategoria)
+  if (!omitirPesaje) q = q.in('pesaje_estado', PESAJE_ESTADOS_APTOS_LLAVE)
+  return q
+}
+
+/** Conteos por categoría: inscritos con dorsal vs aptos tras pesaje */
+export async function conteosKyorugiLlave(sb, idCampeonato, omitirPesaje = false) {
+  const { data: lineas, error } = await sb
+    .from('linea_inscripcion')
+    .select('id_categoria, pesaje_estado')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  if (error) throw error
+
+  const inscritosPorCat = {}
+  const aptosPorCat = {}
+  for (const l of lineas || []) {
+    if (!l.id_categoria) continue
+    inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
+    if (lineaAptaParaLlave(l.pesaje_estado, { omitirPesaje })) {
+      aptosPorCat[l.id_categoria] = (aptosPorCat[l.id_categoria] || 0) + 1
+    }
+  }
+  return { inscritosPorCat, aptosPorCat }
+}
+
+async function mensajeMinimoParticipantes(sb, idCampeonato, idCategoria, aptos, omitirPesaje) {
+  if (aptos >= 2) return null
+  if (omitirPesaje) {
+    return `Se necesitan al menos 2 competidores con dorsal (hay ${aptos})`
+  }
+  const { data: todas } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea')
+    .eq('id_campeonato', idCampeonato)
+    .eq('id_categoria', idCategoria)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  const inscritos = (todas || []).length
+  const faltan = Math.max(0, inscritos - aptos)
+  if (inscritos >= 2 && aptos < 2) {
+    return `Se necesitan al menos 2 con pesaje OK (aptos: ${aptos}, inscritos: ${inscritos}${faltan ? `, faltan ${faltan} por pesar` : ''})`
+  }
+  return `Se necesitan al menos 2 competidores con pesaje OK (aptos: ${aptos})`
+}
 
 function nextPowerOf2(n) {
   let p = 1
@@ -293,22 +365,17 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
   if (!cat) throw new Error('Categoría no encontrada')
   if (cat.modalidad !== 'kyorugi') throw new Error('Solo categorías kyorugi')
 
-  const { data: lineas, error } = await sb
-    .from('linea_inscripcion')
-    .select(`
-      id_linea, dorsal_display, dorsal_numero, id_academia_campeonato,
-      miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
-    `)
-    .eq('id_campeonato', idCampeonato)
-    .eq('id_categoria', idCategoria)
-    .eq('modalidad', 'kyorugi_individual')
-    .eq('estado', 'aprobado')
-    .not('dorsal_numero', 'is', null)
+  const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+  const { data: lineas, error } = await queryLineasKyorugiLlave(sb, idCampeonato, {
+    idCategoria,
+    omitirPesaje,
+  })
   if (error) throw error
 
   const participantes = lineas || []
   if (participantes.length < 2) {
-    throw new Error(`Se necesitan al menos 2 competidores con dorsal (hay ${participantes.length})`)
+    const msg = await mensajeMinimoParticipantes(sb, idCampeonato, idCategoria, participantes.length, omitirPesaje)
+    throw new Error(msg)
   }
 
   await sb.from('llave_kyorugi').delete().eq('id_categoria', idCategoria)
@@ -423,6 +490,7 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
 }
 
 export async function generarTodasLasLlaves(sb, idCampeonato, { idsCategorias = null } = {}) {
+  const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
   const qCats = sb
     .from('categoria_campeonato')
     .select('id_categoria, nombre')
@@ -434,25 +502,13 @@ export async function generarTodasLasLlaves(sb, idCampeonato, { idsCategorias = 
   const { data: categorias, error } = await qCats
   if (error) throw error
 
-  const { data: lineasInscritas, error: errL } = await sb
-    .from('linea_inscripcion')
-    .select('id_categoria')
-    .eq('id_campeonato', idCampeonato)
-    .eq('modalidad', 'kyorugi_individual')
-    .eq('estado', 'aprobado')
-    .not('dorsal_numero', 'is', null)
-  if (errL) throw errL
-
-  const inscritosPorCat = (lineasInscritas || []).reduce((acc, l) => {
-    if (l.id_categoria) acc[l.id_categoria] = (acc[l.id_categoria] || 0) + 1
-    return acc
-  }, {})
+  const { aptosPorCat } = await conteosKyorugiLlave(sb, idCampeonato, omitirPesaje)
 
   const resultados = []
   const errores = []
 
   for (const cat of categorias || []) {
-    if ((inscritosPorCat[cat.id_categoria] || 0) < 2) continue
+    if ((aptosPorCat[cat.id_categoria] || 0) < 2) continue
 
     try {
       const r = await generarLlaveCategoria(sb, idCampeonato, cat.id_categoria, { asignarCanchas: false })
@@ -563,19 +619,17 @@ export async function generarLlaveCategoriaUnico(sb, idCampeonato, idCategoria, 
     .maybeSingle()
   if (errCat || !cat) throw new Error('Categoría no encontrada')
 
-  const { data: lineas, error } = await sb
-    .from('linea_inscripcion')
-    .select('id_linea, dorsal_numero, dorsal_display, academia_campeonato(academia(nombre)), miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))')
-    .eq('id_categoria', idCategoria)
-    .eq('id_campeonato', idCampeonato)
-    .eq('modalidad', 'kyorugi_individual')
-    .eq('estado', 'aprobado')
-    .not('dorsal_numero', 'is', null)
+  const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+  const { data: lineas, error } = await queryLineasKyorugiLlave(sb, idCampeonato, {
+    idCategoria,
+    omitirPesaje,
+  })
   if (error) throw error
 
   const participantes = lineas || []
   if (participantes.length !== 1) {
-    throw new Error(`Oro único requiere exactamente 1 competidor con dorsal (hay ${participantes.length})`)
+    const etiqueta = omitirPesaje ? 'competidor con dorsal' : 'competidor con pesaje OK'
+    throw new Error(`Oro único requiere exactamente 1 ${etiqueta} (hay ${participantes.length})`)
   }
 
   await sb.from('llave_kyorugi').delete().eq('id_categoria', idCategoria)
