@@ -46,6 +46,36 @@ function mapFilaOficial(linea) {
   }
 }
 
+/** Líneas activas en ficha nominal (incluye pendiente_pago con dorsal) */
+export function lineaIncluidaFichaNominal(linea) {
+  return Boolean(linea?.estado && linea.estado !== 'anulado')
+}
+
+/** Agrupa filas por modalidad para una academia */
+export function agruparLineasFichaAcademia(lineasAc, anioCampeonato) {
+  const oficiales = lineasAc.filter((l) => l.modalidad === 'oficial').map(mapFilaOficial)
+  const lineasComp = lineasAc.filter((l) => l.modalidad !== 'oficial')
+  const kyorugi = lineasComp
+    .filter((l) => l.modalidad?.startsWith('kyorugi'))
+    .map((l) => mapFilaCompetidor(l, anioCampeonato))
+  const poomsae = lineasComp
+    .filter((l) => l.modalidad?.startsWith('poomsae'))
+    .map((l) => mapFilaCompetidor(l, anioCampeonato))
+  const festival = lineasComp
+    .filter((l) => l.modalidad === 'festival')
+    .map((l) => mapFilaCompetidor(l, anioCampeonato))
+  const total_competidores = kyorugi.length + poomsae.length + festival.length
+  return {
+    kyorugi,
+    poomsae,
+    festival,
+    oficiales,
+    total_competidores,
+    total_oficiales: oficiales.length,
+    total: total_competidores + oficiales.length,
+  }
+}
+
 /** Datos de ficha nominal agrupados por academia */
 export async function buildExportFichaNominal(sb, idCampeonato) {
   const { data: campeonato, error: errCamp } = await sb
@@ -87,7 +117,7 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
         miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento))
       `)
       .eq('id_campeonato', idCampeonato)
-      .in('estado', ['aprobado', 'pagado'])
+      .neq('estado', 'anulado')
       .order('dorsal_numero', { ascending: true, nullsFirst: false }),
   ])
 
@@ -96,13 +126,7 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
 
   const academiasExport = (academias || []).map((ac) => {
     const lineasAc = (lineas || []).filter((l) => l.id_academia_campeonato === ac.id)
-    const oficiales = lineasAc
-      .filter((l) => l.modalidad === 'oficial')
-      .map(mapFilaOficial)
-
-    const lineasComp = lineasAc.filter((l) => l.modalidad !== 'oficial')
-    const kyorugiRows = lineasComp.filter((l) => l.modalidad?.startsWith('kyorugi')).map((l) => mapFilaCompetidor(l, anioCampeonato))
-    const poomsaeRows = lineasComp.filter((l) => l.modalidad?.startsWith('poomsae')).map((l) => mapFilaCompetidor(l, anioCampeonato))
+    const grupos = agruparLineasFichaAcademia(lineasAc, anioCampeonato)
 
     return {
       id: ac.id,
@@ -114,12 +138,7 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
       ciudad: ac.academia?.ciudad || '—',
       estado_lista: ac.estado_lista,
       estado_pago: ac.estado_pago,
-      kyorugi: kyorugiRows,
-      poomsae: poomsaeRows,
-      oficiales,
-      total_competidores: kyorugiRows.length + poomsaeRows.length,
-      total_oficiales: oficiales.length,
-      total: kyorugiRows.length + poomsaeRows.length + oficiales.length,
+      ...grupos,
     }
   }).filter((a) => a.total > 0)
 

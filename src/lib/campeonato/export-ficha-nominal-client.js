@@ -83,10 +83,11 @@ function hojaAcademiaHtml(ac, camp) {
   html += `<tr>${tdCell(`Academia: ${ac.nombre}`, { bold: true, bg: XL.gray, border: 'none' })}${tdCell(`Código: ${ac.codigo || '—'}`, { bg: XL.gray, border: 'none' })}</tr>`
   html += `<tr>${tdCell(`Representante: ${ac.representante}`, { bg: '#fff', border: 'none' })}${tdCell(`DNI: ${ac.representante_dni}`, { bg: '#fff', border: 'none' })}</tr>`
   html += `<tr>${tdCell(`Ciudad: ${ac.ciudad}`, { bg: '#fff', border: 'none' })}${tdCell(`Tel: ${ac.telefono}`, { bg: '#fff', border: 'none' })}</tr>`
-  html += `<tr>${tdCell(`Kyorugi: ${ac.kyorugi.length} · Poomsae: ${ac.poomsae.length} · Oficiales: ${ac.oficiales.length}`, { bold: true, bg: XL.goldBg, border: 'none' })}</tr>`
+  html += `<tr>${tdCell(`Kyorugi: ${ac.kyorugi.length} · Poomsae: ${ac.poomsae.length} · Festival: ${(ac.festival || []).length} · Oficiales: ${ac.oficiales.length}`, { bold: true, bg: XL.goldBg, border: 'none' })}</tr>`
   html += `</table>`
   html += tablaCompetidoresHtml(ac.kyorugi, 'Kyorugi')
   html += tablaPoomsaeHtml(ac.poomsae)
+  html += tablaCompetidoresHtml(ac.festival || [], 'Festival')
   html += tablaOficialesHtml(ac.oficiales)
   return html
 }
@@ -99,10 +100,10 @@ export async function descargarFichaNominalExcel(data, { idAcademia } = {}) {
 
   const sheets = []
 
-  let resHtml = `<table><tr>${thCell('FICHA NOMINAL · RESUMEN', XL.red, '#fff', 6)}</tr></table>`
+  let resHtml = `<table><tr>${thCell('FICHA NOMINAL · RESUMEN', XL.red, '#fff', 7)}</tr></table>`
   resHtml += `<p style="font-size:11pt;margin:8px 0;">${camp} · ${data.totales?.academias || 0} academias · ${data.totales?.competidores || 0} competidores · ${data.totales?.oficiales || 0} oficiales</p>`
   resHtml += '<table><thead><tr>'
-  resHtml += ['Academia', 'Código', 'Kyorugi', 'Poomsae', 'Oficiales', 'Total'].map((c) => thCell(c, XL.dark)).join('')
+  resHtml += ['Academia', 'Código', 'Kyorugi', 'Poomsae', 'Festival', 'Oficiales', 'Total'].map((c) => thCell(c, XL.dark)).join('')
   resHtml += '</tr></thead><tbody>'
   academias.forEach((a, i) => {
     const bg = i % 2 === 0 ? '#fff' : XL.gray
@@ -112,6 +113,7 @@ export async function descargarFichaNominalExcel(data, { idAcademia } = {}) {
       tdCell(a.codigo, { bg, align: 'center' }),
       tdCell(a.kyorugi.length, { bg, align: 'center' }),
       tdCell(a.poomsae.length, { bg, align: 'center' }),
+      tdCell((a.festival || []).length, { bg, align: 'center' }),
       tdCell(a.oficiales.length, { bg, align: 'center' }),
       tdCell(a.total, { bg: XL.goldBg, align: 'center', bold: true }),
     ].join('')
@@ -162,7 +164,7 @@ export async function descargarFichaNominalPdf(data, { idAcademia } = {}) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(
-      `Rep: ${ac.representante} · DNI ${ac.representante_dni} · ${ac.ciudad} · ${ac.kyorugi.length} kyorugi · ${ac.poomsae.length} poomsae · ${ac.oficiales.length} oficiales`,
+      `Rep: ${ac.representante} · DNI ${ac.representante_dni} · ${ac.ciudad} · ${ac.kyorugi.length} kyorugi · ${ac.poomsae.length} poomsae · ${(ac.festival || []).length} festival · ${ac.oficiales.length} oficiales`,
       14,
       38
     )
@@ -189,6 +191,19 @@ export async function descargarFichaNominalPdf(data, { idAcademia } = {}) {
         body: ac.poomsae.map((r) => [r.nombre, r.documento, r.sexo, r.edad, r.grado, r.categoria, r.modalidad]),
         styles: { fontSize: 7, cellPadding: 1.5 },
         headStyles: { fillColor: [30, 41, 59] },
+        margin: { left: 14, right: 14 },
+        theme: 'striped',
+      })
+      y = doc.lastAutoTable.finalY + 6
+    }
+
+    if ((ac.festival || []).length) {
+      autoTable(doc, {
+        startY: y,
+        head: [COLS_COMP],
+        body: ac.festival.map((r) => [r.dorsal, r.nombre, r.documento, r.sexo, r.edad, r.grado, r.categoria, r.peso]),
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [124, 58, 237] },
         margin: { left: 14, right: 14 },
         theme: 'striped',
       })
