@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { edadWT } from '@/lib/campeonato/constants'
+import { edadWT, MODALIDADES } from '@/lib/campeonato/constants'
 import { divisionFestivalPorEdad, divisionFestivalFromText, parseEdadTextoExcel, fechaDesdeEdadDeclarada } from '@/lib/campeonato/festival-grupos'
 import {
   decodeKyorugiCodigoExcel,
@@ -252,6 +252,118 @@ function parseFestivalRow(row, ctx) {
   }
 }
 
+function looksLikeNombrePersona(text) {
+  const n = String(text || '').trim()
+  if (!n || n.length < 3) return false
+  const u = normTxt(n)
+  if (['PAREJAS', 'EQUIPO', 'FREESTYLE', 'FESTIVAL', 'N', 'NO'].includes(u)) return false
+  if (u.startsWith('NOMBRE')) return false
+  if (looksLikeCategoryText(n)) return false
+  if (/^\d+$/.test(u)) return false
+  return true
+}
+
+/** Formato ACCTKD: categoría col B, nombres cols D/E(/F) */
+function looksLikeGrupoFilaCompacta(row, miembros) {
+  const names = []
+  for (let i = 0; i < miembros; i++) {
+    const n = String(row[3 + i] || '').trim()
+    if (n) names.push(n)
+  }
+  return names.length >= miembros && names.every(looksLikeNombrePersona)
+}
+
+/** Formato UCV: cada integrante en fila individual (nombre col B, división col D) */
+function looksLikeMiembroGrupoFilaIndividual(row) {
+  if (looksLikeGrupoFilaCompacta(row, 2) || looksLikeGrupoFilaCompacta(row, 3)) return false
+  const nombre = String(row[1] || '').trim()
+  const division = String(row[3] || '').trim()
+  const poomsae = String(row[4] || '').trim()
+  if (!looksLikeNombrePersona(nombre)) return false
+  // División WT (Senior, Cadete…) o forma de poomsae en cols D/E — no nombres sueltos en D/E
+  if (looksLikeCategoryText(division) || looksLikeCategoryText(poomsae)) return true
+  if (/^(IL|I|E|SA|OH|YOO|CHO|JIN|TI|HAN|PAL|YUK|CHIL|KORYO|KEUMGANG|TAEBAEK|PYONGWON|SIPJIN|JITAE|CHEONKWON|HANSOO|SEJONG)/.test(normTxt(poomsae))) {
+    return true
+  }
+  return false
+}
+
+function resolverPerfilGrupo(nombre, ctx, { hoja, fecha, sexo, grado, advertenciasGrupo }) {
+  let p = matchPerfilPorNombre(nombre, ctx.perfiles)
+  if (!p) {
+    for (const cand of ctx.perfiles.values()) {
+      const full = normTxt(`${cand.nombres} ${cand.apellidos}`)
+      if (full.includes(normTxt(nombre)) || normTxt(nombre).includes(normTxt(cand.nombres))) {
+        p = cand
+        break
+      }
+    }
+  }
+  if (!p) {
+    p = ctx.ensurePerfil({ nombre, fecha, sexo, grado, sheet: hoja })
+    advertenciasGrupo.push(`Perfil creado desde grupo: ${nombre}`)
+  }
+  return p
+}
+
+function buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenciasGrupo = [] }) {
+  const miembros = MODALIDADES[modalidad]?.miembros || matched.length
+  if (matched.length < miembros) {
+    return {
+      tipo: modalidad,
+      perfilKeys: matched.map((p) => p.key),
+      idCategoria: null,
+      categoriaNombre: '—',
+      label: descripcion || '—',
+      hoja,
+      errores: [`Faltan integrantes (${matched.length}/${miembros})`],
+      advertencias: advertenciasGrupo,
+      skip: true,
+    }
+  }
+
+  const cat = resolverCategoriaGrupoPoomsae(ctx.categorias, descripcion, matched, ctx.anio)
+  const esMixta = new Set(matched.map((p) => p.sexo)).size > 1
+  let tipoFinal = modalidad
+  if (modalidad === 'poomsae_pareja_reconocida' && esMixta) tipoFinal = 'poomsae_pareja_freestyle'
+  if (hoja === 'FREESTYLE' || normTxt(descripcion).includes('FREESTYLE')) tipoFinal = 'poomsae_pareja_freestyle'
+
+  const labelNombres = matched.map((p) => `${p.nombres || ''} ${p.apellidos || ''}`.trim()).filter(Boolean).join(' · ')
+
+  return {
+    tipo: tipoFinal,
+    perfilKeys: matched.map((p) => p.key),
+    idCategoria: cat?.id_categoria || null,
+    categoriaNombre: cat?.nombre || descripcion,
+    label: descripcion ? `${descripcion} (${labelNombres})` : labelNombres,
+    hoja,
+    errores: cat ? [] : ['No se pudo resolver categoría del grupo'],
+    advertencias: [
+      ...advertenciasGrupo,
+      ...(esMixta && tipoFinal === 'poomsae_pareja_freestyle' ? ['Pareja mixta → Freestyle'] : []),
+    ],
+  }
+}
+
+function parseGrupoFromFilasIndividuales(filas, ctx, { modalidad, hoja }) {
+  const advertenciasGrupo = ['Grupo armado desde filas individuales en Excel']
+  const matched = []
+  let descripcion = ''
+
+  for (const row of filas) {
+    const nombre = String(row[1] || '').trim()
+    const fecha = parseFechaExcel(row[2])
+    const division = String(row[3] || '').trim()
+    const poomsae = String(row[4] || '').trim()
+    const sexo = parseSexo(row[5])
+    const gradoHint = inferGradoFromPoomsae(poomsae)
+    if (!descripcion) descripcion = `${division} ${poomsae}`.trim()
+    matched.push(resolverPerfilGrupo(nombre, ctx, { hoja, fecha, sexo, grado: gradoHint, advertenciasGrupo }))
+  }
+
+  return buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenciasGrupo })
+}
+
 function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
   const descripcion = String(row[1] || '').trim()
   const nombres = []
@@ -264,56 +376,87 @@ function parseGrupoRow(row, ctx, { modalidad, miembros, hoja }) {
   const matched = []
   const advertenciasGrupo = []
   for (const n of nombres) {
-    let p = matchPerfilPorNombre(n, ctx.perfiles)
-    if (!p) {
-      for (const cand of ctx.perfiles.values()) {
-        const full = normTxt(`${cand.nombres} ${cand.apellidos}`)
-        if (full.includes(normTxt(n)) || normTxt(n).includes(normTxt(cand.nombres))) {
-          p = cand
-          break
-        }
-      }
-    }
-    if (!p) {
-      p = ctx.ensurePerfil({ nombre: n, fecha: null, sexo: inferSexoFromNombre(n), grado: null, sheet: hoja })
-      advertenciasGrupo.push(`Perfil creado desde grupo: ${n}`)
-    }
-    matched.push(p)
+    matched.push(resolverPerfilGrupo(n, ctx, { hoja, fecha: null, sexo: inferSexoFromNombre(n), grado: null, advertenciasGrupo }))
   }
 
-  if (nombres.length < miembros) {
-    return {
-      tipo: modalidad,
-      perfilKeys: matched.map((p) => p.key),
-      idCategoria: null,
-      categoriaNombre: '—',
-      label: descripcion || nombres.join(' + '),
-      hoja,
-      errores: [`Faltan integrantes (${nombres.length}/${miembros})`],
-      advertencias: advertenciasGrupo,
-      skip: true,
+  return buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenciasGrupo })
+}
+
+function pushGrupoLinea(lineas, linea) {
+  if (!linea) return
+  if (linea.skip) {
+    if (linea.errores?.length) lineas.push(linea)
+    return
+  }
+  lineas.push(linea)
+}
+
+function isFilaInstruccionGrupo(row) {
+  const b = String(row[1] || '').trim()
+  const u = normTxt(b)
+  if (!b) return false
+  if (/^(EJ|NOTA|INTEGRANTE)/.test(u)) return true
+  if (u.includes('TAMBIEN PUEDE USAR') || u.includes('EJEMPLO')) return true
+  return false
+}
+
+function procesarSeccionGruposPoomsae(lineas, ctx, { mode, row, bufferGrupo, pendingGrupos }) {
+  const miembros = mode === 'equipo' ? 3 : 2
+  const modalidad = mode === 'equipo'
+    ? 'poomsae_equipo'
+    : mode === 'freestyle'
+      ? 'poomsae_pareja_freestyle'
+      : 'poomsae_pareja_reconocida'
+
+  const flushBuffer = () => {
+    if (!bufferGrupo.length) return
+    if (bufferGrupo.length < miembros) {
+      lineas.push({
+        tipo: modalidad,
+        perfilKeys: [],
+        idCategoria: null,
+        categoriaNombre: '—',
+        label: `Grupo incompleto (${bufferGrupo.length}/${miembros})`,
+        hoja: 'POOMSAE',
+        errores: [`Faltan integrantes (${bufferGrupo.length}/${miembros})`],
+        advertencias: [],
+      })
+    } else {
+      pushGrupoLinea(
+        lineas,
+        parseGrupoFromFilasIndividuales(bufferGrupo.slice(0, miembros), ctx, { modalidad, hoja: 'POOMSAE' }),
+      )
     }
+    bufferGrupo.length = 0
   }
 
-  const cat = resolverCategoriaGrupoPoomsae(ctx.categorias, descripcion, matched, ctx.anio)
-  const esMixta = new Set(matched.map((p) => p.sexo)).size > 1
-  let tipoFinal = modalidad
-  if (modalidad === 'poomsae_pareja_reconocida' && esMixta) tipoFinal = 'poomsae_pareja_freestyle'
-  if (hoja === 'FREESTYLE' || normTxt(descripcion).includes('FREESTYLE')) tipoFinal = 'poomsae_pareja_freestyle'
-
-  return {
-    tipo: tipoFinal,
-    perfilKeys: matched.map((p) => p.key),
-    idCategoria: cat?.id_categoria || null,
-    categoriaNombre: cat?.nombre || descripcion,
-    label: descripcion || matched.map((p) => p.nombres).join(' + '),
-    hoja,
-    errores: cat ? [] : ['No se pudo resolver categoría del grupo'],
-    advertencias: [
-      ...advertenciasGrupo,
-      ...(esMixta && tipoFinal === 'poomsae_pareja_freestyle' ? ['Pareja mixta → Freestyle'] : []),
-    ],
+  if (looksLikeGrupoFilaCompacta(row, miembros)) {
+    flushBuffer()
+    pendingGrupos.push({ row, modalidad, miembros })
+    return { flushed: true }
   }
+
+  if (looksLikeMiembroGrupoFilaIndividual(row)) {
+    bufferGrupo.push(row)
+    if (bufferGrupo.length >= miembros) flushBuffer()
+    return { flushed: false }
+  }
+
+  if (isFilaInstruccionGrupo(row)) {
+    flushBuffer()
+    return { flushed: false }
+  }
+
+  if (String(row[1] || '').trim() || String(row[3] || '').trim()) {
+    flushBuffer()
+    pendingGrupos.push({ row, modalidad, miembros })
+    return { flushed: false }
+  }
+
+  if (!String(row[1] || '').trim() && !String(row[3] || '').trim()) {
+    flushBuffer()
+  }
+  return { flushed: false }
 }
 
 function parseEntrenadores(rows, ctx) {
@@ -487,21 +630,26 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
   const pmStart = dataStartIndex(poomsae)
   let mode = 'individual'
   const pendingGrupos = []
+  const bufferGrupo = []
 
   for (let i = pmStart; i < poomsae.length; i++) {
     const row = poomsae[i]
     if (isSectionHeader(row)) {
+      if (bufferGrupo.length) {
+        procesarSeccionGruposPoomsae(lineas, ctx, { mode, row: [], bufferGrupo, pendingGrupos })
+      }
       mode = sectionType(row) || mode
       continue
     }
-    if (!row?.[1] && !row?.[3]) continue
-
-    if (mode === 'parejas' || mode === 'freestyle') {
-      pendingGrupos.push({ row, modalidad: 'poomsae_pareja_reconocida', miembros: 2 })
+    if (!row?.[1] && !row?.[3]) {
+      if (mode === 'parejas' || mode === 'equipo' || mode === 'freestyle') {
+        procesarSeccionGruposPoomsae(lineas, ctx, { mode, row, bufferGrupo, pendingGrupos })
+      }
       continue
     }
-    if (mode === 'equipo') {
-      pendingGrupos.push({ row, modalidad: 'poomsae_equipo', miembros: 3 })
+
+    if (mode === 'parejas' || mode === 'equipo' || mode === 'freestyle') {
+      procesarSeccionGruposPoomsae(lineas, ctx, { mode, row, bufferGrupo, pendingGrupos })
       continue
     }
 
@@ -509,10 +657,12 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
     if (linea) lineas.push(linea)
   }
 
+  if (bufferGrupo.length) {
+    procesarSeccionGruposPoomsae(lineas, ctx, { mode, row: [], bufferGrupo, pendingGrupos })
+  }
+
   for (const g of pendingGrupos) {
-    const linea = parseGrupoRow(g.row, ctx, { modalidad: g.modalidad, miembros: g.miembros, hoja: 'POOMSAE' })
-    if (linea && !linea.skip) lineas.push(linea)
-    else if (linea?.errores?.length) lineas.push(linea)
+    pushGrupoLinea(lineas, parseGrupoRow(g.row, ctx, { modalidad: g.modalidad, miembros: g.miembros, hoja: 'POOMSAE' }))
   }
 
   const festival = sheetRows(wb, 'FESTIVAL')
@@ -532,7 +682,7 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
     const row = freestyleSheet[i]
     if (!row?.[1]) continue
     const linea = parseGrupoRow(row, ctx, { modalidad: 'poomsae_pareja_freestyle', miembros: 2, hoja: 'FREESTYLE' })
-    if (linea && !linea.skip) lineas.push(linea)
+    pushGrupoLinea(lineas, linea)
   }
 
   if (!lineas.some((l) => ['KYORUGUI', 'POOMSAE', 'FESTIVAL', 'FREESTYLE', 'Hoja1'].includes(l.hoja))) {

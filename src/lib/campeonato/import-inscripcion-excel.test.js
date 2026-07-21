@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import * as XLSX from 'xlsx'
 import { parseFestcupInscripcionExcel } from '@/lib/campeonato/import-inscripcion-excel'
-import { parsePesoExcel, parseFechaExcel, splitNombreCompleto, decodeKyorugiCodigoExcel } from '@/lib/campeonato/import-excel-categorias'
+import { parsePesoExcel, parseFechaExcel, splitNombreCompleto, decodeKyorugiCodigoExcel, normTxt } from '@/lib/campeonato/import-excel-categorias'
 
 describe('import-excel-categorias', () => {
   it('parsePesoExcel acepta negativos y strings', () => {
@@ -41,8 +42,14 @@ describe('parseFestcupInscripcionExcel', () => {
     const path = join(process.cwd(), 'public/docs/festcup-2026/plantilla-inscripcion-festcup.xlsx')
     const buffer = readFileSync(path)
     const parsed = parseFestcupInscripcionExcel(buffer, { categorias: [], anioCampeonato: 2026 })
-    expect(parsed.perfiles.length).toBe(0)
-    expect(parsed.lineas.length).toBe(0)
+    const competidores = parsed.lineas.filter((l) => l.tipo !== 'oficial')
+    expect(competidores.length).toBe(0)
+    const wb = XLSX.read(buffer, { type: 'buffer' })
+    const poomName = wb.SheetNames.find((n) => normTxt(n).includes('POOM'))
+    const poomRows = XLSX.utils.sheet_to_json(wb.Sheets[poomName], { header: 1, defval: '' })
+    const labels = poomRows.map((r) => normTxt(r[0] || r[1]))
+    expect(labels).toContain('PAREJAS')
+    expect(labels).toContain('EQUIPO')
   })
 
   it('parsea planilla ACCTKD 2025 si existe en Downloads', () => {
