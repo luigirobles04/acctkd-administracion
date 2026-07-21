@@ -28,10 +28,6 @@ function expectGrupos(file, label) {
 
 describe('import grupos poomsae (parejas/equipo)', () => {
   it.skipIf(!existsSync(ACCTKD))('parsea parejas compactas (ACCTKD 2025)', () => {
-    const categorias = CATEGORIAS_WT.map((c, i) => ({ ...c, id_campeonato: 10, id_categoria: c.orden || i + 1 }))
-    const parsed = parseFestcupInscripcionExcel(readFileSync(ACCTKD), { categorias, anioCampeonato: 2025 })
-    console.log('ACCTKD tipos', parsed.lineas.reduce((a, l) => { a[l.tipo] = (a[l.tipo] || 0) + 1; return a }, {}))
-    console.log('ACCTKD grupos', parsed.lineas.filter((l) => l.tipo.includes('pareja') || l.tipo.includes('equipo')))
     expectGrupos(ACCTKD, 'ACCTKD')
   })
 

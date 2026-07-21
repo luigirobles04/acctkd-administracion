@@ -10,6 +10,7 @@ import {
   parseFechaExcel,
   parsePesoExcel,
   perfilKeyFromNombre,
+  poomsaeFormFromExcel,
   resolverCategoriaGrupoPoomsae,
   resolverCategoriaKyorugi,
   resolverCategoriaPoomsae,
@@ -76,7 +77,7 @@ function looksLikeCategoryText(s) {
   const n = normTxt(s)
   if (!n) return false
   if (decodeKyorugiCodigoExcel(n).division) return true
-  return /CADET|JUNIOR|JUVENIL|SENIOR|MASTER|INFANTIL|PRE|MAYORES|NOVEL|AVANZ|FESTIVAL|KG|^IA$|^IB$|^I\s*B|^I\s*A|^C\s|^J\s|^C\d|^IB\d|^IA\d|MAS/.test(n)
+  return /CADET|JUNIOR|JUVENIL|SENIOR|MASTER|INFANTIL|PRE-|PRE\s|MAYORES|NOVEL|AVANZ|FESTIVAL|KG|^IA$|^IB$|^I\s*B|^I\s*A|^C\s|^J\s|^C\d|^IB\d|^IA\d|\bMAS\b|\+\s*MAS|\bMAS\s+\d/.test(n)
 }
 
 function parseKyorugiRow(row, ctx) {
@@ -258,6 +259,8 @@ function looksLikeNombrePersona(text) {
   const u = normTxt(n)
   if (['PAREJAS', 'EQUIPO', 'FREESTYLE', 'FESTIVAL', 'N', 'NO'].includes(u)) return false
   if (u.startsWith('NOMBRE')) return false
+  // Nombre completo (3+ tokens) — no confundir con categoría kyorugi/poomsae
+  if (n.split(/\s+/).filter(Boolean).length >= 3) return true
   if (looksLikeCategoryText(n)) return false
   if (/^\d+$/.test(u)) return false
   return true
@@ -275,16 +278,13 @@ function looksLikeGrupoFilaCompacta(row, miembros) {
 
 /** Formato UCV: cada integrante en fila individual (nombre col B, división col D) */
 function looksLikeMiembroGrupoFilaIndividual(row) {
-  if (looksLikeGrupoFilaCompacta(row, 2) || looksLikeGrupoFilaCompacta(row, 3)) return false
   const nombre = String(row[1] || '').trim()
   const division = String(row[3] || '').trim()
   const poomsae = String(row[4] || '').trim()
+  if (!nombre || /\s+y\s+/i.test(nombre)) return false
   if (!looksLikeNombrePersona(nombre)) return false
-  // División WT (Senior, Cadete…) o forma de poomsae en cols D/E — no nombres sueltos en D/E
-  if (looksLikeCategoryText(division) || looksLikeCategoryText(poomsae)) return true
-  if (/^(IL|I|E|SA|OH|YOO|CHO|JIN|TI|HAN|PAL|YUK|CHIL|KORYO|KEUMGANG|TAEBAEK|PYONGWON|SIPJIN|JITAE|CHEONKWON|HANSOO|SEJONG)/.test(normTxt(poomsae))) {
-    return true
-  }
+  if (looksLikeNombrePersona(division) && looksLikeNombrePersona(poomsae)) return false
+  if (looksLikeCategoryText(division) || poomsaeFormFromExcel(poomsae)) return true
   return false
 }
 
@@ -306,6 +306,21 @@ function resolverPerfilGrupo(nombre, ctx, { hoja, fecha, sexo, grado, advertenci
   return p
 }
 
+function parejaEsMixtaExplicita(matched) {
+  const sexos = matched.map((p) => p.sexo).filter(Boolean)
+  return sexos.length === 2 && sexos.includes('M') && sexos.includes('F')
+}
+
+/** Formato ACCTKD legacy: descripción col B y/o nombres en D/E — no filas UCV individuales */
+function looksLikeGrupoFilaLegacy(row, miembros) {
+  if (looksLikeMiembroGrupoFilaIndividual(row)) return false
+  if (isFilaInstruccionGrupo(row)) return false
+  const b = String(row[1] || '').trim()
+  if (/\s+y\s+/i.test(b)) return true
+  if (looksLikeGrupoFilaCompacta(row, miembros)) return true
+  return [3, 4, 5].some((i) => looksLikeNombrePersona(row[i]))
+}
+
 function buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenciasGrupo = [] }) {
   const miembros = MODALIDADES[modalidad]?.miembros || matched.length
   if (matched.length < miembros) {
@@ -322,11 +337,12 @@ function buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenc
     }
   }
 
-  const cat = resolverCategoriaGrupoPoomsae(ctx.categorias, descripcion, matched, ctx.anio)
-  const esMixta = new Set(matched.map((p) => p.sexo)).size > 1
+  const esMixta = parejaEsMixtaExplicita(matched)
   let tipoFinal = modalidad
   if (modalidad === 'poomsae_pareja_reconocida' && esMixta) tipoFinal = 'poomsae_pareja_freestyle'
   if (hoja === 'FREESTYLE' || normTxt(descripcion).includes('FREESTYLE')) tipoFinal = 'poomsae_pareja_freestyle'
+
+  const cat = resolverCategoriaGrupoPoomsae(ctx.categorias, descripcion, matched, ctx.anio)
 
   const labelNombres = matched.map((p) => `${p.nombres || ''} ${p.apellidos || ''}`.trim()).filter(Boolean).join(' · ')
 
@@ -335,7 +351,7 @@ function buildGrupoLinea(matched, descripcion, ctx, { modalidad, hoja, advertenc
     perfilKeys: matched.map((p) => p.key),
     idCategoria: cat?.id_categoria || null,
     categoriaNombre: cat?.nombre || descripcion,
-    label: descripcion ? `${descripcion} (${labelNombres})` : labelNombres,
+    label: labelNombres ? `${descripcion ? `${descripcion} · ` : ''}${labelNombres}`.trim() : descripcion,
     hoja,
     errores: cat ? [] : ['No se pudo resolver categoría del grupo'],
     advertencias: [
@@ -447,7 +463,7 @@ function procesarSeccionGruposPoomsae(lineas, ctx, { mode, row, bufferGrupo, pen
     return { flushed: false }
   }
 
-  if (String(row[1] || '').trim() || String(row[3] || '').trim()) {
+  if (looksLikeGrupoFilaLegacy(row, miembros)) {
     flushBuffer()
     pendingGrupos.push({ row, modalidad, miembros })
     return { flushed: false }
