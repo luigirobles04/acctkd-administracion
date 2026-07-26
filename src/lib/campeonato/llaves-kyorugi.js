@@ -684,6 +684,119 @@ export async function generarLlaveCategoriaUnico(sb, idCampeonato, idCategoria, 
   }
 }
 
+/**
+ * Valida inputs de consolidación (puro, testeable).
+ * idsCategoriasOrigen: categorías con 1 competidor seleccionadas
+ * idCategoriaDestino: categoría donde quedará la llave consolidada
+ */
+export function validarConsolidacionOros({ idsCategoriasOrigen, idCategoriaDestino } = {}) {
+  const origenes = [...new Set((idsCategoriasOrigen || []).map(Number).filter(Boolean))]
+  const destino = Number(idCategoriaDestino)
+  if (origenes.length < 2) {
+    return { ok: false, error: 'Selecciona al menos 2 categorías con 1 competidor' }
+  }
+  if (!destino) {
+    return { ok: false, error: 'Elige la categoría destino de la llave' }
+  }
+  if (!origenes.includes(destino)) {
+    return { ok: false, error: 'La categoría destino debe estar entre las seleccionadas' }
+  }
+  return { ok: true, origenes, destino }
+}
+
+/**
+ * Consolida oros únicos: mueve los competidores solos de varias categorías
+ * a una categoría destino (elegida entre ellas) y genera llave competitiva.
+ * Omite validación WT de peso a propósito (consolidación administrativa del evento).
+ */
+export async function consolidarOrosUnicos(sb, idCampeonato, {
+  idsCategoriasOrigen,
+  idCategoriaDestino,
+} = {}) {
+  const v = validarConsolidacionOros({ idsCategoriasOrigen, idCategoriaDestino })
+  if (!v.ok) throw new Error(v.error)
+  const { origenes, destino } = v
+
+  const { data: cats, error: errCats } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria, nombre, modalidad, id_campeonato')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .in('id_categoria', origenes)
+  if (errCats) throw errCats
+  if ((cats || []).length !== origenes.length) {
+    throw new Error('Alguna categoría no pertenece a este campeonato')
+  }
+  const nombrePorId = Object.fromEntries((cats || []).map((c) => [c.id_categoria, c.nombre]))
+
+  const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+  const movidos = []
+
+  for (const idCat of origenes) {
+    const { data: lineas, error } = await queryLineasKyorugiLlave(sb, idCampeonato, {
+      idCategoria: idCat,
+      omitirPesaje,
+    })
+    if (error) throw error
+    const aptos = lineas || []
+    if (aptos.length !== 1) {
+      const etiqueta = omitirPesaje ? 'con dorsal' : 'con pesaje OK'
+      throw new Error(
+        `"${nombrePorId[idCat] || idCat}" debe tener exactamente 1 competidor ${etiqueta} (hay ${aptos.length})`
+      )
+    }
+    movidos.push({
+      id_linea: aptos[0].id_linea,
+      id_academia_campeonato: aptos[0].id_academia_campeonato,
+      dorsal: aptos[0].dorsal_display,
+      desde: idCat,
+      desdeNombre: nombrePorId[idCat],
+    })
+  }
+
+  // Mover a destino (las ya en destino quedan igual)
+  for (const m of movidos) {
+    if (m.desde === destino) continue
+    const { error: errU } = await sb
+      .from('linea_inscripcion')
+      .update({ id_categoria: destino, updated_at: new Date().toISOString() })
+      .eq('id_linea', m.id_linea)
+      .eq('id_campeonato', idCampeonato)
+    if (errU) throw errU
+
+    await sb.from('bitacora_inscripcion').insert({
+      id_academia_campeonato: m.id_academia_campeonato,
+      id_linea: m.id_linea,
+      accion: 'consolidar_categoria_llave',
+      detalle: {
+        desde: m.desde,
+        desde_nombre: m.desdeNombre,
+        hacia: destino,
+        hacia_nombre: nombrePorId[destino],
+      },
+      actor: 'admin',
+    })
+  }
+
+  // Limpiar llaves huérfanas de categorías origen (ya vacías o con oro único previo)
+  const origenesVacios = origenes.filter((id) => id !== destino)
+  if (origenesVacios.length) {
+    await sb.from('llave_kyorugi').delete().eq('id_campeonato', idCampeonato).in('id_categoria', origenesVacios)
+  }
+
+  const result = await generarLlaveCategoria(sb, idCampeonato, destino, { asignarCanchas: true })
+
+  return {
+    ok: true,
+    categoria_destino: nombrePorId[destino],
+    id_categoria_destino: destino,
+    movidos: movidos.length,
+    participantes: result.participantes ?? movidos.length,
+    dorsales: movidos.map((m) => m.dorsal).filter(Boolean),
+    ...result,
+  }
+}
+
 /** Combates de exhibición entre atletas del campeonato (no afectan podio). */
 export async function insertarCombateExhibicion(sb, idCampeonato, { idLinea1, idLinea2, cancha = 1 } = {}) {
   const l1 = Number(idLinea1)

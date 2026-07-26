@@ -54,6 +54,39 @@ export async function GET(_request, { params }) {
       }
     })
 
+    // Dorsal/nombre del único apto (para consolidar oros en la UI)
+    const soloIds = cats
+      .filter((c) => (llavesSinPesaje ? c.inscritos === 1 : c.aptos === 1) && !c.tiene_llave)
+      .map((c) => c.id_categoria)
+    if (soloIds.length) {
+      let qSolo = sb
+        .from('linea_inscripcion')
+        .select(`
+          id_linea, id_categoria, dorsal_display,
+          miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
+        `)
+        .eq('id_campeonato', idCampeonato)
+        .eq('modalidad', 'kyorugi_individual')
+        .eq('estado', 'aprobado')
+        .not('dorsal_numero', 'is', null)
+        .in('id_categoria', soloIds)
+      if (!llavesSinPesaje) qSolo = qSolo.in('pesaje_estado', ['ok', 'subido'])
+      const { data: lineasSolo } = await qSolo
+      const porCat = {}
+      for (const l of lineasSolo || []) {
+        const p = l.miembros?.[0]?.perfil
+        const nombre = p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : ''
+        porCat[l.id_categoria] = {
+          id_linea: l.id_linea,
+          dorsal: l.dorsal_display,
+          nombre: nombre || '—',
+        }
+      }
+      for (const c of cats) {
+        if (porCat[c.id_categoria]) c.solo = porCat[c.id_categoria]
+      }
+    }
+
     return NextResponse.json({
       categorias: cats,
       llaves_sin_pesaje: llavesSinPesaje,

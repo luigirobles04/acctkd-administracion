@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { generarLlaveCategoriaUnico, insertarCombateExhibicion } from '@/lib/campeonato/llaves-kyorugi'
+import {
+  generarLlaveCategoriaUnico,
+  insertarCombateExhibicion,
+  consolidarOrosUnicos,
+} from '@/lib/campeonato/llaves-kyorugi'
 
 async function resolverDorsal(sb, idCampeonato, dorsal) {
   const d = String(dorsal || '').trim()
@@ -50,7 +54,15 @@ export async function POST(request, { params }) {
       return NextResponse.json(result)
     }
 
-    return NextResponse.json({ error: 'accion inválida (oro_unico | exhibicion)' }, { status: 400 })
+    if (body.accion === 'consolidar') {
+      const result = await consolidarOrosUnicos(sb, idCampeonato, {
+        idsCategoriasOrigen: body.idsCategorias,
+        idCategoriaDestino: body.idCategoriaDestino,
+      })
+      return NextResponse.json(result)
+    }
+
+    return NextResponse.json({ error: 'accion inválida (oro_unico | exhibicion | consolidar)' }, { status: 400 })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

@@ -10,6 +10,7 @@ import {
   buildSlotsCnu,
   qfPairsFromSlots,
   usarLlaveCompacta,
+  validarConsolidacionOros,
 } from '@/lib/campeonato/llaves-kyorugi'
 
 describe('nextPowerOf2 / bracketSizeFor', () => {
@@ -181,5 +182,23 @@ describe('buildSlots (llave estándar con seeds)', () => {
     expect(slots[1]).toEqual({ id: 4 })
     expect(slots[2]).toEqual({ id: 2 })
     expect(slots[3]).toEqual({ id: 3 })
+  })
+})
+
+describe('validarConsolidacionOros', () => {
+  it('exige al menos 2 categorías origen', () => {
+    expect(validarConsolidacionOros({ idsCategoriasOrigen: [1], idCategoriaDestino: 1 }).ok).toBe(false)
+    expect(validarConsolidacionOros({ idsCategoriasOrigen: [], idCategoriaDestino: 1 }).ok).toBe(false)
+  })
+
+  it('exige destino dentro de las seleccionadas', () => {
+    const r = validarConsolidacionOros({ idsCategoriasOrigen: [10, 20], idCategoriaDestino: 99 })
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/destino/)
+  })
+
+  it('acepta consolidación válida y deduplica', () => {
+    const r = validarConsolidacionOros({ idsCategoriasOrigen: [10, 20, 10], idCategoriaDestino: 20 })
+    expect(r).toEqual({ ok: true, origenes: [10, 20], destino: 20 })
   })
 })

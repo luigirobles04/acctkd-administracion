@@ -45,6 +45,9 @@ export default function CampeonatoLlavesPage() {
   const [requierePesaje, setRequierePesaje] = useState(true)
   const [opsClicks, setOpsClicks] = useState(0)
   const [opsPanel, setOpsPanel] = useState(false)
+  const [solosSel, setSolosSel] = useState([])
+  const [destinoConsol, setDestinoConsol] = useState('')
+  const [consolidando, setConsolidando] = useState(false)
 
   const cargarCats = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -235,6 +238,60 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
+  function toggleSolo(idCat) {
+    setSolosSel((prev) => {
+      const next = prev.includes(idCat) ? prev.filter((x) => x !== idCat) : [...prev, idCat]
+      setDestinoConsol((d) => {
+        const cur = Number(d)
+        if (next.includes(cur)) return d
+        return next.length ? String(next[0]) : ''
+      })
+      return next
+    })
+  }
+
+  async function consolidarOros() {
+    if (solosSel.length < 2) {
+      alert('Selecciona al menos 2 categorías con 1 competidor')
+      return
+    }
+    const destId = Number(destinoConsol)
+    if (!destId || !solosSel.includes(destId)) {
+      alert('Elige la categoría destino (debe estar seleccionada)')
+      return
+    }
+    const destNombre = catsSolo.find((c) => c.id_categoria === destId)?.nombre || 'destino'
+    if (!confirm(
+      `¿Consolidar ${solosSel.length} competidores en "${destNombre}" y generar llave competitiva?\n\n` +
+      'Se moverán a esa categoría (aunque el peso original sea distinto) y se creará la llave con medallas oficiales.'
+    )) return
+
+    setConsolidando(true)
+    try {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accion: 'consolidar',
+          idsCategorias: solosSel,
+          idCategoriaDestino: destId,
+        }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(apiError(json, 'Error al consolidar'))
+      setSolosSel([])
+      setDestinoConsol('')
+      const cats = await cargarCats({ silent: true })
+      const dest = (cats || []).find((c) => c.id_categoria === destId)
+      if (dest) await verLlave(dest)
+      alert(`Llave generada en "${json.categoria_destino}" · ${json.participantes} competidores`)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setConsolidando(false)
+    }
+  }
+
   async function crearExhibicion(e) {
     e.preventDefault()
     const fd = new FormData(e.target)
@@ -349,7 +406,7 @@ export default function CampeonatoLlavesPage() {
     window.open(`/admin/campeonatos/${id}/llaves/imprimir?categoria=${selCat.id_categoria}`, '_blank')
   }
 
-  const bloqueado = generandoTodas || Boolean(generando)
+  const bloqueado = generandoTodas || Boolean(generando) || consolidando
 
   const combatesFiltrados = selCat && porRonda
     ? Object.keys(porRonda)
@@ -479,18 +536,65 @@ export default function CampeonatoLlavesPage() {
           <div className="ios-card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid #f59e0b' }}>
             <h3 style={{ margin: '0 0 8px' }}>Categorías con 1 competidor ({catsSolo.length})</h3>
             <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12 }}>
-              Oro automático o agrega un combate de exhibición con otro dorsal del campeonato.
+              Marca 2 o más para consolidarlos en una categoría y generar llave real.
+              O da oro único a cada uno, o crea una exhibición abajo.
             </p>
             <div style={{ display: 'grid', gap: 8 }}>
-              {catsSolo.map((c) => (
-                <div key={c.id_categoria} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span><strong>{c.nombre}</strong></span>
-                  <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12 }} disabled={bloqueado || generando === c.id_categoria} onClick={() => oroUnico(c)}>
-                    {generando === c.id_categoria ? '…' : '🥇 Oro único'}
-                  </button>
-                </div>
-              ))}
+              {catsSolo.map((c) => {
+                const checked = solosSel.includes(c.id_categoria)
+                return (
+                  <div key={c.id_categoria} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSolo(c.id_categoria)}
+                        disabled={bloqueado || consolidando}
+                      />
+                      <span style={{ minWidth: 0 }}>
+                        <strong>{c.nombre}</strong>
+                        {c.solo && (
+                          <span className="ios-caption" style={{ display: 'block', color: 'var(--label3)', marginTop: 2 }}>
+                            {c.solo.dorsal || '—'} · {c.solo.nombre}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                    <button type="button" className="ios-btn ios-btn-primary" style={{ fontSize: 12 }} disabled={bloqueado || consolidando || generando === c.id_categoria} onClick={() => oroUnico(c)}>
+                      {generando === c.id_categoria ? '…' : '🥇 Oro único'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
+            {solosSel.length >= 2 && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--separator)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <label style={{ fontSize: 12, flex: '1 1 220px' }}>
+                  Categoría destino (nombre de la llave)
+                  <select
+                    className="ios-input"
+                    value={destinoConsol}
+                    onChange={(e) => setDestinoConsol(e.target.value)}
+                    style={{ display: 'block', marginTop: 4 }}
+                  >
+                    {solosSel.map((idCat) => {
+                      const c = catsSolo.find((x) => x.id_categoria === idCat)
+                      return (
+                        <option key={idCat} value={idCat}>{c?.nombre || idCat}</option>
+                      )
+                    })}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="ios-btn ios-btn-primary"
+                  disabled={bloqueado || consolidando}
+                  onClick={consolidarOros}
+                >
+                  {consolidando ? 'Consolidando…' : `Consolidar y generar llave (${solosSel.length})`}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
