@@ -16,11 +16,13 @@ export async function GET(_request, { params }) {
       .single()
     if (errCamp) throw errCamp
 
+    // Respuesta ligera: solo conteos y academias resumidas. Las líneas de
+    // inscripción se cargan lazy por academia (rendimiento con miles de filas).
     const [
       { count: categoriasCount, error: errCats },
       { count: inscripcionesCount, error: errIns },
       { data: academiasCamp, error: errAc },
-      { data: lineasInscripcion, error: errLi },
+      { data: lineasLight, error: errLi },
     ] = await Promise.all([
       sb.from('categoria_campeonato').select('*', { count: 'exact', head: true }).eq('id_campeonato', idCampeonato),
       sb.from('inscripcion_campeonato').select('*', { count: 'exact', head: true }).eq('id_campeonato', idCampeonato),
@@ -31,28 +33,20 @@ export async function GET(_request, { params }) {
         .order('created_at', { ascending: true }),
       sb
         .from('linea_inscripcion')
-        .select(`
-          id_linea,
-          id_academia_campeonato,
-          modalidad,
-          estado,
-          id_categoria,
-          peso_declarado,
-          dorsal_display,
-          dorsal_numero,
-          precio_aplicado,
-          categoria:categoria_campeonato(nombre),
-          miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento, documento_tipo))
-        `)
+        .select('id_linea, id_academia_campeonato')
         .eq('id_campeonato', idCampeonato)
-        .neq('estado', 'anulado')
-        .order('created_at', { ascending: true }),
+        .neq('estado', 'anulado'),
     ])
 
     if (errCats) throw errCats
     if (errIns) throw errIns
     if (errAc) throw errAc
     if (errLi) throw errLi
+
+    const conteoLineas = {}
+    for (const l of lineasLight || []) {
+      conteoLineas[l.id_academia_campeonato] = (conteoLineas[l.id_academia_campeonato] || 0) + 1
+    }
 
     const recaudacion = (academiasCamp || []).reduce(
       (acc, ac) => {
@@ -82,8 +76,8 @@ export async function GET(_request, { params }) {
       campeonato,
       categoriasCount: categoriasCount || 0,
       inscripcionesCount: inscripcionesCount || 0,
-      academiasCamp: academiasCamp || [],
-      lineasInscripcion: lineasInscripcion || [],
+      academiasCamp: (academiasCamp || []).map((ac) => ({ ...ac, lineas_count: conteoLineas[ac.id] || 0 })),
+      lineasCount: (lineasLight || []).length,
       recaudacion,
       catalogoViejo,
       necesitaActivacion,

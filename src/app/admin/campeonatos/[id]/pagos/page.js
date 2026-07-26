@@ -5,29 +5,100 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
-import LoadingState from '@/components/ui/LoadingState'
+import LoadingState, { ErrorState } from '@/components/ui/LoadingState'
+import Paginacion from '@/components/ui/Paginacion'
 import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
 import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
+import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
-import { agruparLineasPorAcademia, filtrarLineasGrupo, modalidadesEnLineas, nombreParticipanteLinea } from '@/lib/campeonato/agrupar-academias'
+import { filtrarLineasGrupo, modalidadesEnLineas, nombreParticipanteLinea } from '@/lib/campeonato/agrupar-academias'
 import { readJsonResponse } from '@/lib/public-app-url'
+
+function pasaFiltroGlobal(l, filtro) {
+  if (filtro === 'pagadas') return l.pago_completo
+  if (filtro === 'pendientes') return !l.pago_completo && Number(l.precio_aplicado) > 0
+  if (filtro === 'aprobadas') return Boolean(l.dorsal_display)
+  return true
+}
+
+/** Detalle expandido de pagos por academia: líneas lazy con montos pagados. */
+function DetallePagosAcademia({ idCampeonato, acId, filtroGlobal, procesando, onMarcarPagada, reloadKey }) {
+  const [filtro, setFiltro] = useState({ buscar: '', modalidad: 'todas' })
+  const { lineas, loading, error, recargar, pagina, setPagina, totalPaginas, total } =
+    useLineasAcademia(idCampeonato, acId, { activo: true, conPagos: true, reloadKey })
+
+  if (loading) return <LoadingState mensaje="Cargando inscripciones…" padding={20} />
+  if (error) return <ErrorState mensaje={error} onRetry={recargar} />
+
+  const lineasGlobal = lineas.filter((l) => pasaFiltroGlobal(l, filtroGlobal))
+  const lineasFiltradas = filtrarLineasGrupo(lineasGlobal, filtro)
+
+  return (
+    <>
+      <FiltroLineasAcademia
+        filtro={filtro}
+        onChange={setFiltro}
+        total={lineasGlobal.length}
+        filtradas={lineasFiltradas.length}
+        modalidades={modalidadesEnLineas(lineas)}
+      />
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
+              <th style={{ padding: '8px 6px' }}>Dorsal</th>
+              <th style={{ padding: '8px 6px' }}>Competidor</th>
+              <th style={{ padding: '8px 6px' }}>Modalidad</th>
+              <th style={{ padding: '8px 6px' }}>Pago</th>
+              <th style={{ padding: '8px 6px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {lineasFiltradas.map((l) => (
+              <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                <td style={{ padding: '8px 6px' }}>{nombreParticipanteLinea(l)}</td>
+                <td style={{ padding: '8px 6px' }}>{l.modalidad?.replace(/_/g, ' ')}{l.categoria?.nombre ? ` · ${l.categoria.nombre}` : ''}</td>
+                <td style={{ padding: '8px 6px' }}>
+                  <span className={`badge ${l.pago_completo ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
+                    S/ {Number(l.monto_pagado || 0).toFixed(0)}/{Number(l.precio_aplicado || 0).toFixed(0)}
+                  </span>
+                </td>
+                <td style={{ padding: '8px 6px' }}>
+                  {!l.pago_completo && Number(l.precio_aplicado) > 0 && (
+                    <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} disabled={procesando === `pag-${l.id_linea}`} onClick={() => onMarcarPagada(l.id_linea)}>
+                      Marcar
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {lineasFiltradas.length === 0 && (
+          <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
+        )}
+        <Paginacion pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} total={total} porPagina={100} />
+      </div>
+    </>
+  )
+}
 
 export default function CampeonatoPagosPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [comprobantes, setComprobantes] = useState([])
-  const [lineas, setLineas] = useState([])
   const [academias, setAcademias] = useState([])
   const [recaudacion, setRecaudacion] = useState(null)
-  const [resumen, setResumen] = useState({ aprobadas: 0, pagadas: 0, pendientes: 0, comprobantesPendientes: 0 })
+  const [resumen, setResumen] = useState({ total: 0, aprobadas: 0, pagadas: 0, pendientes: 0, comprobantesPendientes: 0 })
   const [filtro, setFiltro] = useState('todas')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(null)
   const [montosEdit, setMontosEdit] = useState({})
   const [expandidas, setExpandidas] = useState({})
-  const [filtrosAcademia, setFiltrosAcademia] = useState({})
+  const [reloadKey, setReloadKey] = useState(0)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -41,10 +112,9 @@ export default function CampeonatoPagosPage() {
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar pagos')
 
       setComprobantes(json.comprobantes || [])
-      setLineas(json.lineas || [])
       setAcademias(json.academias || [])
       setRecaudacion(json.recaudacion || null)
-      setResumen(json.resumen || { aprobadas: 0, pagadas: 0, pendientes: 0, comprobantesPendientes: 0 })
+      setResumen(json.resumen || { total: 0, aprobadas: 0, pagadas: 0, pendientes: 0, comprobantesPendientes: 0 })
 
       const montos = {}
       for (const c of json.comprobantes || []) {
@@ -54,7 +124,7 @@ export default function CampeonatoPagosPage() {
     } catch (e) {
       setError(e.message)
       setComprobantes([])
-      setLineas([])
+      setAcademias([])
     } finally {
       setLoading(false)
     }
@@ -64,17 +134,12 @@ export default function CampeonatoPagosPage() {
     cargar()
   }, [cargar])
 
-  const lineasFiltradas = useMemo(() => {
-    if (filtro === 'pagadas') return lineas.filter((l) => l.pago_completo)
-    if (filtro === 'pendientes') return lineas.filter((l) => !l.pago_completo && Number(l.precio_aplicado) > 0)
-    if (filtro === 'aprobadas') return lineas.filter((l) => l.dorsal_display)
-    return lineas
-  }, [lineas, filtro])
-
-  const grupos = useMemo(
-    () => agruparLineasPorAcademia(lineasFiltradas, academias),
-    [lineasFiltradas, academias]
-  )
+  const grupos = useMemo(() => {
+    if (filtro === 'pagadas') return academias.filter((g) => g.pagadas > 0)
+    if (filtro === 'pendientes') return academias.filter((g) => g.pendientesPago > 0)
+    if (filtro === 'aprobadas') return academias.filter((g) => g.conDorsal > 0)
+    return academias
+  }, [academias, filtro])
 
   async function accionPagos(payload) {
     setProcesando(payload.key)
@@ -88,6 +153,7 @@ export default function CampeonatoPagosPage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'No se pudo completar la acción')
       await cargar()
+      setReloadKey((k) => k + 1)
     } catch (e) {
       setError(e.message)
       alert(e.message)
@@ -209,7 +275,7 @@ export default function CampeonatoPagosPage() {
 
             <div className="camp-filters">
               {[
-                { id: 'todas', label: `Todas (${lineas.length})` },
+                { id: 'todas', label: `Todas (${resumen.total})` },
                 { id: 'aprobadas', label: `Con dorsal (${resumen.aprobadas})` },
                 { id: 'pagadas', label: `Pagadas (${resumen.pagadas})` },
                 { id: 'pendientes', label: `Pend. pago (${resumen.pendientes})` },
@@ -222,83 +288,39 @@ export default function CampeonatoPagosPage() {
 
             <section className="camp-section">
               <h3 className="camp-section-title">Por academia</h3>
-            {grupos.map((g) => {
-              const acMeta = academias.find((a) => a.id === g.id)
-              const pendiente = acMeta?.pendiente ?? Math.max(0, g.lineas.reduce((s, l) => s + Math.max(0, Number(l.precio_aplicado || 0) - Number(l.monto_pagado || 0)), 0))
-              const pagadas = g.lineas.filter((l) => l.pago_completo).length
-              const conDorsal = g.lineas.filter((l) => l.dorsal_display).length
-              const filtroGrupo = filtrosAcademia[g.id] || { buscar: '', modalidad: 'todas' }
-              const lineasFiltradas = filtrarLineasGrupo(g.lineas, filtroGrupo)
-              return (
-                <AcademiaExpansible
-                  key={g.id}
-                  nombre={g.nombre}
-                  resumen={`${g.lineas.length} inscripciones · ${conDorsal} dorsales · ${pagadas} pagadas · S/ ${Number(acMeta?.monto_asignado || 0).toFixed(0)}/${Number(acMeta?.monto_total || 0).toFixed(0)}`}
-                  expandido={Boolean(expandidas[g.id])}
-                  onToggle={() => setExpandidas((e) => ({ ...e, [g.id]: !e[g.id] }))}
-                  acciones={
-                    pendiente > 0 ? (
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn-primary"
-                        style={{ fontSize: 12 }}
-                        disabled={procesando === `total-${g.id}`}
-                        onClick={() => pagoTotalAcademia(g.id, g.nombre)}
-                      >
-                        {procesando === `total-${g.id}` ? '…' : `Pago total S/ ${pendiente.toFixed(0)}`}
-                      </button>
-                    ) : (
-                      <span className="badge badge-green" style={{ fontSize: 11 }}>Pagada</span>
-                    )
-                  }
-                >
-                  <FiltroLineasAcademia
-                    filtro={filtroGrupo}
-                    onChange={(f) => setFiltrosAcademia((s) => ({ ...s, [g.id]: f }))}
-                    total={g.lineas.length}
-                    filtradas={lineasFiltradas.length}
-                    modalidades={modalidadesEnLineas(g.lineas)}
-                  />
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
-                          <th style={{ padding: '8px 6px' }}>Dorsal</th>
-                          <th style={{ padding: '8px 6px' }}>Competidor</th>
-                          <th style={{ padding: '8px 6px' }}>Modalidad</th>
-                          <th style={{ padding: '8px 6px' }}>Pago</th>
-                          <th style={{ padding: '8px 6px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {lineasFiltradas.map((l) => (
-                          <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
-                            <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
-                            <td style={{ padding: '8px 6px' }}>{nombreParticipanteLinea(l)}</td>
-                            <td style={{ padding: '8px 6px' }}>{l.modalidad?.replace(/_/g, ' ')}{l.categoria?.nombre ? ` · ${l.categoria.nombre}` : ''}</td>
-                            <td style={{ padding: '8px 6px' }}>
-                              <span className={`badge ${l.pago_completo ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
-                                S/ {Number(l.monto_pagado || 0).toFixed(0)}/{Number(l.precio_aplicado || 0).toFixed(0)}
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 6px' }}>
-                              {!l.pago_completo && Number(l.precio_aplicado) > 0 && (
-                                <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} disabled={procesando === `pag-${l.id_linea}`} onClick={() => accionPagos({ key: `pag-${l.id_linea}`, accion: 'marcar_pagada', idLinea: l.id_linea })}>
-                                  Marcar
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {lineasFiltradas.length === 0 && (
-                      <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
-                    )}
-                  </div>
-                </AcademiaExpansible>
-              )
-            })}
+            {grupos.map((g) => (
+              <AcademiaExpansible
+                key={g.id}
+                nombre={g.nombre}
+                resumen={`${g.totalLineas} inscripciones · ${g.conDorsal} dorsales · ${g.pagadas} pagadas · S/ ${Number(g.monto_asignado || 0).toFixed(0)}/${Number(g.monto_total || 0).toFixed(0)}`}
+                expandido={Boolean(expandidas[g.id])}
+                onToggle={() => setExpandidas((e) => ({ ...e, [g.id]: !e[g.id] }))}
+                acciones={
+                  g.pendiente > 0 ? (
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-primary"
+                      style={{ fontSize: 12 }}
+                      disabled={procesando === `total-${g.id}`}
+                      onClick={() => pagoTotalAcademia(g.id, g.nombre)}
+                    >
+                      {procesando === `total-${g.id}` ? '…' : `Pago total S/ ${g.pendiente.toFixed(0)}`}
+                    </button>
+                  ) : (
+                    <span className="badge badge-green" style={{ fontSize: 11 }}>Pagada</span>
+                  )
+                }
+              >
+                <DetallePagosAcademia
+                  idCampeonato={idCampeonato}
+                  acId={g.id}
+                  filtroGlobal={filtro}
+                  procesando={procesando}
+                  reloadKey={reloadKey}
+                  onMarcarPagada={(idLinea) => accionPagos({ key: `pag-${idLinea}`, accion: 'marcar_pagada', idLinea })}
+                />
+              </AcademiaExpansible>
+            ))}
             {grupos.length === 0 && <p className="camp-empty">Sin líneas en este filtro</p>}
             </section>
           </>

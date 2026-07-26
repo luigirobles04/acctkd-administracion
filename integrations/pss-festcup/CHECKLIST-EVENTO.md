@@ -15,6 +15,8 @@ En **Vercel → Settings → Environment Variables** y redeploy:
 
 ## Antes del campeonato (con internet)
 
+- [ ] **Índices Supabase** (una sola vez): Dashboard → SQL Editor → pegar y ejecutar
+      `supabase/migrations/20260726090000_indices_rendimiento_admin.sql` (solo crea índices, re-ejecutable, no toca datos)
 - [ ] Cerrar inscripciones y completar pesaje
 - [ ] Aprobar academias y asignar dorsales
 - [ ] **Generar todas las llaves** (una sola vez)

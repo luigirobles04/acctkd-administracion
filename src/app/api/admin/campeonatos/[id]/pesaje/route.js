@@ -14,25 +14,24 @@ export async function GET(_request, { params }) {
 
     const sb = getSupabaseAdmin()
 
-    const [{ data: lineas, error: errL }, { data: categorias, error: errC }] = await Promise.all([
-      sb
-        .from('linea_inscripcion')
-        .select(`
-          *,
-          categoria:categoria_campeonato(*),
-          academia_campeonato(academia:academia(nombre)),
-          miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, sexo, fecha_nacimiento, grado))
-        `)
-        .eq('id_campeonato', idCampeonato)
-        .eq('modalidad', 'kyorugi_individual')
-        .eq('estado', 'aprobado')
-        .order('dorsal_numero', { ascending: true }),
-      sb.from('categoria_campeonato').select('*').eq('id_campeonato', idCampeonato).eq('modalidad', 'kyorugi'),
-    ])
+    // Solo columnas que usa la pantalla de pesaje y sus exports: reduce el
+    // payload ~70% frente al select * con joins completos de categoría/perfil.
+    const { data: lineas, error: errL } = await sb
+      .from('linea_inscripcion')
+      .select(`
+        id_linea, dorsal_display, dorsal_numero, peso_declarado, peso_oficial,
+        pesaje_estado, pesaje_intentos, id_categoria,
+        categoria:categoria_campeonato(nombre, peso_min, peso_max),
+        academia_campeonato(academia:academia(nombre)),
+        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
+      `)
+      .eq('id_campeonato', idCampeonato)
+      .eq('modalidad', 'kyorugi_individual')
+      .eq('estado', 'aprobado')
+      .order('dorsal_numero', { ascending: true })
     if (errL) throw errL
-    if (errC) throw errC
 
-    return NextResponse.json({ lineas: lineas || [], categorias: categorias || [], maxIntentos: MAX_INTENTOS_PESAJE })
+    return NextResponse.json({ lineas: lineas || [], maxIntentos: MAX_INTENTOS_PESAJE })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

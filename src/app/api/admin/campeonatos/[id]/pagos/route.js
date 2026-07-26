@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { voucherInscripcionProxyUrl } from '@/lib/campeonato/voucher-inscripcion'
+import { calcularRecaudacion, resumenPagosPorAcademia } from '@/lib/campeonato/resumen-pagos'
 import {
   aplicarFifoPagos,
   asignarDorsalLinea,
@@ -9,6 +10,11 @@ import {
   recalcularMontosAcademia,
 } from '@/lib/campeonato/inscripcion-server'
 
+/**
+ * Resumen de pagos calculado en servidor con líneas "ligeras" (sin joins de
+ * perfiles). Las líneas detalladas por academia se cargan lazy al expandir
+ * vía /academias/[acId]/lineas?pagos=1 (rendimiento con miles de filas).
+ */
 export async function GET(_request, { params }) {
   try {
     const { id } = await params
@@ -25,83 +31,35 @@ export async function GET(_request, { params }) {
 
     const ids = (acs || []).map((a) => a.id)
 
-    let comprobantes = []
-    if (ids.length) {
-      const { data, error } = await sb
-        .from('comprobante_pago')
-        .select('*, academia_campeonato(id, academia:academia(nombre))')
-        .in('id_academia_campeonato', ids)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      comprobantes = data || []
-    }
+    const [resComprobantes, resLineas] = await Promise.all([
+      ids.length
+        ? sb
+            .from('comprobante_pago')
+            .select('*, academia_campeonato(id, academia:academia(nombre))')
+            .in('id_academia_campeonato', ids)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      sb
+        .from('linea_inscripcion')
+        .select('id_linea, id_academia_campeonato, modalidad, estado, dorsal_display, precio_aplicado, pagos:asignacion_pago(monto)')
+        .eq('id_campeonato', idCampeonato)
+        .neq('estado', 'anulado'),
+    ])
+    if (resComprobantes.error) throw resComprobantes.error
+    if (resLineas.error) throw resLineas.error
 
-    const { data: lineas, error: errLi } = await sb
-      .from('linea_inscripcion')
-      .select(`
-        *,
-        categoria:categoria_campeonato(nombre),
-        academia_campeonato(academia:academia(nombre, codigo_prefijo)),
-        miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(nombres, apellidos, documento_numero))
-      `)
-      .eq('id_campeonato', idCampeonato)
-      .neq('estado', 'anulado')
-      .order('created_at', { ascending: true })
-    if (errLi) throw errLi
+    const comprobantes = resComprobantes.data || []
+    const { resumen, porAcademia } = resumenPagosPorAcademia(resLineas.data, acs, comprobantes)
 
-    const lineaIds = (lineas || []).map((l) => l.id_linea)
-    let pagosPorLinea = {}
-    if (lineaIds.length) {
-      const { data: asignaciones } = await sb
-        .from('asignacion_pago')
-        .select('id_linea, monto')
-        .in('id_linea', lineaIds)
-      pagosPorLinea = (asignaciones || []).reduce((acc, a) => {
-        acc[a.id_linea] = (acc[a.id_linea] || 0) + Number(a.monto || 0)
-        return acc
-      }, {})
-    }
-
-    const lineasConPago = (lineas || []).map((l) => ({
-      ...l,
-      monto_pagado: pagosPorLinea[l.id_linea] || 0,
-      pago_completo: Number(pagosPorLinea[l.id_linea] || 0) >= Number(l.precio_aplicado || 0),
-    }))
-
-    const recaudacion = (acs || []).reduce(
-      (acc, ac) => {
-        acc.totalEsperado += Number(ac.monto_total || 0)
-        acc.recaudado += Number(ac.monto_asignado || 0)
-        return acc
-      },
-      { totalEsperado: 0, recaudado: 0 }
-    )
-    recaudacion.pendiente = Math.max(0, recaudacion.totalEsperado - recaudacion.recaudado)
-
-    const resumen = {
-      aprobadas: lineasConPago.filter((l) => l.dorsal_display).length,
-      pagadas: lineasConPago.filter((l) => l.pago_completo).length,
-      pendientes: lineasConPago.filter((l) => !l.pago_completo && Number(l.precio_aplicado) > 0).length,
-      comprobantesPendientes: comprobantes.filter((c) => c.estado === 'pendiente').length,
-    }
-
-    const comprobantesConUrl = (comprobantes || []).map((c) => ({
+    const comprobantesConUrl = comprobantes.map((c) => ({
       ...c,
       archivo_proxy_url: voucherInscripcionProxyUrl(c.archivo_url),
     }))
 
     return NextResponse.json({
       comprobantes: comprobantesConUrl,
-      lineas: lineasConPago,
-      academias: (acs || []).map((ac) => ({
-        id: ac.id,
-        nombre: ac.academia?.nombre,
-        monto_total: Number(ac.monto_total || 0),
-        monto_asignado: Number(ac.monto_asignado || 0),
-        pendiente: Math.max(0, Number(ac.monto_total || 0) - Number(ac.monto_asignado || 0)),
-        estado_pago: ac.estado_pago,
-      })),
-      recaudacion,
+      academias: porAcademia,
+      recaudacion: calcularRecaudacion(acs),
       resumen,
     })
   } catch (e) {

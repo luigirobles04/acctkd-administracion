@@ -5,13 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
-import LoadingState from '@/components/ui/LoadingState'
+import LoadingState, { ErrorState } from '@/components/ui/LoadingState'
+import Paginacion from '@/components/ui/Paginacion'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN, MODALIDADES } from '@/lib/campeonato/constants'
 import { categoriasPoomsaeValidas, categoriasValidas } from '@/lib/campeonato/validar-categoria'
-import { agruparLineasPorAcademia, filtrarLineasGrupo, modalidadesEnLineas } from '@/lib/campeonato/agrupar-academias'
+import { filtrarLineasGrupo, modalidadesEnLineas, nombreParticipanteLinea } from '@/lib/campeonato/agrupar-academias'
 import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
 import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
+import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { readJsonResponse } from '@/lib/public-app-url'
 
 const ESTADOS = {
@@ -39,6 +41,96 @@ const GESTION_LINKS = [
   { href: 'pesaje', label: 'Pesaje', icon: 'scale', color: '#64748B' },
 ]
 
+function TablaLineasInscripcion({ lineas, onEditarPerfil, onEditarLinea, mostrarAcademia = false }) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
+            <th style={{ padding: '8px 6px' }}>Dorsal</th>
+            <th style={{ padding: '8px 6px' }}>Participante</th>
+            {mostrarAcademia && <th style={{ padding: '8px 6px' }}>Academia</th>}
+            <th style={{ padding: '8px 6px' }}>Modalidad</th>
+            <th style={{ padding: '8px 6px' }}>Categoría</th>
+            <th style={{ padding: '8px 6px' }}>Peso</th>
+            <th style={{ padding: '8px 6px' }}>Tarifa</th>
+            <th style={{ padding: '8px 6px' }}>Estado</th>
+            <th style={{ padding: '8px 6px' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {lineas.map((l) => {
+            const p = l.miembros?.[0]?.perfil
+            return (
+              <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
+                <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
+                <td style={{ padding: '8px 6px' }}>
+                  <div>{nombreParticipanteLinea(l)}</div>
+                  {p && (
+                    <div className="ios-caption" style={{ color: 'var(--label3)', marginTop: 2 }}>
+                      {p.documento_tipo} {p.documento_numero} · {p.grado}
+                    </div>
+                  )}
+                </td>
+                {mostrarAcademia && (
+                  <td style={{ padding: '8px 6px' }}>{l.academia_campeonato?.academia?.nombre || '—'}</td>
+                )}
+                <td style={{ padding: '8px 6px' }}>{MODALIDADES[l.modalidad]?.label || l.modalidad?.replace(/_/g, ' ')}</td>
+                <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
+                <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
+                <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado}</td>
+                <td style={{ padding: '8px 6px' }}>
+                  <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
+                    {l.estado?.replace(/_/g, ' ') || '—'}
+                  </span>
+                </td>
+                <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
+                  {p && (
+                    <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, padding: '2px 8px', marginRight: 4 }} onClick={() => onEditarPerfil(l)}>
+                      Datos
+                    </button>
+                  )}
+                  <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => onEditarLinea(l)}>
+                    Editar
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {lineas.length === 0 && (
+        <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
+      )}
+    </div>
+  )
+}
+
+/** Detalle expandido: líneas de la academia cargadas lazy al abrir. */
+function DetalleInscripcionesAcademia({ idCampeonato, acId, reloadKey, onEditarPerfil, onEditarLinea }) {
+  const [filtro, setFiltro] = useState({ buscar: '', modalidad: 'todas' })
+  const { lineas, loading, error, recargar, pagina, setPagina, totalPaginas, total } =
+    useLineasAcademia(idCampeonato, acId, { activo: true, reloadKey })
+
+  if (loading) return <LoadingState mensaje="Cargando inscripciones…" padding={20} />
+  if (error) return <ErrorState mensaje={error} onRetry={recargar} />
+
+  const lineasFiltradas = filtrarLineasGrupo(lineas, filtro)
+  return (
+    <>
+      <FiltroLineasAcademia
+        filtro={filtro}
+        onChange={setFiltro}
+        total={lineas.length}
+        filtradas={lineasFiltradas.length}
+        modalidades={modalidadesEnLineas(lineas)}
+      />
+      <TablaLineasInscripcion lineas={lineasFiltradas} onEditarPerfil={onEditarPerfil} onEditarLinea={onEditarLinea} />
+      <Paginacion pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} total={total} porPagina={100} />
+    </>
+  )
+}
+
 export default function CampeonatoDetallePage() {
   const { id } = useParams()
   const router = useRouter()
@@ -50,7 +142,7 @@ export default function CampeonatoDetallePage() {
   const [categoriasCount, setCategoriasCount] = useState(0)
   const [inscripcionesCount, setInscripcionesCount] = useState(0)
   const [academiasCamp, setAcademiasCamp] = useState([])
-  const [lineasInscripcion, setLineasInscripcion] = useState([])
+  const [lineasCount, setLineasCount] = useState(0)
   const [recaudacion, setRecaudacion] = useState({ totalEsperado: 0, recaudado: 0, pendiente: 0 })
   const [necesitaActivacion, setNecesitaActivacion] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -62,7 +154,9 @@ export default function CampeonatoDetallePage() {
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [guardandoLinea, setGuardandoLinea] = useState(false)
   const [expandidasIns, setExpandidasIns] = useState({})
-  const [filtrosIns, setFiltrosIns] = useState({})
+  const [reloadKeyIns, setReloadKeyIns] = useState(0)
+  const [buscarGlobal, setBuscarGlobal] = useState('')
+  const [busqueda, setBusqueda] = useState({ q: '', lineas: [], loading: false, error: null })
 
   const cargar = useCallback(async () => {
     if (!idCampeonato) {
@@ -80,7 +174,7 @@ export default function CampeonatoDetallePage() {
       setCategoriasCount(json.categoriasCount || 0)
       setInscripcionesCount(json.inscripcionesCount || 0)
       setAcademiasCamp(json.academiasCamp || [])
-      setLineasInscripcion(json.lineasInscripcion || [])
+      setLineasCount(json.lineasCount || 0)
       setRecaudacion(json.recaudacion || { totalEsperado: 0, recaudado: 0, pendiente: 0 })
       setNecesitaActivacion(Boolean(json.necesitaActivacion))
     } catch (e) {
@@ -107,43 +201,37 @@ export default function CampeonatoDetallePage() {
       .finally(() => setLoadingCats(false))
   }, [tab, categorias.length, idCampeonato])
 
-  const lineasOrdenadas = useMemo(() => {
-    return [...lineasInscripcion].sort((a, b) => {
-      const acA = academiasCamp.find((ac) => ac.id === a.id_academia_campeonato)?.academia?.nombre || ''
-      const acB = academiasCamp.find((ac) => ac.id === b.id_academia_campeonato)?.academia?.nombre || ''
-      if (acA !== acB) return acA.localeCompare(acB)
-      const na = a.miembros?.[0]?.perfil?.apellidos || ''
-      const nb = b.miembros?.[0]?.perfil?.apellidos || ''
-      if (na !== nb) return na.localeCompare(nb)
-      return (a.dorsal_numero || 9999) - (b.dorsal_numero || 9999)
-    })
-  }, [lineasInscripcion, academiasCamp])
+  const gruposInscripcion = useMemo(() => {
+    return academiasCamp
+      .filter((ac) => (ac.lineas_count || 0) > 0)
+      .map((ac) => ({
+        id: ac.id,
+        nombre: ac.academia?.nombre || `Academia #${ac.id}`,
+        count: ac.lineas_count || 0,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [academiasCamp])
 
-  function nombreParticipante(l) {
-    return (l.miembros || [])
-      .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
-      .filter(Boolean)
-      .join(' · ') || '—'
-  }
-
-  const perfilesPortal = useMemo(() => {
-    const map = new Map()
-    for (const l of lineasInscripcion) {
-      for (const m of l.miembros || []) {
-        const p = m.perfil
-        if (!p?.id_perfil) continue
-        const prev = map.get(p.id_perfil) || { ...p, lineas: [] }
-        prev.lineas.push(l)
-        map.set(p.id_perfil, prev)
+  // Búsqueda global server-side (dorsal, nombre o academia) con debounce
+  useEffect(() => {
+    const q = buscarGlobal.trim()
+    const t = setTimeout(async () => {
+      if (q.length < 2) {
+        setBusqueda({ q: '', lineas: [], loading: false, error: null })
+        return
       }
-    }
-    return [...map.values()].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || ''))
-  }, [lineasInscripcion, academiasCamp])
-
-  const gruposInscripcion = useMemo(
-    () => agruparLineasPorAcademia(lineasOrdenadas, academiasCamp),
-    [lineasOrdenadas, academiasCamp]
-  )
+      setBusqueda((b) => ({ ...b, q, loading: true, error: null }))
+      try {
+        const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/buscar-inscripciones?q=${encodeURIComponent(q)}&limit=30`, { cache: 'no-store' })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || 'Error en la búsqueda')
+        setBusqueda({ q, lineas: json.lineas || [], loading: false, error: null })
+      } catch (e) {
+        setBusqueda({ q, lineas: [], loading: false, error: e.message })
+      }
+    }, q.length < 2 ? 0 : 400)
+    return () => clearTimeout(t)
+  }, [buscarGlobal, idCampeonato, reloadKeyIns])
 
   async function cambiarEstado(estado) {
     try {
@@ -202,6 +290,7 @@ export default function CampeonatoDetallePage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setEditPerfil(null)
+      setReloadKeyIns((k) => k + 1)
       await cargar()
     } catch (e) {
       alert(e.message)
@@ -227,9 +316,8 @@ export default function CampeonatoDetallePage() {
   function abrirEditarPerfil(l) {
     const p = l.miembros?.[0]?.perfil
     if (!p?.id_perfil) return
-    const full = perfilesPortal.find((x) => x.id_perfil === p.id_perfil) || { ...p, lineas: [l] }
     setEditLinea(null)
-    setEditPerfil({ ...full })
+    setEditPerfil({ ...p, lineas: [l] })
   }
 
   function abrirEditarLinea(l) {
@@ -276,6 +364,7 @@ export default function CampeonatoDetallePage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setEditLinea(null)
+      setReloadKeyIns((k) => k + 1)
       await cargar()
     } catch (e) {
       alert(e.message)
@@ -357,7 +446,7 @@ export default function CampeonatoDetallePage() {
               {[
                 { label: 'Categorías', val: categoriasCount, icon: 'category', color: '#007AFF', bg: 'rgba(0,122,255,0.12)' },
                 { label: 'Academias', val: academiasCamp.length, icon: 'school', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
-                { label: 'Líneas inscripción', val: lineasInscripcion.length, icon: 'groups', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
+                { label: 'Líneas inscripción', val: lineasCount, icon: 'groups', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
                 { label: 'Recaudado', val: `S/ ${Number(recaudacion.recaudado || 0).toFixed(0)}`, icon: 'payments', color: '#34C759', bg: 'rgba(52,199,89,0.12)' },
                 { label: 'Pendiente', val: `S/ ${Number(recaudacion.pendiente || 0).toFixed(0)}`, icon: 'pending', color: '#FF9500', bg: 'rgba(255,149,0,0.12)' },
                 { label: 'Total esperado', val: `S/ ${Number(recaudacion.totalEsperado || 0).toFixed(0)}`, icon: 'account_balance', color: '#5856D6', bg: 'rgba(88,86,214,0.12)' },
@@ -457,7 +546,7 @@ export default function CampeonatoDetallePage() {
             <div style={{ display: 'grid', gap: 20 }}>
               <div className="ios-card" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <p className="ios-headline">{gruposInscripcion.length} academias · {lineasInscripcion.length} inscripciones</p>
+                  <p className="ios-headline">{gruposInscripcion.length} academias · {lineasCount} inscripciones</p>
                   {loadingCats && categorias.length === 0 && (
                     <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: 4 }}>Cargando categorías…</p>
                   )}
@@ -466,90 +555,62 @@ export default function CampeonatoDetallePage() {
                   <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
                   <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
                   <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
-                <Link href={`/admin/campeonatos/${id}/poomsae`} className="ios-btn ios-btn-secondary">Orden Poomsae</Link>
-                <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
-                <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
+                  <Link href={`/admin/campeonatos/${id}/poomsae`} className="ios-btn ios-btn-secondary">Orden Poomsae</Link>
+                  <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
                   <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 </div>
               </div>
-              {gruposInscripcion.map((g) => {
-                const filtro = filtrosIns[g.id] || { buscar: '', modalidad: 'todas' }
-                const lineasFiltradas = filtrarLineasGrupo(g.lineas, filtro)
-                return (
-                  <AcademiaExpansible
-                    key={g.id}
-                    nombre={g.nombre}
-                    resumen={`${g.lineas.length} competidor(es) inscrito(s)`}
-                    expandido={Boolean(expandidasIns[g.id])}
-                    onToggle={() => setExpandidasIns((e) => ({ ...e, [g.id]: !e[g.id] }))}
-                  >
-                    <FiltroLineasAcademia
-                      filtro={filtro}
-                      onChange={(f) => setFiltrosIns((s) => ({ ...s, [g.id]: f }))}
-                      total={g.lineas.length}
-                      filtradas={lineasFiltradas.length}
-                      modalidades={modalidadesEnLineas(g.lineas)}
-                    />
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
-                            <th style={{ padding: '8px 6px' }}>Dorsal</th>
-                            <th style={{ padding: '8px 6px' }}>Participante</th>
-                            <th style={{ padding: '8px 6px' }}>Modalidad</th>
-                            <th style={{ padding: '8px 6px' }}>Categoría</th>
-                            <th style={{ padding: '8px 6px' }}>Peso</th>
-                            <th style={{ padding: '8px 6px' }}>Tarifa</th>
-                            <th style={{ padding: '8px 6px' }}>Estado</th>
-                            <th style={{ padding: '8px 6px' }}></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {lineasFiltradas.map((l) => {
-                            const p = l.miembros?.[0]?.perfil
-                            return (
-                              <tr key={l.id_linea} style={{ borderBottom: '1px solid var(--separator)' }}>
-                                <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--red)' }}>{l.dorsal_display || '—'}</td>
-                                <td style={{ padding: '8px 6px' }}>
-                                  <div>{nombreParticipante(l)}</div>
-                                  {p && (
-                                    <div className="ios-caption" style={{ color: 'var(--label3)', marginTop: 2 }}>
-                                      {p.documento_tipo} {p.documento_numero} · {p.grado}
-                                    </div>
-                                  )}
-                                </td>
-                                <td style={{ padding: '8px 6px' }}>{MODALIDADES[l.modalidad]?.label || l.modalidad?.replace(/_/g, ' ')}</td>
-                                <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
-                                <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
-                                <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado}</td>
-                                <td style={{ padding: '8px 6px' }}>
-                                  <span className={`badge ${l.estado === 'aprobado' ? 'badge-green' : l.estado === 'pagado' ? 'badge-blue' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
-                                    {l.estado?.replace(/_/g, ' ') || '—'}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                                  {p && (
-                                    <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, padding: '2px 8px', marginRight: 4 }} onClick={() => abrirEditarPerfil(l)}>
-                                      Datos
-                                    </button>
-                                  )}
-                                  <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => abrirEditarLinea(l)}>
-                                    Editar
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                      {lineasFiltradas.length === 0 && (
-                        <p style={{ padding: 16, textAlign: 'center', color: 'var(--label3)', fontSize: 13 }}>Sin resultados con ese filtro</p>
-                      )}
-                    </div>
-                  </AcademiaExpansible>
-                )
-              })}
-              {gruposInscripcion.length === 0 && (
+
+              <div className="ios-card" style={{ padding: 16 }}>
+                <input
+                  type="search"
+                  className="ios-input"
+                  placeholder="Buscar en todo el campeonato: dorsal, nombre o academia (mín. 2 letras)…"
+                  value={buscarGlobal}
+                  onChange={(e) => setBuscarGlobal(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+                {busqueda.q && (
+                  <div style={{ marginTop: 12 }}>
+                    {busqueda.loading ? (
+                      <LoadingState mensaje="Buscando…" padding={16} />
+                    ) : busqueda.error ? (
+                      <ErrorState mensaje={busqueda.error} />
+                    ) : (
+                      <>
+                        <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 8 }}>
+                          {busqueda.lineas.length} resultado(s) para “{busqueda.q}”
+                        </p>
+                        <TablaLineasInscripcion
+                          lineas={busqueda.lineas}
+                          onEditarPerfil={abrirEditarPerfil}
+                          onEditarLinea={abrirEditarLinea}
+                          mostrarAcademia
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {!busqueda.q && gruposInscripcion.map((g) => (
+                <AcademiaExpansible
+                  key={g.id}
+                  nombre={g.nombre}
+                  resumen={`${g.count} competidor(es) inscrito(s)`}
+                  expandido={Boolean(expandidasIns[g.id])}
+                  onToggle={() => setExpandidasIns((e) => ({ ...e, [g.id]: !e[g.id] }))}
+                >
+                  <DetalleInscripcionesAcademia
+                    idCampeonato={idCampeonato}
+                    acId={g.id}
+                    reloadKey={reloadKeyIns}
+                    onEditarPerfil={abrirEditarPerfil}
+                    onEditarLinea={abrirEditarLinea}
+                  />
+                </AcademiaExpansible>
+              ))}
+              {!busqueda.q && gruposInscripcion.length === 0 && (
                 <p style={{ padding: 24, textAlign: 'center', color: 'var(--label3)' }}>Sin inscripciones aún</p>
               )}
             </div>

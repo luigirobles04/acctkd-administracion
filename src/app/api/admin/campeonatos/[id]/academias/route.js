@@ -1,46 +1,65 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { parsePaginacion, totalPaginas } from '@/lib/campeonato/paginacion-server'
+import { calcularRecaudacion } from '@/lib/campeonato/resumen-pagos'
 
-export async function GET(_request, { params }) {
+/**
+ * Lista paginada de academias del campeonato con conteo de líneas.
+ * Ya NO devuelve el array masivo de líneas: se cargan lazy al expandir
+ * cada academia vía /academias/[acId]/lineas (rendimiento con miles de filas).
+ */
+export async function GET(request, { params }) {
   try {
     const { id } = await params
     const idCampeonato = Number(id)
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
     const sb = getSupabaseAdmin()
+    const { searchParams } = new URL(request.url)
+    const { page, limit, desde, hasta } = parsePaginacion(searchParams, { limitDefecto: 30, limitMax: 100 })
+    const q = (searchParams.get('q') || '').trim()
 
-    const { data: academias, error: errAc } = await sb
+    let query = sb
       .from('academia_campeonato')
-      .select('*, academia:id_academia(*)')
+      .select('*, academia:id_academia!inner(*)', { count: 'exact' })
       .eq('id_campeonato', idCampeonato)
       .order('created_at', { ascending: false })
+      .range(desde, hasta)
+    if (q) query = query.ilike('academia.nombre', `%${q}%`)
+
+    const [{ data: academias, count, error: errAc }, { data: acsRecaudacion, error: errRec }] = await Promise.all([
+      query,
+      sb
+        .from('academia_campeonato')
+        .select('monto_total, monto_asignado')
+        .eq('id_campeonato', idCampeonato),
+    ])
     if (errAc) throw errAc
+    if (errRec) throw errRec
 
-    const { data: lineas, error: errLi } = await sb
-      .from('linea_inscripcion')
-      .select(`
-        *,
-        categoria:categoria_campeonato(nombre),
-        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
-      `)
-      .eq('id_campeonato', idCampeonato)
-      .neq('estado', 'anulado')
-    if (errLi) throw errLi
-
-    const recaudacion = (academias || []).reduce(
-      (acc, ac) => {
-        acc.totalEsperado += Number(ac.monto_total || 0)
-        acc.recaudado += Number(ac.monto_asignado || 0)
-        return acc
-      },
-      { totalEsperado: 0, recaudado: 0 }
-    )
-    recaudacion.pendiente = Math.max(0, recaudacion.totalEsperado - recaudacion.recaudado)
+    // Conteo de líneas activas solo para las academias de esta página
+    const acIds = (academias || []).map((a) => a.id)
+    const conteoLineas = {}
+    if (acIds.length) {
+      const { data: lineasLight, error: errLi } = await sb
+        .from('linea_inscripcion')
+        .select('id_linea, id_academia_campeonato')
+        .eq('id_campeonato', idCampeonato)
+        .neq('estado', 'anulado')
+        .in('id_academia_campeonato', acIds)
+      if (errLi) throw errLi
+      for (const l of lineasLight || []) {
+        conteoLineas[l.id_academia_campeonato] = (conteoLineas[l.id_academia_campeonato] || 0) + 1
+      }
+    }
 
     return NextResponse.json({
-      academias: academias || [],
-      lineas: lineas || [],
-      recaudacion,
+      academias: (academias || []).map((ac) => ({ ...ac, lineas_count: conteoLineas[ac.id] || 0 })),
+      total: count || 0,
+      page,
+      limit,
+      totalPaginas: totalPaginas(count, limit),
+      recaudacion: calcularRecaudacion(acsRecaudacion),
     })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

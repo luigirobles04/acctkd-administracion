@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState, Fragment } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
-import LoadingState from '@/components/ui/LoadingState'
+import LoadingState, { ErrorState } from '@/components/ui/LoadingState'
+import Paginacion from '@/components/ui/Paginacion'
+import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { whatsappUrl } from '@/lib/campeonato/constants'
 import {
@@ -40,18 +42,62 @@ function RecaudacionCards({ recaudacion }) {
   )
 }
 
+function nombreLinea(l) {
+  return (l.miembros || [])
+    .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
+    .filter(Boolean)
+    .join(' · ') || l.modalidad
+}
+
+/** Detalle expandido: carga las líneas de la academia solo al abrir (lazy). */
+function DetalleLineasAcademia({ idCampeonato, acId }) {
+  const { lineas, loading, error, recargar, pagina, setPagina, totalPaginas, total } =
+    useLineasAcademia(idCampeonato, acId, { activo: true })
+
+  if (loading) return <LoadingState mensaje="Cargando inscripciones…" padding={20} />
+  if (error) return <ErrorState mensaje={error} onRetry={recargar} />
+  if (!lineas.length) return <span style={{ fontSize: 13, color: 'var(--label3)' }}>Sin inscripciones</span>
+
+  return (
+    <>
+      {lineas.map((l) => (
+        <div key={l.id_linea} style={{ fontSize: 13, padding: '4px 0' }}>
+          <strong>{nombreLinea(l)}</strong>
+          {' · '}{l.modalidad.replace(/_/g, ' ')}
+          {' · '}<span className={`badge ${l.dorsal_display ? 'badge-green' : 'badge-yellow'}`}>{l.dorsal_display ? 'con dorsal' : l.estado}</span>
+          {l.dorsal_display && ` · ${l.dorsal_display}`}
+          {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
+        </div>
+      ))}
+      <Paginacion pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} total={total} porPagina={100} />
+    </>
+  )
+}
+
 export default function CampeonatoAcademiasPage() {
   const { id } = useParams()
   const idCampeonato = Number(id)
   const [campeonato, setCampeonato] = useState(null)
   const [academias, setAcademias] = useState([])
-  const [lineas, setLineas] = useState([])
+  const [total, setTotal] = useState(0)
+  const [totalPags, setTotalPags] = useState(1)
+  const [pagina, setPagina] = useState(1)
+  const [buscar, setBuscar] = useState('')
+  const [buscarDeb, setBuscarDeb] = useState('')
   const [recaudacion, setRecaudacion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [procesando, setProcesando] = useState(null)
   const [expandida, setExpandida] = useState(null)
   const [exportando, setExportando] = useState(null)
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setBuscarDeb(buscar.trim())
+      setPagina(1)
+    }, 400)
+    return () => clearTimeout(t)
+  }, [buscar])
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -60,21 +106,23 @@ export default function CampeonatoAcademiasPage() {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
 
-      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/academias`)
+      const params = new URLSearchParams({ page: String(pagina), limit: '30' })
+      if (buscarDeb) params.set('q', buscarDeb)
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/academias?${params}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar academias')
 
       setAcademias(json.academias || [])
-      setLineas(json.lineas || [])
+      setTotal(json.total || 0)
+      setTotalPags(json.totalPaginas || 1)
       setRecaudacion(json.recaudacion || null)
     } catch (e) {
       setError(e.message)
       setAcademias([])
-      setLineas([])
     } finally {
       setLoading(false)
     }
-  }, [idCampeonato])
+  }, [idCampeonato, pagina, buscarDeb])
 
   useEffect(() => {
     cargar()
@@ -102,17 +150,6 @@ export default function CampeonatoAcademiasPage() {
 
   const slug = campeonato?.slug
   const listado = academias
-
-  function lineasAcademia(acId) {
-    return lineas.filter((l) => l.id_academia_campeonato === acId)
-  }
-
-  function nombreLinea(l) {
-    return (l.miembros || [])
-      .map((m) => [m.perfil?.nombres, m.perfil?.apellidos].filter(Boolean).join(' '))
-      .filter(Boolean)
-      .join(' · ') || l.modalidad
-  }
 
   async function exportarFicha(formato, idAcademia = null) {
     const key = idAcademia ? `${formato}-${idAcademia}` : formato
@@ -158,7 +195,7 @@ export default function CampeonatoAcademiasPage() {
               disabled={exportando}
               onClick={() => exportarFicha('xlsx')}
             >
-              {exportando === 'xlsx' ? 'Exportando…' : 'Excel todas las academias'}
+              {exportando === 'xlsx' ? 'Generando export…' : 'Excel todas las academias'}
             </button>
             <button
               type="button"
@@ -166,7 +203,7 @@ export default function CampeonatoAcademiasPage() {
               disabled={exportando}
               onClick={() => exportarFicha('pdf')}
             >
-              {exportando === 'pdf' ? 'Exportando…' : 'PDF todas las academias'}
+              {exportando === 'pdf' ? 'Generando export…' : 'PDF todas las academias'}
             </button>
           </div>
         </div>
@@ -184,9 +221,17 @@ export default function CampeonatoAcademiasPage() {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="search"
+            className="ios-input"
+            placeholder="Buscar academia…"
+            value={buscar}
+            onChange={(e) => setBuscar(e.target.value)}
+            style={{ flex: '1 1 220px', maxWidth: 320 }}
+          />
           <span className="ios-caption" style={{ alignSelf: 'center' }}>
-            {academias.length} academia(s) registrada(s)
+            {total} academia(s) registrada(s)
           </span>
         </div>
 
@@ -210,7 +255,7 @@ export default function CampeonatoAcademiasPage() {
               <tbody>
                 {listado.map((ac) => {
                   const est = ESTADO_APRO[ac.estado_aprobacion] || ESTADO_APRO.pendiente
-                  const lineasAc = lineasAcademia(ac.id)
+                  const lineasCount = ac.lineas_count || 0
                   return (
                     <Fragment key={ac.id}>
                     <tr style={{ borderBottom: '1px solid var(--separator)' }}>
@@ -241,12 +286,12 @@ export default function CampeonatoAcademiasPage() {
                       <td style={{ fontSize: 12 }}>{ac.estado_lista} / {ac.estado_pago}</td>
                       <td>
                         <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setExpandida(expandida === ac.id ? null : ac.id)}>
-                          {lineasAc.length} ver
+                          {lineasCount} ver
                         </button>
                       </td>
                       <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        {ac.estado_aprobacion !== 'rechazada' && lineasAc.length > 0 && (
+                        {ac.estado_aprobacion !== 'rechazada' && lineasCount > 0 && (
                           <>
                             <button
                               type="button"
@@ -281,19 +326,7 @@ export default function CampeonatoAcademiasPage() {
                     {expandida === ac.id && (
                       <tr key={`${ac.id}-det`}>
                         <td colSpan={8} style={{ padding: '12px 16px', background: 'var(--fill)' }}>
-                          {lineasAc.length === 0 ? (
-                            <span style={{ fontSize: 13, color: 'var(--label3)' }}>Sin inscripciones</span>
-                          ) : (
-                            lineasAc.map((l) => (
-                              <div key={l.id_linea} style={{ fontSize: 13, padding: '4px 0' }}>
-                                <strong>{nombreLinea(l)}</strong>
-                                {' · '}{l.modalidad.replace(/_/g, ' ')}
-                                {' · '}<span className={`badge ${l.dorsal_display ? 'badge-green' : 'badge-yellow'}`}>{l.dorsal_display ? 'con dorsal' : l.estado}</span>
-                                {l.dorsal_display && ` · ${l.dorsal_display}`}
-                                {l.categoria?.nombre && ` · ${l.categoria.nombre}`}
-                              </div>
-                            ))
-                          )}
+                          <DetalleLineasAcademia idCampeonato={idCampeonato} acId={ac.id} />
                         </td>
                       </tr>
                     )}
@@ -304,9 +337,14 @@ export default function CampeonatoAcademiasPage() {
             </table>
             {listado.length === 0 && !error && (
               <p style={{ padding: 20, color: 'var(--label3)', lineHeight: 1.5 }}>
-                Ninguna academia inscrita en este campeonato aún. Las academias eligen el evento al registrarse en el portal o en /registro-academia.
+                {buscarDeb
+                  ? `Ninguna academia coincide con “${buscarDeb}”.`
+                  : 'Ninguna academia inscrita en este campeonato aún. Las academias eligen el evento al registrarse en el portal o en /registro-academia.'}
               </p>
             )}
+            <div style={{ padding: '0 12px' }}>
+              <Paginacion pagina={pagina} totalPaginas={totalPags} setPagina={setPagina} total={total} porPagina={30} />
+            </div>
           </div>
         )}
       </div>
