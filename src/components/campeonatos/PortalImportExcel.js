@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { portalFetch } from '@/lib/portal-client'
 import { FESTCUP_DOCS } from '@/lib/site-config'
+import { LoadingSpinner } from '@/components/ui/LoadingState'
 
 export default function PortalImportExcel({ slug, onSuccess, disabled = false }) {
   const inputRef = useRef(null)
@@ -117,6 +118,9 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
               ))}
             </ul>
           )}
+          <p style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 600 }}>
+            Siguiente paso: ve a <b>Plantel</b> y sube las fotos carnet de cada deportista para la credencial.
+          </p>
         </div>
       )}
 
@@ -161,21 +165,29 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
       <div className="portal-actions" style={{ marginTop: 16 }}>
         <button
           type="button"
-          className="ios-btn ios-btn-secondary"
+          className="ios-btn ios-btn-secondary portal-btn-spinner"
           disabled={!file || loading || disabled}
           onClick={() => enviar(false)}
         >
-          {loading && !preview ? 'Analizando…' : 'Vista previa'}
+          {loading && !preview ? <><LoadingSpinner size={16} /> Analizando…</> : 'Vista previa'}
         </button>
         <button
           type="button"
-          className="ios-btn ios-btn-primary"
+          className="ios-btn ios-btn-primary portal-btn-spinner"
           disabled={!preview || loading || disabled || !(preview.resumen?.ok > 0)}
           onClick={() => enviar(true)}
         >
-          {loading && preview ? 'Importando…' : `Confirmar importación (${preview?.resumen?.ok || 0})`}
+          {loading && preview
+            ? <><LoadingSpinner size={16} light /> Importando…</>
+            : `Confirmar importación (${preview?.resumen?.ok || 0})`}
         </button>
       </div>
+      {loading && (
+        <p className="portal-field-hint" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <LoadingSpinner size={16} />
+          {preview ? 'Creando inscripciones…' : 'Leyendo Excel…'}
+        </p>
+      )}
     </div>
   )
 }

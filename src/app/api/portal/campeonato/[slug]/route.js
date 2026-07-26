@@ -107,6 +107,7 @@ export async function GET(request, { params }) {
 
     const montos = await recalcularMontosAcademia(sb, ac.id)
     const anioCampeonato = new Date(ac.campeonato.fecha_inicio).getFullYear()
+    const tipoTarifa = tipoTarifaActual(ac.campeonato)
 
     return NextResponse.json({
       academiaCampeonato: {
@@ -136,9 +137,11 @@ export async function GET(request, { params }) {
         fecha_cierre_inscripcion: ac.campeonato.fecha_cierre_inscripcion,
         fecha_gracia_pago: ac.campeonato.fecha_gracia_pago,
         fecha_inicio: ac.campeonato.fecha_inicio,
+        fecha_inicio_tardia: ac.campeonato.fecha_inicio_tardia || null,
         anioCampeonato,
       },
       inscripcion: check,
+      tipoTarifa,
       lineas: lineas || [],
       comprobantes: comprobantes || [],
       tarifas: tarifas || [],

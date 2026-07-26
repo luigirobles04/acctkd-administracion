@@ -1230,13 +1230,24 @@ body {
   border-radius: 10px;
   background: rgba(192,0,0,0.08);
   color: var(--red);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.portal-mod-card-icon .material-symbols-rounded {
   font-size: 22px;
   line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: block;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  /* Centrado óptico de glifos Material */
+  margin: 0;
+  padding: 0;
+  speak: never;
+  -webkit-font-smoothing: antialiased;
 }
 .portal-mod-card-text { flex: 1; min-width: 0; }
 .portal-mod-card-title {
@@ -1251,6 +1262,66 @@ body {
   color: var(--label3);
   margin-top: 2px;
   line-height: 1.35;
+}
+.portal-mod-card-price {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--red);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.portal-btn-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.portal-plantel-foto {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f1f5f9;
+  border: 1px solid var(--separator);
+  display: block;
+}
+.portal-plantel-foto--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--label3);
+  font-size: 20px;
+}
+.portal-plantel-foto-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.portal-plantel-foto-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.portal-plantel-foto-actions label,
+.portal-plantel-foto-actions button {
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.portal-plantel-foto-actions input[type='file'] {
+  display: none;
+}
+.portal-overlay-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
 }
 .portal-mod-card-check {
   width: 24px;

@@ -281,7 +281,12 @@ export function generarSlugUnico(nombre, fechaInicio) {
   return anio ? `${base}-${anio}` : base
 }
 
-export async function sembrarCampeonatoCompleto(sb, idCampeonato) {
+/**
+ * @param {object} sb
+ * @param {number} idCampeonato
+ * @param {Array<{ modalidad: string, precio_regular: number, precio_tardia: number }>|null} tarifasCustom
+ */
+export async function sembrarCampeonatoCompleto(sb, idCampeonato, tarifasCustom = null) {
   const categorias = CATEGORIAS_WT.map((c) => ({ ...c, id_campeonato: idCampeonato }))
   const { error: errCat } = await sb.from('categoria_campeonato').insert(categorias)
   if (errCat) throw errCat
@@ -292,8 +297,13 @@ export async function sembrarCampeonatoCompleto(sb, idCampeonato) {
     .eq('id_campeonato', idCampeonato)
 
   if ((numTarifas || 0) === 0) {
-    const tarifas = TARIFAS_FDPTKD_DEFAULT.map((t) => ({
-      ...t,
+    const base = Array.isArray(tarifasCustom) && tarifasCustom.length
+      ? fusionarTarifas(tarifasCustom)
+      : TARIFAS_FDPTKD_DEFAULT
+    const tarifas = base.map((t) => ({
+      modalidad: t.modalidad,
+      precio_regular: Number(t.precio_regular) || 0,
+      precio_tardia: Number(t.precio_tardia) || 0,
       id_campeonato: idCampeonato,
       activo: true,
     }))
@@ -302,6 +312,39 @@ export async function sembrarCampeonatoCompleto(sb, idCampeonato) {
   } else {
     await asegurarTarifasCampeonato(sb, idCampeonato)
   }
+}
+
+function fusionarTarifas(custom) {
+  const byMod = new Map((custom || []).map((t) => [t.modalidad, t]))
+  return TARIFAS_FDPTKD_DEFAULT.map((def) => {
+    const c = byMod.get(def.modalidad)
+    if (!c) return { ...def }
+    return {
+      modalidad: def.modalidad,
+      precio_regular: Number(c.precio_regular) >= 0 ? Number(c.precio_regular) : def.precio_regular,
+      precio_tardia: Number(c.precio_tardia) >= 0 ? Number(c.precio_tardia) : def.precio_tardia,
+    }
+  })
+}
+
+/** Actualiza precios de tarifas existentes (no crea modalidades nuevas). */
+export async function actualizarTarifasCampeonato(sb, idCampeonato, tarifas) {
+  if (!Array.isArray(tarifas) || !tarifas.length) return 0
+  let n = 0
+  for (const t of tarifas) {
+    if (!t?.modalidad) continue
+    const { error } = await sb
+      .from('campeonato_tarifa')
+      .update({
+        precio_regular: Number(t.precio_regular) || 0,
+        precio_tardia: Number(t.precio_tardia) || 0,
+      })
+      .eq('id_campeonato', idCampeonato)
+      .eq('modalidad', t.modalidad)
+    if (error) throw error
+    n += 1
+  }
+  return n
 }
 
 /** Inserta tarifas faltantes (p. ej. festival en campeonatos creados antes de ampliar el catálogo) */

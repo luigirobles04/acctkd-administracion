@@ -114,7 +114,7 @@ export default function CampeonatoPodiosPage() {
             </button>
             {campeonato?.slug && (
               <a
-                href={`/campeonato/${campeonato.slug}/podios`}
+                href={`/campeonato/${campeonato.slug}/resultados`}
                 target="_blank"
                 rel="noreferrer"
                 className="ios-btn ios-btn-secondary"

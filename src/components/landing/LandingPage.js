@@ -278,7 +278,7 @@ export default function LandingPage() {
                     <b>📺 TV en vivo</b>
                     <span>Peleas por área</span>
                   </Link>
-                  <Link href={`/campeonato/${campSlug}/podios`} className="lp-acceso-chip">
+                  <Link href={`/campeonato/${campSlug}/resultados`} className="lp-acceso-chip">
                     <b>🏆 Resultados</b>
                     <span>Podios y medallero</span>
                   </Link>

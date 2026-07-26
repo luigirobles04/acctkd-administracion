@@ -10,9 +10,14 @@ export async function POST(request, { params }) {
     if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
     const { sb, ac } = ctx
+    // Fotos de credencial: permitir mientras el evento no haya cerrado del todo
+    // (también en fase solo-pago, cuando ya no se crean líneas nuevas).
     const check = puedeInscribir(ac.campeonato)
-    if (!check.ok || check.soloPago) {
+    if (!check.ok && !check.soloPago) {
       return NextResponse.json({ error: 'No se puede subir foto ahora' }, { status: 403 })
+    }
+    if (ac.estado_aprobacion === 'rechazada') {
+      return NextResponse.json({ error: 'Academia rechazada' }, { status: 403 })
     }
 
     const formData = await request.formData()

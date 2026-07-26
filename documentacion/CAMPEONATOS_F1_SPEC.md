@@ -83,7 +83,7 @@ Precio fijado al crear línea. Sin descuentos. Moneda PEN.
 
 - Default FDPTKD: oro 120, plata 50, bronce 20 (configurable).
 - Cada medalla suma entero (2 bronces = 40 pts).
-- General y por modalidad si ≥ 4 academias.
+- General y por modalidad si ≥ 3 academias.
 
 ## Offline (F1)
 

@@ -31,19 +31,19 @@ function LogoAcademia({ competidor, size = 44 }) {
   )
 }
 
-function LadoLlamado({ competidor, color }) {
+function LadoLlamado({ competidor, color, compact }) {
   const vacio = !competidor?.id_linea
   return (
-    <div className={`llamados-lado llamados-lado--${color}`}>
+    <div className={`llamados-lado llamados-lado--${color}${compact ? ' llamados-lado--compact' : ''}`}>
       {vacio ? (
         <span className="llamados-vacio">Por definir</span>
       ) : (
         <>
-          <LogoAcademia competidor={competidor} />
+          <LogoAcademia competidor={competidor} size={compact ? 28 : 44} />
           <div className="llamados-lado-info">
             <span className="llamados-dorsal">{competidor.dorsal}</span>
-            <span className="llamados-nombre">{competidor.nombres}</span>
-            <span className="llamados-academia">{competidor.academia}</span>
+            <span className="llamados-nombre" title={competidor.nombres}>{competidor.nombres}</span>
+            <span className="llamados-academia" title={competidor.academia}>{competidor.academia}</span>
           </div>
         </>
       )}
@@ -57,12 +57,14 @@ function CombateLlamado({ combate, cancha, esActual }) {
   const enVivo = combate.estado === 'en_curso'
   const p1 = combate.puntaje1 ?? 0
   const p2 = combate.puntaje2 ?? 0
+  // En "siguientes" apilar (evita que nombres largos se crucen en TV/móvil).
+  const apilado = !esActual
 
   return (
-    <div className={`llamados-combate${esActual ? ' llamados-combate--actual' : ''}${enVivo ? ' llamados-combate--vivo' : ''}`}>
+    <div className={`llamados-combate${esActual ? ' llamados-combate--actual' : ' llamados-combate--cola'}${enVivo ? ' llamados-combate--vivo' : ''}`}>
       <div className="llamados-combate-meta">
         {combateNo && <em className="llamados-combate-no">{combateNo}</em>}
-        <span className="llamados-combate-cat">{combate.categoria_nombre}</span>
+        <span className="llamados-combate-cat" title={combate.categoria_nombre}>{combate.categoria_nombre}</span>
         <span className="llamados-combate-ronda">{combate.rondaLabel}</span>
         {enVivo && <span className="llamados-badge-vivo">EN CURSO</span>}
       </div>
@@ -73,10 +75,10 @@ function CombateLlamado({ combate, cancha, esActual }) {
           <strong className={`llamados-punto llamados-punto--rojo${p2 > p1 ? ' llamados-punto--lider' : ''}`}>{p2}</strong>
         </div>
       )}
-      <div className="llamados-vs">
-        <LadoLlamado competidor={combate.competidor1} color="azul" />
+      <div className={`llamados-vs${apilado ? ' llamados-vs--stack' : ''}`}>
+        <LadoLlamado competidor={combate.competidor1} color="azul" compact={apilado} />
         <span className="llamados-vs-label">VS</span>
-        <LadoLlamado competidor={combate.competidor2} color="rojo" />
+        <LadoLlamado competidor={combate.competidor2} color="rojo" compact={apilado} />
       </div>
     </div>
   )

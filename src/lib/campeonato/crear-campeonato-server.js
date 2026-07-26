@@ -18,6 +18,7 @@ export async function crearCampeonatoCompleto(sb, input) {
     fecha_gracia_pago,
     cuenta_bancaria_info,
     publicado,
+    tarifas,
   } = input
 
   if (!nombre?.trim() || !fecha_inicio || !fecha_fin) {
@@ -52,7 +53,7 @@ export async function crearCampeonatoCompleto(sb, input) {
   if (error) throwSupabase(error, 'No se pudo crear el campeonato')
 
   try {
-    await sembrarCampeonatoCompleto(sb, camp.id_campeonato)
+    await sembrarCampeonatoCompleto(sb, camp.id_campeonato, tarifas || null)
   } catch (e) {
     await sb.from('campeonato').delete().eq('id_campeonato', camp.id_campeonato)
     throw e

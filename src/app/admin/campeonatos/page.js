@@ -7,6 +7,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import LoadingState from '@/components/ui/LoadingState'
 import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
+import { MODALIDADES, TARIFAS_FDPTKD_DEFAULT, RETENCION_ORGANIZADOR } from '@/lib/campeonato/constants'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -14,6 +15,10 @@ const ESTADOS = {
   en_curso: { label: 'En curso', cls: 'badge-green' },
   finalizado: { label: 'Finalizado', cls: 'badge-gray' },
   cancelado: { label: 'Cancelado', cls: 'badge-red' },
+}
+
+function tarifasIniciales() {
+  return TARIFAS_FDPTKD_DEFAULT.map((t) => ({ ...t }))
 }
 
 const FORM_INICIAL = {
@@ -25,6 +30,7 @@ const FORM_INICIAL = {
   lugar: '',
   ciudad: 'Trujillo',
   estado: 'inscripciones',
+  tarifas: tarifasIniciales(),
 }
 
 function conteo(rel) {
@@ -77,9 +83,16 @@ export default function CampeonatosPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...form,
+          nombre: form.nombre,
+          descripcion: form.descripcion,
+          fecha_inicio: form.fecha_inicio,
+          fecha_fin: form.fecha_fin,
           fecha_cierre_inscripcion: form.fecha_cierre_inscripcion || form.fecha_inicio,
+          lugar: form.lugar,
+          ciudad: form.ciudad,
+          estado: form.estado,
           publicado: true,
+          tarifas: form.tarifas,
         }),
       })
       const json = await res.json()
@@ -183,9 +196,9 @@ export default function CampeonatosPage() {
 
       {showModal && (
         <div className="ios-sheet-overlay anim-fade-in flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => !saving && setShowModal(false)}>
-          <div className="ios-sheet anim-fade-up sm:!rounded-[28px]" style={{ maxWidth: 440, padding: '0 20px 24px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="ios-sheet anim-fade-up sm:!rounded-[28px]" style={{ maxWidth: 560, maxHeight: '92vh', overflow: 'auto', padding: '0 20px 24px' }} onClick={(e) => e.stopPropagation()}>
             <div className="ios-sheet-handle sm:hidden" aria-hidden />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', position: 'sticky', top: 0, background: 'var(--bg-elevated, #fff)', zIndex: 1 }}>
               <h3 className="ios-headline">Nuevo campeonato</h3>
               <button type="button" className="ios-btn ios-btn-ghost" style={{ height: 36, width: 36, padding: 0 }} onClick={() => setShowModal(false)} aria-label="Cerrar">
                 <span className="material-symbols-rounded">close</span>
@@ -199,9 +212,61 @@ export default function CampeonatosPage() {
                 <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Fin *</span><input className="ios-input" type="date" required value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} /></label>
               </div>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Cierre de inscripciones</span><input className="ios-input" type="date" value={form.fecha_cierre_inscripcion} onChange={(e) => setForm((p) => ({ ...p, fecha_cierre_inscripcion: e.target.value }))} /></label>
-              <p className="ios-caption" style={{ color: 'var(--label3)', marginTop: -6 }}>Se generan automáticamente todas las categorías WT y tarifas FDPTKD.</p>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Descripción</span><textarea className="ios-input" rows={2} style={{ height: 'auto', paddingTop: 10 }} value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} /></label>
               <label><span className="ios-caption" style={{ display: 'block', marginBottom: 6 }}>Estado inicial</span><select className="ios-input" value={form.estado} onChange={(e) => setForm((p) => ({ ...p, estado: e.target.value }))}>{Object.entries(ESTADOS).map(([k, v]) => (<option key={k} value={k}>{v.label}</option>))}</select></label>
+
+              <div style={{ borderTop: '0.5px solid var(--separator)', paddingTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                  <p className="ios-headline" style={{ fontSize: 15, margin: 0 }}>Tarifas (lo que paga el coach)</p>
+                  <button
+                    type="button"
+                    className="ios-btn ios-btn-ghost"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => setForm((p) => ({ ...p, tarifas: tarifasIniciales() }))}
+                  >
+                    Restablecer (−S/ {RETENCION_ORGANIZADOR})
+                  </button>
+                </div>
+                <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 10 }}>
+                  Precios por modalidad. Default = lista FDPTKD menos S/ {RETENCION_ORGANIZADOR} de retención.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {form.tarifas.map((t, idx) => (
+                    <div key={t.modalidad} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 8, alignItems: 'end' }}>
+                      <span className="ios-caption" style={{ paddingBottom: 8 }}>{MODALIDADES[t.modalidad]?.label || t.modalidad}</span>
+                      <label>
+                        <span className="ios-caption" style={{ display: 'block', marginBottom: 4 }}>Regular</span>
+                        <input
+                          className="ios-input"
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={t.precio_regular}
+                          onChange={(e) => setForm((p) => {
+                            const tarifas = p.tarifas.map((row, i) => i === idx ? { ...row, precio_regular: Number(e.target.value) } : row)
+                            return { ...p, tarifas }
+                          })}
+                        />
+                      </label>
+                      <label>
+                        <span className="ios-caption" style={{ display: 'block', marginBottom: 4 }}>Tardía</span>
+                        <input
+                          className="ios-input"
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={t.precio_tardia}
+                          onChange={(e) => setForm((p) => {
+                            const tarifas = p.tarifas.map((row, i) => i === idx ? { ...row, precio_tardia: Number(e.target.value) } : row)
+                            return { ...p, tarifas }
+                          })}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button type="button" className="ios-btn ios-btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancelar</button>
                 <button type="submit" className="ios-btn ios-btn-primary" style={{ flex: 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear y abrir'}</button>

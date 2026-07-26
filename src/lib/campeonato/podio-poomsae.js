@@ -2,6 +2,7 @@
 
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
 import { MEDALLA_EMOJI, MEDALLA_LABEL } from '@/lib/campeonato/podio-kyorugi'
+import { MIN_ACADEMIAS_PARA_PUNTOS } from '@/lib/campeonato/medallero'
 
 export { MEDALLA_EMOJI, MEDALLA_LABEL }
 
@@ -52,6 +53,11 @@ export async function fetchPodiosPoomsaeCampeonato(sb, idCampeonato) {
       participantes: cat.participantes,
       cerrada: cat.cerrada,
     })
+    const acadSet = new Set(
+      (cat.participantes || []).map((p) => (p.academia || '').trim() || 'Sin academia'),
+    )
+    const academias_distintas = acadSet.size
+    const suma_puntos = academias_distintas >= MIN_ACADEMIAS_PARA_PUNTOS
     return {
       id_categoria: cat.id_categoria,
       nombre: cat.nombre,
@@ -60,6 +66,8 @@ export async function fetchPodiosPoomsaeCampeonato(sb, idCampeonato) {
       estado,
       inscritos: cat.inscritos,
       calificados: cat.calificados,
+      academias_distintas,
+      suma_puntos,
       progreso,
       podio,
     }

@@ -72,7 +72,7 @@ export function PortalCategoriaPicker({ categorias, value, onChange, emptyMessag
   )
 }
 
-export function PortalModalityCard({ active, icon, title, desc, onToggle, children, disabled = false }) {
+export function PortalModalityCard({ active, icon, title, desc, priceLabel, onToggle, children, disabled = false }) {
   return (
     <div className={`portal-mod-card ${active ? 'portal-mod-card--active' : ''} ${disabled ? 'portal-mod-card--disabled' : ''}`}>
       <button
@@ -82,11 +82,16 @@ export function PortalModalityCard({ active, icon, title, desc, onToggle, childr
         aria-pressed={active}
         disabled={disabled}
       >
-        <span className="portal-mod-card-icon material-symbols-rounded">{icon}</span>
+        <span className="portal-mod-card-icon" aria-hidden>
+          <span className="material-symbols-rounded">{icon}</span>
+        </span>
         <span className="portal-mod-card-text">
           <span className="portal-mod-card-title">{title}</span>
           {desc && <span className="portal-mod-card-desc">{desc}</span>}
         </span>
+        {priceLabel != null && (
+          <span className="portal-mod-card-price">{priceLabel}</span>
+        )}
         <span className={`portal-mod-card-check ${active ? 'portal-mod-card-check--on' : ''}`}>
           {active ? '✓' : disabled ? '—' : ''}
         </span>

@@ -2,6 +2,9 @@
 
 const DEFAULT_PUNTOS = { oro: 120, plata: 50, bronce: 20 }
 
+/** Mínimo de academias distintas en la categoría para que las medallas sumen puntos. */
+export const MIN_ACADEMIAS_PARA_PUNTOS = 3
+
 function puntosCampeonato(camp) {
   return {
     oro: Number(camp?.puntos_oro) || DEFAULT_PUNTOS.oro,
@@ -25,11 +28,23 @@ function keyAcademia(nombre) {
   return (nombre || 'Sin academia').trim() || 'Sin academia'
 }
 
+/** Categoría puntúa si hay ≥ 3 academias distintas. */
+export function categoriaSumaPuntos(cat) {
+  if (!cat) return false
+  if (typeof cat.suma_puntos === 'boolean') return cat.suma_puntos
+  const n = Number(cat.academias_distintas)
+  if (Number.isFinite(n) && n > 0) return n >= MIN_ACADEMIAS_PARA_PUNTOS
+  // Sin dato de inscritos: no asumir (evitar inflar ranking).
+  return false
+}
+
 function acumularMedallas(acum, podios, modalidad, puntos) {
   for (const cat of podios || []) {
     if (cat.estado !== 'completo' || !cat.podio) continue
+    const puntua = categoriaSumaPuntos(cat)
+
     for (const { tipo, competidor } of medallasDePodio(cat.podio)) {
-      const pts = puntos[tipo] || 0
+      const pts = puntua ? (puntos[tipo] || 0) : 0
       const acadKey = keyAcademia(competidor.academia)
       const athKey = String(competidor.id_linea)
 
@@ -98,8 +113,15 @@ export function buildMedallero({ kyorugi, poomsae, campeonato }) {
   const atletasPoomsae = topN(atletas.filter((a) => a.poomsae > 0), 10, 'poomsae').slice(0, 5)
   const atletasGlobal = topN(atletas.filter((a) => a.puntos > 0), 10, 'puntos').slice(0, 5)
 
+  const catsK = (kyorugi?.podios || []).filter((p) => p.estado === 'completo')
+  const catsP = (poomsae?.podios || []).filter((p) => p.estado === 'completo')
+
   return {
     puntos,
+    regla_puntos: {
+      min_academias: MIN_ACADEMIAS_PARA_PUNTOS,
+      descripcion: 'Solo suman puntos las categorías con 3 o más academias distintas',
+    },
     academias: {
       kyorugi: academiasKyorugi,
       poomsae: academiasPoomsae,
@@ -112,8 +134,10 @@ export function buildMedallero({ kyorugi, poomsae, campeonato }) {
       global: atletasGlobal,
     },
     resumen: {
-      medallasKyorugi: (kyorugi?.podios || []).filter((p) => p.estado === 'completo').length,
-      medallasPoomsae: (poomsae?.podios || []).filter((p) => p.estado === 'completo').length,
+      medallasKyorugi: catsK.length,
+      medallasPoomsae: catsP.length,
+      categoriasConPuntosKyorugi: catsK.filter(categoriaSumaPuntos).length,
+      categoriasConPuntosPoomsae: catsP.filter(categoriaSumaPuntos).length,
     },
   }
 }

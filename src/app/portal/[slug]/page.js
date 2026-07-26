@@ -23,11 +23,13 @@ import {
 } from '@/lib/campeonato/constants'
 import { categoriasValidas, categoriasPoomsaeValidas, parseGrado, nombreCategoria, poomsaeCategoriaSugerida } from '@/lib/campeonato/validar-categoria'
 import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
+import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
 import PortalImportExcel from '@/components/campeonatos/PortalImportExcel'
 import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 import { getCurrentUser, isRepresentante } from '@/lib/services/auth.service'
 import { portalFetch } from '@/lib/portal-client'
+import LoadingState, { LoadingSpinner } from '@/components/ui/LoadingState'
 
 const TABS = [
   { id: 'inscribir', label: 'Inscribir' },
@@ -66,6 +68,26 @@ function resumenCategoria(key, sel, catsKyorugi, catsPoomsae, allCats) {
   return nombreCategoria(id, allCats)
 }
 
+function fotoSrc(url) {
+  if (!url) return null
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url
+  return fotoCompetidorProxyUrl(url) || url
+}
+
+/** Precio vigente de una modalidad según tarifas del campeonato. */
+function precioVista(key, tarifas, tipoTarifa) {
+  if (key === 'oficial') return 0
+  const t = (tarifas || []).find((x) => x.modalidad === key)
+  if (!t) return null
+  return Number(tipoTarifa === 'tardia' ? t.precio_tardia : t.precio_regular) || 0
+}
+
+function fmtPrecio(n) {
+  if (n == null) return null
+  if (n === 0) return 'Gratis'
+  return `S/ ${n}`
+}
+
 export default function PortalCampeonatoPage() {
   const { slug } = useParams()
   const router = useRouter()
@@ -83,6 +105,7 @@ export default function PortalCampeonatoPage() {
   const [colaInscripcion, setColaInscripcion] = useState([])
   const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [logoError, setLogoError] = useState('')
+  const [subiendoFotoId, setSubiendoFotoId] = useState(null)
 
   const cargar = useCallback(async () => {
     if (!slug) return
@@ -400,6 +423,44 @@ export default function PortalCampeonatoPage() {
     setTab('inscribir')
   }
 
+  async function subirFotoPlantel(p, file) {
+    if (!file) return
+    const val = await validarFotoCarnet(file)
+    if (!val.ok) {
+      alert(val.error)
+      return
+    }
+    setSubiendoFotoId(p.id_perfil)
+    setError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file, file.name || 'foto.jpg')
+      const resFoto = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
+      const jsonFoto = await resFoto.json()
+      if (!resFoto.ok) throw new Error(jsonFoto.error)
+      const res = await portalFetch(`/api/portal/campeonato/${slug}/perfil`, {
+        method: 'POST',
+        body: JSON.stringify({
+          documento_tipo: p.documento_tipo,
+          documento_numero: p.documento_numero,
+          nombres: p.nombres,
+          apellidos: p.apellidos,
+          sexo: p.sexo,
+          fecha_nacimiento: p.fecha_nacimiento,
+          grado: p.grado,
+          foto_url: jsonFoto.url,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (e) {
+      alert(e.message || 'No se pudo subir la foto')
+    } finally {
+      setSubiendoFotoId(null)
+    }
+  }
+
   async function eliminarCompetidor(idPerfil) {
     if (!confirm('¿Eliminar este competidor del plantel?')) return
     const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
@@ -450,7 +511,9 @@ export default function PortalCampeonatoPage() {
   if (loading) {
     return (
       <PortalLayout titulo="Cargando…" backHref={null}>
-        <div className="portal-card portal-empty">Un momento…</div>
+        <div className="portal-card">
+          <LoadingState mensaje="Cargando portal de inscripción…" />
+        </div>
       </PortalLayout>
     )
   }
@@ -477,6 +540,8 @@ export default function PortalCampeonatoPage() {
   }
 
   const ac = data.academiaCampeonato
+  const tarifas = data.tarifas || []
+  const tipoTarifa = data.tipoTarifa || 'regular'
   const camp = data.campeonato
   const rechazada = ac.estado_aprobacion === 'rechazada'
   const puedeEnviar = ac.aceptacion_bases_at && !rechazada
@@ -501,8 +566,8 @@ export default function PortalCampeonatoPage() {
             <span className="material-symbols-rounded" style={{ fontSize: 36, color: 'var(--label3)' }}>image</span>
           </div>
           {logoError && <p style={{ fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{logoError}</p>}
-          <label className="ios-btn ios-btn-primary" style={{ height: 44, padding: '0 20px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-            {subiendoLogo ? 'Subiendo…' : 'Subir logo de academia'}
+          <label className="ios-btn ios-btn-primary" style={{ height: 44, padding: '0 20px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {subiendoLogo ? <><LoadingSpinner size={18} light /> Subiendo…</> : 'Subir logo de academia'}
             <input type="file" accept="image/png,image/jpeg,.jpg,.jpeg" onChange={subirLogoAcademia} disabled={subiendoLogo} style={{ display: 'none' }} />
           </label>
         </div>
@@ -512,6 +577,13 @@ export default function PortalCampeonatoPage() {
 
   return (
     <PortalLayout titulo={camp.nombre} subtitulo="Inscripción en línea" academiaNombre={data.academia?.nombre}>
+      {(submitting || subiendoFotoId) && (
+        <div className="portal-overlay-loading" role="status" aria-live="polite">
+          <div className="portal-card" style={{ minWidth: 220, padding: 28 }}>
+            <LoadingState mensaje={subiendoFotoId ? 'Subiendo foto…' : 'Procesando inscripción…'} padding={8} />
+          </div>
+        </div>
+      )}
       <div className="portal-card portal-card--flat">
         {rechazada ? (
           <div className="portal-alert portal-alert--warn">
@@ -601,8 +673,10 @@ export default function PortalCampeonatoPage() {
                   </tbody>
                 </table>
               </div>
-              <button type="button" className="ios-btn ios-btn-primary portal-btn-block" style={{ marginTop: 12 }} disabled={submitting} onClick={confirmarColaInscripcion}>
-                {submitting ? 'Inscribiendo…' : `Confirmar e inscribir todos (${colaInscripcion.length})`}
+              <button type="button" className="ios-btn ios-btn-primary portal-btn-block portal-btn-spinner" style={{ marginTop: 12 }} disabled={submitting} onClick={confirmarColaInscripcion}>
+                {submitting
+                  ? <><LoadingSpinner size={16} light /> Inscribiendo…</>
+                  : `Confirmar e inscribir todos (${colaInscripcion.length})`}
               </button>
             </div>
           )}
@@ -671,9 +745,9 @@ export default function PortalCampeonatoPage() {
                   {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup puede elegir cintas (Pal Jang) o Ranking G3'}
                 </p>
               )}
-              <PortalField label="Foto carnet">
+              <PortalField label="Foto carnet (credencial)">
                 <div className="portal-photo-box">
-                  {perfil.foto_url && <img src={perfil.foto_url} alt="" className="portal-photo-preview" />}
+                  {fotoSrc(perfil.foto_url) && <img src={fotoSrc(perfil.foto_url)} alt="" className="portal-photo-preview" />}
                   <input
                     type="file"
                     accept="image/jpeg,image/png"
@@ -696,11 +770,11 @@ export default function PortalCampeonatoPage() {
                 {editPerfilId && (
                   <button
                     type="button"
-                    className="ios-btn ios-btn-primary"
+                    className="ios-btn ios-btn-primary portal-btn-spinner"
                     disabled={submitting || !perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento}
                     onClick={guardarSoloDatos}
                   >
-                    {submitting ? 'Guardando…' : 'Guardar cambios'}
+                    {submitting ? <><LoadingSpinner size={16} light /> Guardando…</> : 'Guardar cambios'}
                   </button>
                 )}
                 <button type="button" className="ios-btn ios-btn-primary" disabled={!perfil.nombres || !perfil.apellidos || !perfil.fecha_nacimiento} onClick={() => setStep(2)}>
@@ -713,10 +787,14 @@ export default function PortalCampeonatoPage() {
           {step === 2 && (
             <>
               <h3 className="portal-section-title">Modalidades y categorías</h3>
-              <p className="portal-section-lead">Activa las modalidades deseadas. En kyorugi y poomsae debes elegir la categoría concreta.</p>
+              <p className="portal-section-lead">
+                Activa las modalidades deseadas. En kyorugi y poomsae debes elegir la categoría concreta.
+                {tipoTarifa === 'tardia' ? ' · Tarifa tardía vigente.' : ' · Precio regular vigente.'}
+              </p>
               <div className="portal-mod-list">
                 {MODALIDADES_PORTAL.map(({ key, label, desc, icon, disabled }) => {
                   const active = Boolean(modalidadesSel[key])
+                  const precio = precioVista(key, tarifas, tipoTarifa)
                   return (
                     <PortalModalityCard
                       key={key}
@@ -724,6 +802,7 @@ export default function PortalCampeonatoPage() {
                       icon={icon}
                       title={label}
                       desc={desc}
+                      priceLabel={fmtPrecio(precio)}
                       disabled={disabled}
                       onToggle={() => toggleModalidad(key)}
                     >
@@ -800,23 +879,32 @@ export default function PortalCampeonatoPage() {
                   {perfil.documento_tipo} {perfil.documento_numero} · {edad} años · {perfil.grado}
                 </p>
                 <div style={{ marginTop: 14 }}>
-                  {modalidadesActivas.map((key) => (
-                    <div key={key} className="portal-summary-row">
-                      <div>
-                        <div className="portal-summary-mod">
-                          {modalidadLabel(key)}
-                          {key === 'oficial' && ` · ${modalidadesSel[key].tipoOficial}`}
+                  {modalidadesActivas.map((key) => {
+                    const precio = precioVista(key, tarifas, tipoTarifa)
+                    return (
+                      <div key={key} className="portal-summary-row">
+                        <div>
+                          <div className="portal-summary-mod">
+                            {modalidadLabel(key)}
+                            {key === 'oficial' && ` · ${modalidadesSel[key].tipoOficial}`}
+                          </div>
+                          {key === 'kyorugi_individual' && modalidadesSel[key].peso && (
+                            <div className="portal-line-meta">{modalidadesSel[key].peso} kg</div>
+                          )}
+                          <div className="portal-line-meta">
+                            {resumenCategoria(key, modalidadesSel[key], catsKyorugi, catsPoomsae, allCats) || (key === 'oficial' ? 'Oficial' : '—')}
+                          </div>
                         </div>
-                        {key === 'kyorugi_individual' && modalidadesSel[key].peso && (
-                          <div className="portal-line-meta">{modalidadesSel[key].peso} kg</div>
-                        )}
+                        <div className="portal-summary-cat" style={{ fontWeight: 800, color: 'var(--red)' }}>
+                          {fmtPrecio(precio) || '—'}
+                        </div>
                       </div>
-                      <div className="portal-summary-cat">
-                        {resumenCategoria(key, modalidadesSel[key], catsKyorugi, catsPoomsae, allCats) || (key === 'oficial' ? 'Gratis' : '—')}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
+                <p className="portal-summary-meta" style={{ marginTop: 12, fontWeight: 700 }}>
+                  Subtotal: {fmtPrecio(modalidadesActivas.reduce((s, key) => s + (precioVista(key, tarifas, tipoTarifa) || 0), 0))}
+                </p>
               </div>
               {error && <p className="portal-error">{error}</p>}
               <div className="portal-actions">
@@ -824,8 +912,10 @@ export default function PortalCampeonatoPage() {
                 <button type="button" className="ios-btn ios-btn-secondary" disabled={submitting} onClick={agregarACola}>
                   Agregar otro y seguir
                 </button>
-                <button type="button" className="ios-btn ios-btn-primary" disabled={submitting} onClick={confirmarInscripcion}>
-                  {submitting ? 'Inscribiendo…' : colaInscripcion.length ? 'Inscribir este también' : `Inscribir ${modalidadesActivas.length} modalidad(es)`}
+                <button type="button" className="ios-btn ios-btn-primary portal-btn-spinner" disabled={submitting} onClick={confirmarInscripcion}>
+                  {submitting
+                    ? <><LoadingSpinner size={16} light /> Inscribiendo…</>
+                    : colaInscripcion.length ? 'Inscribir este también' : `Inscribir ${modalidadesActivas.length} modalidad(es)`}
                 </button>
               </div>
             </>
@@ -891,6 +981,9 @@ export default function PortalCampeonatoPage() {
 
           <div className="portal-card">
             <h3 className="portal-section-title">Competidores registrados · {(data.perfiles || []).length}</h3>
+            <p className="portal-section-lead">
+              Sube la foto carnet de cada deportista para la credencial (JPG/PNG). También puedes hacerlo al editar datos.
+            </p>
             {(data.perfiles || []).length === 0 ? (
               <p className="portal-empty">Sin competidores registrados.</p>
             ) : (
@@ -898,6 +991,7 @@ export default function PortalCampeonatoPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 6px' }}>Foto</th>
                       <th style={{ padding: '8px 6px' }}>Nombre</th>
                       <th style={{ padding: '8px 6px' }}>Documento</th>
                       <th style={{ padding: '8px 6px' }}>Grado</th>
@@ -905,17 +999,51 @@ export default function PortalCampeonatoPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...(data.perfiles || [])].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || '')).map((p) => (
-                      <tr key={p.id_perfil} style={{ borderBottom: '1px solid var(--separator)' }}>
-                        <td style={{ padding: '8px 6px' }}>{p.nombres} {p.apellidos}</td>
-                        <td style={{ padding: '8px 6px' }}>{p.documento_tipo} {p.documento_numero}</td>
-                        <td style={{ padding: '8px 6px' }}>{p.grado} · {p.sexo}</td>
-                        <td style={{ padding: '8px 6px' }}>
-                          <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, marginRight: 4 }} onClick={() => editarCompetidor(p)}>Editar</button>
-                          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>Eliminar</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {[...(data.perfiles || [])].sort((a, b) => (a.apellidos || '').localeCompare(b.apellidos || '')).map((p) => {
+                      const src = fotoSrc(p.foto_url)
+                      const subiendo = subiendoFotoId === p.id_perfil
+                      return (
+                        <tr key={p.id_perfil} style={{ borderBottom: '1px solid var(--separator)' }}>
+                          <td style={{ padding: '8px 6px' }}>
+                            <div className="portal-plantel-foto-cell">
+                              {src ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={src} alt="" className="portal-plantel-foto" />
+                              ) : (
+                                <div className="portal-plantel-foto portal-plantel-foto--empty" aria-hidden>
+                                  {subiendo ? <LoadingSpinner size={20} /> : <span className="material-symbols-rounded">person</span>}
+                                </div>
+                              )}
+                              <div className="portal-plantel-foto-actions">
+                                <label className="ios-btn ios-btn-secondary" style={{ opacity: subiendo ? 0.6 : 1 }}>
+                                  {subiendo ? 'Subiendo…' : src ? 'Cambiar' : 'Subir foto'}
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    disabled={subiendo}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      e.target.value = ''
+                                      if (file) subirFotoPlantel(p, file)
+                                    }}
+                                  />
+                                </label>
+                                {!src && !subiendo && (
+                                  <span style={{ fontSize: 10, color: 'var(--label3)' }}>Para credencial</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '8px 6px' }}>{p.nombres} {p.apellidos}</td>
+                          <td style={{ padding: '8px 6px' }}>{p.documento_tipo} {p.documento_numero}</td>
+                          <td style={{ padding: '8px 6px' }}>{p.grado} · {p.sexo}</td>
+                          <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
+                            <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, marginRight: 4 }} onClick={() => editarCompetidor(p)}>Editar</button>
+                            <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>Eliminar</button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

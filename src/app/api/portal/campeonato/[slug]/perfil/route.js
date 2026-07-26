@@ -41,7 +41,8 @@ export async function POST(request, { params }) {
 
     const { sb, ac } = ctx
     const check = puedeInscribir(ac.campeonato)
-    if (!check.ok) {
+    // Permitir actualizar foto/datos también en fase solo-pago (credenciales).
+    if (!check.ok && !check.soloPago) {
       return NextResponse.json({ error: check.reason || 'No se pueden editar perfiles' }, { status: 403 })
     }
     if (ac.estado_aprobacion === 'rechazada') {

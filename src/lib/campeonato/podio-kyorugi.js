@@ -1,5 +1,7 @@
 /** Cálculo de podio kyorugi · eliminación simple (sin repechage) */
 
+import { MIN_ACADEMIAS_PARA_PUNTOS } from '@/lib/campeonato/medallero'
+
 function perdedorCombate(c) {
   if (!c?.ganador_id_linea || c.estado !== 'finalizado') return null
   if (c.ganador_id_linea === c.id_linea1) return c.id_linea2 || null
@@ -135,6 +137,17 @@ export async function fetchPodiosCampeonato(sb, idCampeonato) {
     const { estado, podio } = calcularPodioCategoria(combates)
     const tieneLlave = combates.some(combateUtil)
 
+    const acadSet = new Set()
+    for (const c of combates) {
+      for (const id of [c.id_linea1, c.id_linea2]) {
+        if (!id) continue
+        const nombre = (lineaMap[id]?.academia_nombre || '').trim() || 'Sin academia'
+        acadSet.add(nombre)
+      }
+    }
+    const academias_distintas = acadSet.size
+    const suma_puntos = academias_distintas >= MIN_ACADEMIAS_PARA_PUNTOS
+
     return {
       id_categoria: cat.id_categoria,
       nombre: cat.nombre,
@@ -142,6 +155,8 @@ export async function fetchPodiosCampeonato(sb, idCampeonato) {
       genero: cat.genero,
       estado,
       tiene_llave: tieneLlave,
+      academias_distintas,
+      suma_puntos,
       podio: podio
         ? {
             oro: resolver(podio.oro),

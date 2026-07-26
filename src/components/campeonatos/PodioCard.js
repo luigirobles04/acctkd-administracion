@@ -26,7 +26,8 @@ function Medallista({ tipo, competidor, compact, modalidad }) {
 }
 
 export default function PodioCard({ categoria, compact = false, modalidad = 'kyorugi' }) {
-  const { nombre, estado, podio } = categoria
+  const { nombre, estado, podio, suma_puntos, academias_distintas } = categoria
+  const sinPuntos = estado === 'completo' && suma_puntos === false
 
   if (estado !== 'completo' || !podio) {
     return (
@@ -42,8 +43,13 @@ export default function PodioCard({ categoria, compact = false, modalidad = 'kyo
   }
 
   return (
-    <article className={`podio-card podio-card--completo${compact ? ' podio-card--compact' : ''}`}>
+    <article className={`podio-card podio-card--completo${compact ? ' podio-card--compact' : ''}${sinPuntos ? ' podio-card--sin-puntos' : ''}`}>
       <h3 className="podio-cat-nombre">{nombre}</h3>
+      {sinPuntos && (
+        <p className="podio-sin-puntos" title="Se requieren 3 o más academias distintas en la categoría">
+          Medallas sin puntos · {academias_distintas ?? 0} academia{academias_distintas === 1 ? '' : 's'}
+        </p>
+      )}
       <div className="podio-plataforma">
         <div className="podio-col podio-col--bronce">
           {(podio.bronce?.length ? podio.bronce : [null]).map((c, i) => (
