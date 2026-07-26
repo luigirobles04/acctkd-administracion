@@ -23,7 +23,7 @@ import {
 } from '@/lib/campeonato/constants'
 import { categoriasValidas, categoriasPoomsaeValidas, parseGrado, nombreCategoria, poomsaeCategoriaSugerida } from '@/lib/campeonato/validar-categoria'
 import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
-import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import { extractStoragePath, fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
 import PortalImportExcel from '@/components/campeonatos/PortalImportExcel'
 import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
@@ -71,7 +71,21 @@ function resumenCategoria(key, sel, catsKyorugi, catsPoomsae, allCats) {
 function fotoSrc(url) {
   if (!url) return null
   if (url.startsWith('blob:') || url.startsWith('data:')) return url
+  if (url.startsWith('/api/fotos/competidor')) return url
   return fotoCompetidorProxyUrl(url) || url
+}
+
+/** Ruta de storage para persistir (nunca blob ni URL proxy). */
+function fotoUrlParaGuardar(url) {
+  if (!url || url.startsWith('blob:') || url.startsWith('data:')) return ''
+  if (url.startsWith('/api/fotos/competidor')) {
+    try {
+      return new URL(url, 'http://local').searchParams.get('path') || ''
+    } catch {
+      return ''
+    }
+  }
+  return extractStoragePath(url) || url
 }
 
 /** Precio vigente de una modalidad según tarifas del campeonato. */
@@ -106,6 +120,8 @@ export default function PortalCampeonatoPage() {
   const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [logoError, setLogoError] = useState('')
   const [subiendoFotoId, setSubiendoFotoId] = useState(null)
+  const [buscandoDoc, setBuscandoDoc] = useState(false)
+  const [avisoBusqueda, setAvisoBusqueda] = useState(null)
 
   const cargar = useCallback(async () => {
     if (!slug) return
@@ -227,11 +243,44 @@ export default function PortalCampeonatoPage() {
   })
 
   async function buscarDocumento() {
-    if (!perfil.documento_numero) return
-    const q = new URLSearchParams({ documento: perfil.documento_numero, tipo: perfil.documento_tipo })
-    const res = await portalFetch(`/api/portal/campeonato/${slug}/perfil?${q}`)
-    const json = await res.json()
-    if (json.perfil) setPerfil({ ...FORM, ...json.perfil, foto_url: json.perfil.foto_url || '' })
+    const doc = perfil.documento_numero?.trim()
+    if (!doc) return
+    setBuscandoDoc(true)
+    setAvisoBusqueda(null)
+    setError(null)
+    try {
+      const q = new URLSearchParams({ documento: doc, tipo: perfil.documento_tipo })
+      const res = await portalFetch(`/api/portal/campeonato/${slug}/perfil?${q}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'No se pudo buscar')
+      if (json.perfil) {
+        // Carga datos + foto (ruta storage) y salta a Datos. Continuar solo para nuevos.
+        setPerfil({
+          ...FORM,
+          ...json.perfil,
+          documento_tipo: json.perfil.documento_tipo || perfil.documento_tipo,
+          documento_numero: json.perfil.documento_numero || doc,
+          foto_url: json.perfil.foto_url || '',
+          _fotoFile: undefined,
+        })
+        setEditPerfilId(json.perfil.id_perfil || null)
+        setModalidadesSel({})
+        setStep(1)
+        setAvisoBusqueda(null)
+      } else {
+        setEditPerfilId(null)
+        setPerfil((p) => ({
+          ...FORM,
+          documento_tipo: p.documento_tipo,
+          documento_numero: doc,
+        }))
+        setAvisoBusqueda('No está registrado. Pulsa Continuar para cargar sus datos por primera vez.')
+      }
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBuscandoDoc(false)
+    }
   }
 
   async function subirFoto() {
@@ -245,8 +294,14 @@ export default function PortalCampeonatoPage() {
   }
 
   async function guardarPerfil(fotoUrl) {
-    const payload = { ...perfil, foto_url: fotoUrl || perfil.foto_url }
+    const path = fotoUrlParaGuardar(fotoUrl || perfil.foto_url)
+    const payload = { ...perfil, foto_url: path || null }
     delete payload._fotoFile
+    delete payload.foto_preview
+    delete payload.id_perfil
+    delete payload.id_academia
+    delete payload.created_at
+    delete payload.updated_at
     const res = await portalFetch(`/api/portal/campeonato/${slug}/perfil`, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -269,6 +324,7 @@ export default function PortalCampeonatoPage() {
       setModalidadesSel({})
       setStep(0)
       setEditPerfilId(null)
+      setAvisoBusqueda(null)
       setTab('plantel')
       await cargar()
     } catch (e) {
@@ -284,6 +340,7 @@ export default function PortalCampeonatoPage() {
     setStep(0)
     setEditPerfilId(null)
     setError(null)
+    setAvisoBusqueda(null)
   }
 
   function agregarACola() {
@@ -690,21 +747,67 @@ export default function PortalCampeonatoPage() {
           {step === 0 && (
             <>
               <h3 className="portal-section-title">Buscar competidor</h3>
-              <p className="portal-section-lead">Ingresa el documento para recuperar datos si ya fue inscrito antes.</p>
+              <p className="portal-section-lead">
+                Si ya está en tu academia, Buscar carga sus datos y foto. Continuar es solo para un deportista nuevo.
+              </p>
               <div className="portal-field-grid portal-field-grid--doc">
                 <PortalField label="Tipo">
-                  <select className="ios-input" value={perfil.documento_tipo} onChange={(e) => setPerfil({ ...perfil, documento_tipo: e.target.value })}>
+                  <select
+                    className="ios-input"
+                    value={perfil.documento_tipo}
+                    onChange={(e) => {
+                      setAvisoBusqueda(null)
+                      setPerfil({ ...perfil, documento_tipo: e.target.value })
+                    }}
+                  >
                     {DOCUMENTO_TIPOS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                   </select>
                 </PortalField>
                 <PortalField label="Número">
-                  <input className="ios-input" placeholder="12345678" value={perfil.documento_numero} onChange={(e) => setPerfil({ ...perfil, documento_numero: e.target.value })} />
+                  <input
+                    className="ios-input"
+                    placeholder="12345678"
+                    value={perfil.documento_numero}
+                    onChange={(e) => {
+                      setAvisoBusqueda(null)
+                      setPerfil({ ...perfil, documento_numero: e.target.value })
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        buscarDocumento()
+                      }
+                    }}
+                  />
                 </PortalField>
-                <button type="button" className="ios-btn ios-btn-secondary" onClick={buscarDocumento}>Buscar</button>
+                <button
+                  type="button"
+                  className="ios-btn ios-btn-secondary portal-btn-spinner"
+                  disabled={!perfil.documento_numero?.trim() || buscandoDoc}
+                  onClick={buscarDocumento}
+                >
+                  {buscandoDoc ? <><LoadingSpinner size={16} /> Buscando…</> : 'Buscar'}
+                </button>
               </div>
+              {avisoBusqueda && <p className="portal-field-hint portal-field-hint--info">{avisoBusqueda}</p>}
+              {error && <p className="portal-error">{error}</p>}
               <div className="portal-actions">
-                <button type="button" className="ios-btn ios-btn-primary" disabled={!perfil.documento_numero} onClick={() => setStep(1)}>
-                  Continuar
+                <button
+                  type="button"
+                  className="ios-btn ios-btn-primary"
+                  disabled={!perfil.documento_numero?.trim() || buscandoDoc}
+                  onClick={() => {
+                    setEditPerfilId(null)
+                    setAvisoBusqueda(null)
+                    setPerfil((p) => ({
+                      ...FORM,
+                      documento_tipo: p.documento_tipo,
+                      documento_numero: p.documento_numero?.trim() || '',
+                    }))
+                    setStep(1)
+                  }}
+                >
+                  Continuar (deportista nuevo)
                 </button>
               </div>
             </>
@@ -713,7 +816,11 @@ export default function PortalCampeonatoPage() {
           {step === 1 && (
             <>
               <h3 className="portal-section-title">Datos del competidor</h3>
-              <p className="portal-section-lead">Verifica nombre, edad WT y grado — definen las categorías disponibles.</p>
+              <p className="portal-section-lead">
+                {editPerfilId
+                  ? 'Deportista encontrado — datos y foto cargados. Verifica y continúa con modalidades o guarda cambios.'
+                  : 'Verifica nombre, edad WT y grado — definen las categorías disponibles.'}
+              </p>
               <div className="portal-field-grid portal-field-grid--2">
                 <PortalField label="Nombres">
                   <input className="ios-input" value={perfil.nombres} onChange={(e) => setPerfil({ ...perfil, nombres: e.target.value })} required />

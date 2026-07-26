@@ -23,9 +23,14 @@ export async function GET(request, { params }) {
       .eq('documento_numero', doc.trim())
       .maybeSingle()
 
+    // foto_url = ruta en storage (para guardar). La UI usa fotoCompetidorProxyUrl al mostrar.
     return NextResponse.json({
       perfil: perfil
-        ? { ...perfil, foto_url: fotoCompetidorProxyUrl(perfil.foto_url) || perfil.foto_url || null }
+        ? {
+            ...perfil,
+            foto_url: perfil.foto_url || null,
+            foto_preview: fotoCompetidorProxyUrl(perfil.foto_url) || null,
+          }
         : null,
     })
   } catch (e) {
