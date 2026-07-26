@@ -2,6 +2,60 @@ import { describe, expect, it } from 'vitest'
 import { avanzarGanadorLocal } from '@/lib/campeonato/pss-kyorugi'
 
 describe('avanzarGanadorLocal', () => {
+  it('es idempotente si el combate ya está finalizado con el mismo ganador', () => {
+    const combates = [
+      {
+        id_llave: 10,
+        id_categoria: 1,
+        ronda: 2,
+        match_numero: 1,
+        id_linea1: 101,
+        id_linea2: 102,
+        color1: 'azul',
+        color2: 'rojo',
+        estado: 'finalizado',
+        ganador_id_linea: 101,
+        es_bye: false,
+        siguiente_llave: 20,
+        competidor1: { id_linea: 101, dorsal: 'A1', nombres: 'Uno' },
+        competidor2: { id_linea: 102, dorsal: 'A2', nombres: 'Dos' },
+      },
+      {
+        id_llave: 20,
+        id_categoria: 1,
+        ronda: 1,
+        match_numero: 1,
+        id_linea1: 101,
+        id_linea2: 0,
+        estado: 'pendiente',
+        es_bye: false,
+        siguiente_llave: null,
+        competidor1: { id_linea: 101, dorsal: 'A1', nombres: 'Uno' },
+        competidor2: null,
+      },
+    ]
+
+    const out = avanzarGanadorLocal(combates, 10, 101, { puntaje1: 12, puntaje2: 8 })
+    const fin = out.find((c) => c.id_llave === 20)
+    expect(fin.id_linea1).toBe(101)
+    expect(fin.id_linea2).toBe(0)
+    expect(out.find((c) => c.id_llave === 10).estado).toBe('finalizado')
+  })
+
+  it('rechaza re-finalizar con otro ganador', () => {
+    const combates = [
+      {
+        id_llave: 10,
+        id_linea1: 101,
+        id_linea2: 102,
+        estado: 'finalizado',
+        ganador_id_linea: 101,
+        siguiente_llave: null,
+      },
+    ]
+    expect(() => avanzarGanadorLocal(combates, 10, 102)).toThrow(/otro ganador/)
+  })
+
   it('avanza ganador a siguiente llave (semifinal → final)', () => {
     const combates = [
       {

@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { resolverTokenAcademia, puedeInscribir } from '@/lib/campeonato/inscripcion-server'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import { rejectIfLegacyInscripcionDisabled } from '@/lib/campeonato/legacy-inscripcion'
 
 export async function GET(request, { params }) {
+  const disabled = rejectIfLegacyInscripcionDisabled()
+  if (disabled) return disabled
   try {
     const { token } = await params
     const sb = getSupabaseAdmin()
@@ -35,6 +38,8 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
+  const disabled = rejectIfLegacyInscripcionDisabled()
+  if (disabled) return disabled
   try {
     const { token } = await params
     const sb = getSupabaseAdmin()

@@ -203,6 +203,12 @@ export function avanzarGanadorLocal(combates, idLlave, ganadorIdLinea, { puntaje
   if (g !== match.id_linea1 && g !== match.id_linea2) throw new Error('Ganador inválido')
   if (!match.id_linea1 || !match.id_linea2) throw new Error('Competidores incompletos')
 
+  // Idempotente: re-sync offline no duplica avance al siguiente combate.
+  if (match.estado === 'finalizado') {
+    if (Number(match.ganador_id_linea) === g) return lista
+    throw new Error('Combate ya finalizado con otro ganador')
+  }
+
   lista[idx] = {
     ...match,
     ganador_id_linea: g,

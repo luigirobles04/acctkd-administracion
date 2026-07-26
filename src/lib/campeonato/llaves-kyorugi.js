@@ -540,6 +540,20 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
     throw new Error('Espera a que ambos competidores estén definidos')
   }
 
+  // Idempotente: Unity/PSS reintenta sync sin volver a avanzar el bracket.
+  if (match.estado === 'finalizado') {
+    if (Number(match.ganador_id_linea) === g) {
+      return {
+        ok: true,
+        id_llave: id,
+        ganador_id_linea: g,
+        motivo_resultado: match.motivo_resultado || motivoResultado || 'normal',
+        idempotent: true,
+      }
+    }
+    throw new Error('Combate ya finalizado con otro ganador')
+  }
+
   const p1 = puntaje1 != null ? Number(puntaje1) : 0
   const p2 = puntaje2 != null ? Number(puntaje2) : 0
   const motivo = motivoResultado || 'normal'

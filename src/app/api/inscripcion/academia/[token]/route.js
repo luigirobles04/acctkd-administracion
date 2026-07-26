@@ -8,8 +8,11 @@ import {
   precioModalidad,
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
+import { rejectIfLegacyInscripcionDisabled } from '@/lib/campeonato/legacy-inscripcion'
 
 export async function GET(_request, { params }) {
+  const disabled = rejectIfLegacyInscripcionDisabled()
+  if (disabled) return disabled
   try {
     const { token } = await params
     const sb = getSupabaseAdmin()
@@ -79,6 +82,8 @@ export async function GET(_request, { params }) {
 }
 
 export async function POST(request, { params }) {
+  const disabled = rejectIfLegacyInscripcionDisabled()
+  if (disabled) return disabled
   try {
     const { token } = await params
     const sb = getSupabaseAdmin()

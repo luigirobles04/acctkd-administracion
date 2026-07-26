@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 
+const BACKUP_BUCKET = 'backups-campeonato'
+
 /** Backup nocturno · 3:00 AM Lima ≈ 08:00 UTC (vercel cron) */
 export async function GET(request) {
   const auth = request.headers.get('authorization')
@@ -25,11 +27,40 @@ export async function GET(request) {
       backup[`evento_${c.id_campeonato}`] = academias
     }
 
+    const day = exported_at.slice(0, 10)
+    const path = `${day}/campeonatos-${exported_at.replace(/[:.]/g, '-')}.json`
+    const body = JSON.stringify(backup)
+    let stored = null
+    let storeError = null
+
+    const { error: upErr } = await sb.storage
+      .from(BACKUP_BUCKET)
+      .upload(path, body, { contentType: 'application/json', upsert: true })
+
+    if (upErr) {
+      storeError = upErr.message
+      // Intento crear bucket público-privado y reintentar una vez
+      await sb.storage.createBucket(BACKUP_BUCKET, { public: false }).catch(() => {})
+      const { error: retryErr } = await sb.storage
+        .from(BACKUP_BUCKET)
+        .upload(path, body, { contentType: 'application/json', upsert: true })
+      if (retryErr) storeError = retryErr.message
+      else {
+        stored = path
+        storeError = null
+      }
+    } else {
+      stored = path
+    }
+
     return NextResponse.json({
       ok: true,
       exported_at,
       events: campeonatos?.length || 0,
-      backup,
+      stored,
+      storeError,
+      // No devolver el backup completo en la respuesta (puede ser enorme); ya está en Storage.
+      size_bytes: Buffer.byteLength(body, 'utf8'),
     })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
