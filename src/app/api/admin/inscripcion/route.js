@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { guardAdminSession } from '@/lib/admin-auth'
 import {
   aplicarFifoPagos,
   aprobarLinea,
@@ -8,8 +9,11 @@ import {
 
 export async function POST(request) {
   const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const secret = process.env.CRON_SECRET
+  // Fail-closed: requiere CRON_SECRET válido, o sesión admin como alternativa.
+  if (!secret || auth !== `Bearer ${secret}`) {
+    const denied = guardAdminSession(request, 'panel')
+    if (denied) return denied
   }
 
   try {
@@ -37,6 +41,8 @@ export async function POST(request) {
 
 /** Admin: validar comprobante + FIFO */
 export async function PATCH(request) {
+  const denied = guardAdminSession(request, 'panel')
+  if (denied) return denied
   try {
     const sb = getSupabaseAdmin()
     const body = await request.json()
@@ -62,6 +68,8 @@ export async function PATCH(request) {
 }
 
 export async function PUT(request) {
+  const denied = guardAdminSession(request, 'panel')
+  if (denied) return denied
   try {
     const sb = getSupabaseAdmin()
     const { idLinea } = await request.json()

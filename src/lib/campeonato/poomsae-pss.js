@@ -26,6 +26,7 @@ export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
       dorsal: p.dorsal,
       nombres: p.nombres,
       academia: p.academia,
+      academia_logo: p.academia_logo || '',
       puntaje: p.puntaje,
       calificado: p.calificado,
     })),

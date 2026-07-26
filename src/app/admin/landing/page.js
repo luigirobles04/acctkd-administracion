@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 import { useEffect, useState } from 'react'
 import AdminLayout from '@/components/layout/AdminLayout'
 
@@ -26,7 +27,7 @@ export default function LandingCmsPage() {
   async function cargar() {
     setLoading(true)
     try {
-      const res = await fetch('/api/landing', { cache: 'no-store' })
+      const res = await adminFetch('/api/landing', { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setCfg(json.config || {})
@@ -44,7 +45,7 @@ export default function LandingCmsPage() {
     setError('')
     setMsg('')
     try {
-      const res = await fetch('/api/landing', {
+      const res = await adminFetch('/api/landing', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cfg),
@@ -71,7 +72,7 @@ export default function LandingCmsPage() {
       fd.append('file', file, file.name || 'galeria.jpg')
       fd.append('slot', 'galeria')
       fd.append('caption', galCaption || 'FestCup')
-      const res = await fetch('/api/landing/imagen', { method: 'POST', body: fd })
+      const res = await adminFetch('/api/landing/imagen', { method: 'POST', body: fd })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setCfg(json.config)
@@ -101,7 +102,7 @@ export default function LandingCmsPage() {
       const fd = new FormData()
       fd.append('file', file, file.name || 'hero.jpg')
       fd.append('slot', 'hero')
-      const res = await fetch('/api/landing/imagen', { method: 'POST', body: fd })
+      const res = await adminFetch('/api/landing/imagen', { method: 'POST', body: fd })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setCfg(json.config)

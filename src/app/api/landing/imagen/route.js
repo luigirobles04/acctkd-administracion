@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { guardAdminSession } from '@/lib/admin-auth'
 import { readUploadFile } from '@/lib/campeonato/upload-file'
 import { BUCKET } from '@/lib/campeonato/foto-competidor'
 import { getLandingConfig, saveLandingConfig } from '@/lib/campeonato/landing-config'
 
 export async function POST(request) {
+  const denied = guardAdminSession(request, 'full')
+  if (denied) return denied
   try {
     const formData = await request.formData()
     const file = formData.get('file')

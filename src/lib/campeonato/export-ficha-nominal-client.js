@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -228,7 +229,7 @@ export async function descargarFichaNominalPdf(data, { idAcademia } = {}) {
 }
 
 export async function fetchExportFichaNominal(idCampeonato) {
-  const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/ficha-nominal/export`, {
+  const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/ficha-nominal/export`, {
     cache: 'no-store',
   })
   const json = await res.json()

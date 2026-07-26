@@ -1,19 +1,19 @@
 /**
  * Ejecuta el seed del campeonato prueba-llaves-cnu-2026 en producción (Vercel).
- * Requiere: vercel link + CRON_SECRET en producción.
+ * Requiere: vercel link + ACCTKD_OPS_KEY en producción (clave dedicada de operaciones).
  *
  * Uso: npx vercel env run -- node scripts/ejecutar-seed-produccion.mjs
  */
 const BASE = process.env.SEED_BASE_URL || 'https://festcup2026.com'
-const SECRET = process.env.CRON_SECRET
+const SECRET = process.env.ACCTKD_OPS_KEY
 
 if (!SECRET) {
-  console.error('Falta CRON_SECRET (usa: npx vercel env run -- node scripts/ejecutar-seed-produccion.mjs)')
+  console.error('Falta ACCTKD_OPS_KEY (usa: npx vercel env run -- node scripts/ejecutar-seed-produccion.mjs)')
   process.exit(1)
 }
 
 const headers = {
-  Authorization: `Bearer ${SECRET}`,
+  'X-Acctkd-Ops-Key': SECRET,
   'Content-Type': 'application/json',
 }
 

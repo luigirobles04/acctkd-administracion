@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import PodioCard, { PodioListaImpresion } from '@/components/campeonatos/PodioCard'
 import { readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/podios.css'
@@ -28,7 +30,7 @@ export default function CampeonatoPodiosPage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/podios`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/podios`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setCampeonato(json.campeonato)
@@ -124,7 +126,7 @@ export default function CampeonatoPodiosPage() {
         </div>
 
         {loading ? (
-          <p>Cargando podios…</p>
+          <LoadingState mensaje="Cargando podios…" />
         ) : lista.length === 0 ? (
           <p className="ios-body" style={{ color: 'var(--label3)' }}>No hay categorías que coincidan.</p>
         ) : (

@@ -32,7 +32,7 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
 
   const baseCols = `
       id_linea, id_categoria, modalidad, dorsal_display, dorsal_numero, estado,
-      academia_campeonato(academia(nombre)),
+      academia_campeonato(academia(nombre, logo_url)),
       miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
     `
   let soporteSorteo = true
@@ -100,6 +100,7 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       modalidad: MODALIDADES[l.modalidad]?.label || l.modalidad,
       nombres: nombreCompetidor(l),
       academia: academiaNombre(l),
+      academia_logo: l.academia_campeonato?.academia?.logo_url || '',
       puntaje: l.poomsae_puntaje ?? null,
       calificado: l.poomsae_estado === 'calificado',
     }))

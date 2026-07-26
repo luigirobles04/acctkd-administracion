@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -6,6 +7,7 @@ import Link from 'next/link'
 import BracketVisual from '@/components/campeonatos/BracketVisual'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
+import LoadingState from '@/components/ui/LoadingState'
 import '@/components/campeonatos/bracket-print.css'
 
 export default function ImprimirLlavesClient() {
@@ -28,7 +30,7 @@ export default function ImprimirLlavesClient() {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
 
-      const resCats = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, { cache: 'no-store' })
+      const resCats = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, { cache: 'no-store' })
       const jsonCats = await readJsonResponse(resCats)
       if (!resCats.ok) throw new Error(jsonCats.error)
 
@@ -38,7 +40,7 @@ export default function ImprimirLlavesClient() {
 
       const loaded = []
       for (const cat of cats) {
-        const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/${cat.id_categoria}`, {
+        const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/${cat.id_categoria}`, {
           cache: 'no-store',
         })
         const json = await readJsonResponse(res)
@@ -80,7 +82,7 @@ export default function ImprimirLlavesClient() {
         </span>
       </div>
 
-      {loading && <p>Cargando brackets…</p>}
+      {loading && <LoadingState mensaje="Cargando brackets…" />}
       {error && <p style={{ color: '#c0000a' }}>{error}</p>}
 
       {!loading &&

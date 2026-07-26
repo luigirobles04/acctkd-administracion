@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { guardAdminSession, opsKeyValida } from '@/lib/admin-auth'
 import { enriquecerCampeonatoIdeal } from '@/lib/campeonato/enriquecer-campeonato-ideal'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 export async function POST(request, { params }) {
+  const opsHeader = request.headers.get('x-acctkd-ops-key')?.trim()
+  if (!opsKeyValida(opsHeader)) {
+    const denied = guardAdminSession(request, 'full')
+    if (denied) return denied
+  }
   try {
     const { id } = await params
     const idCampeonato = Number(id)

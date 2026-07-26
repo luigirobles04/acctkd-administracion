@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { guardAdminSession, opsKeyValida } from '@/lib/admin-auth'
 import { sembrarCampeonatoPruebaLlaves } from '@/lib/campeonato/sembrar-campeonato-prueba-llaves'
 
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
+  const opsHeader = request.headers.get('x-acctkd-ops-key')?.trim()
+  if (!opsKeyValida(opsHeader)) {
+    const denied = guardAdminSession(request, 'full')
+    if (denied) return denied
+  }
   try {
     const body = await request.json().catch(() => ({}))
     const fase = body.fase || 'setup'

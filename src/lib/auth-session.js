@@ -1,10 +1,19 @@
 import crypto from 'crypto'
 
+/**
+ * Fail-closed: en producción SESSION_SECRET es obligatorio (sin fallback,
+ * un secreto hardcodeado permitiría forjar tokens admin). En dev local se
+ * usa un valor fijo solo para no bloquear el desarrollo.
+ */
 function secret() {
-  return process.env.SESSION_SECRET || process.env.CRON_SECRET || 'acctkd-dev-session'
+  const s = process.env.SESSION_SECRET
+  if (s) return s
+  if (process.env.NODE_ENV === 'production') return null
+  return 'acctkd-dev-session'
 }
 
 export function createSessionToken(user) {
+  if (!secret()) throw new Error('SESSION_SECRET no configurado en producción')
   const exp = Date.now() + 7 * 24 * 3600 * 1000
   const payload = {
     id_usuario: user.id_usuario,
@@ -18,6 +27,7 @@ export function createSessionToken(user) {
 }
 
 export function verifySessionToken(token) {
+  if (!secret()) return null
   if (!token || !token.includes('.')) return null
   const [body, sig] = token.split('.')
   const expected = crypto.createHmac('sha256', secret()).update(body).digest('base64url')

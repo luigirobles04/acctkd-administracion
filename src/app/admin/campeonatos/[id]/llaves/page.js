@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import CombateCard from '@/components/campeonatos/CombateCard'
 import BracketVisual, { combateVisible } from '@/components/campeonatos/BracketVisual'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
@@ -49,7 +51,7 @@ export default function CampeonatoLlavesPage() {
     try {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(apiError(json, 'Error al cargar categorías'))
       setCategorias(json.categorias || [])
@@ -65,7 +67,7 @@ export default function CampeonatoLlavesPage() {
   }, [idCampeonato])
 
   const cargarCanchas = useCallback(async () => {
-    const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/canchas`, { cache: 'no-store' })
+    const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/canchas`, { cache: 'no-store' })
     const json = await readJsonResponse(res)
     if (!res.ok) throw new Error(apiError(json, 'Error al cargar canchas'))
     setPorCancha(json.porCancha || { 1: [], 2: [], 3: [] })
@@ -85,7 +87,7 @@ export default function CampeonatoLlavesPage() {
     setSelCat(cat)
     setLlaves(null)
     setVista('lista')
-    const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/${cat.id_categoria}`, { cache: 'no-store' })
+    const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/${cat.id_categoria}`, { cache: 'no-store' })
     const json = await readJsonResponse(res)
     if (!res.ok) {
       alert(apiError(json, 'Error al cargar llave'))
@@ -115,7 +117,7 @@ export default function CampeonatoLlavesPage() {
     try {
       for (let i = 0; i < sinLlave.length; i += BATCH) {
         const lote = sinLlave.slice(i, i + BATCH).map((c) => c.id_categoria)
-        const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+        const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idsCategorias: lote }),
@@ -151,7 +153,7 @@ export default function CampeonatoLlavesPage() {
     if (!confirm(`¿Generar llave para "${cat.nombre}"?`)) return
     setGenerando(cat.id_categoria)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idCategoria: cat.id_categoria }),
@@ -176,7 +178,7 @@ export default function CampeonatoLlavesPage() {
     if (!confirm('¿Registrar ganador y avanzarlo?')) return
     setMarcando(idLlave)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLlave: Number(idLlave), ganadorIdLinea: Number(ganadorIdLinea) }),
@@ -197,7 +199,7 @@ export default function CampeonatoLlavesPage() {
     if (!confirm('¿Walkover (W/O)? El rival no se presentó — avanzará sin pelear.')) return
     setMarcando(idLlave)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLlave: Number(idLlave), ganadorIdLinea: Number(ganadorIdLinea), walkover: true }),
@@ -217,7 +219,7 @@ export default function CampeonatoLlavesPage() {
     if (!confirm(`¿Oro automático para "${cat.nombre}" (1 solo competidor)?`)) return
     setGenerando(cat.id_categoria)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion: 'oro_unico', idCategoria: cat.id_categoria }),
@@ -242,7 +244,7 @@ export default function CampeonatoLlavesPage() {
     if (!dorsal1 || !dorsal2) { alert('Ingresa dos dorsales'); return }
     setExportando('exhibicion')
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/especial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion: 'exhibicion', dorsal1, dorsal2, cancha }),
@@ -270,7 +272,7 @@ export default function CampeonatoLlavesPage() {
       setOpsClicks(0)
       const clave = prompt('Clave operaciones:')
       if (!clave) return
-      fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+      adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion: 'config_ops', clave, llaves_sin_pesaje: llavesSinPesaje }),
@@ -293,7 +295,7 @@ export default function CampeonatoLlavesPage() {
     const clave = prompt('Clave operaciones:')
     if (!clave) return
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion: 'config_ops', clave, llaves_sin_pesaje: !llavesSinPesaje }),
@@ -523,7 +525,7 @@ export default function CampeonatoLlavesPage() {
         )}
 
         {loading ? (
-          <p>Cargando…</p>
+          <LoadingState mensaje="Cargando llaves…" />
         ) : (
           <>
             <div className="ios-card" style={{ padding: 16, marginBottom: 20, opacity: generandoTodas ? 0.45 : 1, pointerEvents: generandoTodas ? 'none' : 'auto' }}>

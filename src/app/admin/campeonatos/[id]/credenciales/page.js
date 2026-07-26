@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import CredencialCard from '@/components/campeonatos/CredencialCard'
 import CredencialTemplateEditor from '@/components/campeonatos/CredencialTemplateEditor'
 import { readJsonResponse } from '@/lib/public-app-url'
@@ -24,7 +26,7 @@ export default function CredencialesPage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/credenciales`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/credenciales`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setCampeonato(json.campeonato)
@@ -144,7 +146,7 @@ export default function CredencialesPage() {
         </div>
 
         {loading ? (
-          <p className="no-print">Cargando credenciales…</p>
+          <div className="no-print"><LoadingState mensaje="Cargando credenciales…" /></div>
         ) : academiasFiltradas.length === 0 ? (
           <p className="no-print">No hay competidores con dorsal aprobado{filtro.trim() ? ' para esa búsqueda' : ''}.</p>
         ) : (

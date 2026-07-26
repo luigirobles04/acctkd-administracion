@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { slugArchivo } from '@/lib/campeonato/export-utils'
 
@@ -10,7 +11,7 @@ export function apiError(json, fallback) {
 }
 
 export async function descargarLlavesExcel(idCampeonato, nombreCamp) {
-  const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/export/xlsx`, { cache: 'no-store' })
+  const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/export/xlsx`, { cache: 'no-store' })
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
     throw new Error(apiError(json, 'Error al exportar Excel'))
@@ -25,7 +26,7 @@ export async function descargarLlavesExcel(idCampeonato, nombreCamp) {
 }
 
 async function descargarPdfDesdeApi(url, filename) {
-  const res = await fetch(url, { cache: 'no-store' })
+  const res = await adminFetch(url, { cache: 'no-store' })
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
     throw new Error(apiError(json, 'Error al exportar PDF'))
@@ -64,7 +65,7 @@ export async function descargarCategoriaBracketPdf(idCampeonato, idCategoria, no
 }
 
 export async function fetchExportLlaves(idCampeonato) {
-  const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/export`, {
+  const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/export`, {
     cache: 'no-store',
   })
   const json = await res.json()

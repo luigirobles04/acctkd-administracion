@@ -28,6 +28,17 @@ export default function CanchasSelectorPage() {
           </Link>
         ))}
       </div>
+      <Link
+        href={`/campeonato/${slug}/llamados`}
+        target="_blank"
+        style={{
+          display: 'inline-block', marginTop: 24, padding: '14px 28px', borderRadius: 12,
+          background: '#dc2626', color: '#fff', fontWeight: 800, fontSize: 15,
+          letterSpacing: '0.04em', textDecoration: 'none',
+        }}
+      >
+        ZONA DE LLAMADOS · 3 áreas en una pantalla →
+      </Link>
       <p style={{ marginTop: 32, fontSize: 13, color: '#64748b' }}>
         <Link href={`/campeonato/${slug}`} style={{ color: '#dc2626' }}>
           ← Volver al campeonato

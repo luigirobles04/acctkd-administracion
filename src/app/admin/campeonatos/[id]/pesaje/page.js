@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -8,6 +9,8 @@ import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { evaluarPesoEnCategoria, etiquetaPesaje, MAX_INTENTOS_PESAJE } from '@/lib/campeonato/pesaje'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { descargarPesajeExcel, descargarPesajePdf } from '@/lib/campeonato/export-pesaje'
+import LoadingState from '@/components/ui/LoadingState'
+import Paginacion, { usePaginacion } from '@/components/ui/Paginacion'
 
 function nombreCompetidor(l) {
   const m = l.miembros?.[0]?.perfil
@@ -44,7 +47,7 @@ export default function CampeonatoPesajePage() {
     try {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setLineas(json.lineas || [])
@@ -97,6 +100,9 @@ export default function CampeonatoPesajePage() {
     })
   }, [lineas, filtroCat, filtroAcad, filtroEstado, buscar])
 
+  const pagPesaje = usePaginacion(lineasFiltradas, 50)
+  const lineasVisibles = pagPesaje.visibles
+
   const stats = useMemo(() => {
     const s = { total: lineasFiltradas.length, ok: 0, pendiente: 0, descalificado: 0 }
     lineasFiltradas.forEach((l) => {
@@ -124,7 +130,7 @@ export default function CampeonatoPesajePage() {
     setUltimoResultado(null)
     setCategoriaSugerida(null)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLinea, peso, recategorizar, forzar: forzar || modoCorregir }),
@@ -151,7 +157,7 @@ export default function CampeonatoPesajePage() {
     if (!confirm('¿Reiniciar oportunidades de pesaje para este competidor?')) return
     setGuardando(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLinea, reiniciar: true }),
@@ -170,7 +176,7 @@ export default function CampeonatoPesajePage() {
     if (!form.id_linea || !form.peso) return
     setGuardando(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pesaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLinea: Number(form.id_linea), peso: Number(form.peso), recategorizar: true, forzar: true }),
@@ -194,7 +200,7 @@ export default function CampeonatoPesajePage() {
         <Link href={`/admin/campeonatos/${id}`} style={{ color: 'var(--red)', fontSize: 13 }}>← Campeonato</Link>
 
         {loading ? (
-          <p style={{ marginTop: 16 }}>Cargando…</p>
+          <LoadingState mensaje="Cargando pesaje…" />
         ) : (
           <>
             <form className="ios-card" style={{ padding: 20, marginTop: 16 }} onSubmit={(e) => registrarPesaje(e, false)}>
@@ -342,7 +348,7 @@ export default function CampeonatoPesajePage() {
                 <span className="badge badge-red">Descalif.: {stats.descalificado}</span>
               </div>
 
-              {lineasFiltradas.map((l) => (
+              {lineasVisibles.map((l) => (
                 <div key={l.id_linea} style={{ padding: '10px 0', borderBottom: '1px solid var(--separator)', fontSize: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <div>
@@ -369,6 +375,13 @@ export default function CampeonatoPesajePage() {
                   </div>
                 </div>
               ))}
+              <Paginacion
+                pagina={pagPesaje.pagina}
+                totalPaginas={pagPesaje.totalPaginas}
+                setPagina={pagPesaje.setPagina}
+                total={pagPesaje.total}
+                porPagina={pagPesaje.porPagina}
+              />
               {lineas.length === 0 && (
                 <p style={{ color: 'var(--label3)' }}>No hay competidores kyorugi con dorsal aprobado aún.</p>
               )}

@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import { formatFecha } from '@/lib/utils/format'
 import { GRADOS_KUP_DAN, MODALIDADES } from '@/lib/campeonato/constants'
 import { categoriasPoomsaeValidas, categoriasValidas } from '@/lib/campeonato/validar-categoria'
@@ -71,7 +73,7 @@ export default function CampeonatoDetallePage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar el campeonato')
       setCampeonato(json.campeonato)
@@ -96,7 +98,7 @@ export default function CampeonatoDetallePage() {
   useEffect(() => {
     if ((tab !== 'categorias' && tab !== 'inscripciones') || categorias.length || !idCampeonato) return
     setLoadingCats(true)
-    fetch(`/api/admin/campeonatos/${idCampeonato}/categorias`, { cache: 'no-store' })
+    adminFetch(`/api/admin/campeonatos/${idCampeonato}/categorias`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
         if (json.categorias) setCategorias(json.categorias)
@@ -145,7 +147,7 @@ export default function CampeonatoDetallePage() {
 
   async function cambiarEstado(estado) {
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/detalle`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado }),
@@ -161,7 +163,7 @@ export default function CampeonatoDetallePage() {
   async function activarParaPortal() {
     setActivando(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/activar`, { method: 'POST' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/activar`, { method: 'POST' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       alert(json.mensaje || `Listo: ${json.categorias_creadas} categorías`)
@@ -177,7 +179,7 @@ export default function CampeonatoDetallePage() {
   async function eliminarCampeonato() {
     if (!confirm(`¿Eliminar "${campeonato?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}`, { method: 'DELETE' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}`, { method: 'DELETE' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       router.push('/admin/campeonatos')
@@ -192,7 +194,7 @@ export default function CampeonatoDetallePage() {
     setGuardandoPerfil(true)
     try {
       const { id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero } = editPerfil
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/perfil`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/perfil`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idPerfil: id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero }),
@@ -262,7 +264,7 @@ export default function CampeonatoDetallePage() {
     if (!editLinea) return
     setGuardandoLinea(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,7 +287,7 @@ export default function CampeonatoDetallePage() {
   if (loading) {
     return (
       <AdminLayout title="Campeonato">
-        <div style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>Cargando…</div>
+        <LoadingState mensaje="Cargando campeonato…" />
       </AdminLayout>
     )
   }

@@ -1,0 +1,405 @@
+/* Zona de llamados — pantalla grande, 3 áreas en simultáneo */
+
+.pantalla-llamados {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #0a0a0f;
+  color: #f8fafc;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.llamados-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 28px;
+  background: linear-gradient(180deg, #111827 0%, #0a0a0f 100%);
+  border-bottom: 3px solid #dc2626;
+}
+
+.llamados-marca {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.llamados-header h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.llamados-live {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.llamados-live--sync {
+  opacity: 0.5;
+}
+
+.llamados-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 18px 22px 24px;
+}
+
+@media (max-width: 1100px) {
+  .llamados-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.llamados-col {
+  display: flex;
+  flex-direction: column;
+  background: #111421;
+  border: 1px solid #232a3f;
+  border-radius: 18px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.llamados-col-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #dc2626;
+  color: #fff;
+}
+
+.llamados-col-header span:first-child {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  opacity: 0.9;
+}
+
+.llamados-col-header strong {
+  font-size: 2.6rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.llamados-col-stats {
+  margin-left: auto;
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.llamados-col-body {
+  flex: 1;
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.llamados-seccion-titulo {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #94a3b8;
+}
+
+/* --- Combate --- */
+
+.llamados-combate {
+  background: #171b2c;
+  border: 1px solid #2a3149;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.llamados-combate--actual {
+  background: #1a2032;
+  border-color: #475071;
+  box-shadow: 0 0 0 1px #47507133;
+}
+
+.llamados-combate--vivo {
+  border-color: #22c55e;
+  box-shadow: 0 0 18px #22c55e33;
+}
+
+.llamados-combate-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.llamados-combate-no {
+  font-style: normal;
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: #fbbf24;
+  background: #422006;
+  border: 1px solid #92600d;
+  border-radius: 8px;
+  padding: 2px 10px;
+  letter-spacing: 0.04em;
+}
+
+.llamados-combate--actual .llamados-combate-no {
+  font-size: 1.9rem;
+  padding: 3px 14px;
+}
+
+.llamados-combate-cat {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.llamados-combate--actual .llamados-combate-cat {
+  font-size: 18px;
+}
+
+.llamados-combate-ronda {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.llamados-badge-vivo {
+  background: #22c55e;
+  color: #052e16;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* --- Marcador live --- */
+
+.llamados-marcador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 4px 0 10px;
+}
+
+.llamados-punto {
+  font-size: 3.4rem;
+  line-height: 1;
+  font-weight: 900;
+  min-width: 76px;
+  text-align: center;
+  border-radius: 12px;
+  padding: 4px 10px;
+}
+
+.llamados-punto--azul {
+  color: #93c5fd;
+  background: #1e3a8a44;
+}
+
+.llamados-punto--rojo {
+  color: #fca5a5;
+  background: #7f1d1d44;
+}
+
+.llamados-punto--lider {
+  outline: 2px solid #fbbf24;
+}
+
+.llamados-marcador-sep {
+  color: #475569;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+/* --- VS / lados --- */
+
+.llamados-vs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+}
+
+.llamados-vs-label {
+  align-self: center;
+  color: #64748b;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.llamados-lado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.llamados-lado--azul {
+  background: #1e3a8a2e;
+  border: 1px solid #1d4ed8aa;
+}
+
+.llamados-lado--rojo {
+  background: #7f1d1d2e;
+  border: 1px solid #b91c1caa;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.llamados-lado--rojo .llamados-lado-info {
+  align-items: flex-end;
+}
+
+.llamados-lado-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.llamados-dorsal {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fbbf24;
+  line-height: 1.1;
+}
+
+.llamados-combate--actual .llamados-dorsal {
+  font-size: 1.6rem;
+}
+
+.llamados-nombre {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llamados-combate--actual .llamados-nombre {
+  font-size: 18px;
+  white-space: normal;
+}
+
+.llamados-academia {
+  font-size: 12px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llamados-vacio {
+  color: #64748b;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* --- Logo academia --- */
+
+.llamados-logo {
+  border-radius: 10px;
+  object-fit: cover;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.llamados-logo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a3149;
+  color: #94a3b8;
+  font-weight: 900;
+  font-size: 1.2rem;
+}
+
+/* --- Siguientes / resultados --- */
+
+.llamados-lista-siguientes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.llamados-lista-siguientes .llamados-combate {
+  padding: 8px 12px;
+}
+
+.llamados-lista-siguientes .llamados-nombre {
+  font-size: 13px;
+}
+
+.llamados-lista-siguientes .llamados-logo {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.llamados-sin-combate {
+  color: #64748b;
+  background: #171b2c;
+  border: 1px dashed #2a3149;
+  border-radius: 12px;
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.llamados-sin-combate--mini {
+  padding: 12px;
+  font-size: 13px;
+}
+
+.llamados-resultado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #14532d33;
+  border: 1px solid #16a34a66;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.llamados-resultado-star {
+  color: #fbbf24;
+  font-size: 1.4rem;
+}
+
+.llamados-resultado-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.llamados-resultado-cat {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.llamados-resultado-ganador {
+  font-size: 15px;
+  font-weight: 800;
+  color: #bbf7d0;
+}

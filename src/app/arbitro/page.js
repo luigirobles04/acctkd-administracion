@@ -2,7 +2,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, isArbitroMesa, isAdmin, isOrganizador, isAdminCampeonato, logout } from '@/lib/services/auth.service'
+import { adminFetch } from '@/lib/admin-client'
 import { getSupabase } from '@/lib/supabase'
+import LoadingState from '@/components/ui/LoadingState'
 import '@/components/arbitro/arbitro.css'
 
 const CTX_KEY = 'acctkd_arbitro_ctx'
@@ -117,7 +119,7 @@ function SelectorCampeonato({ onSeleccionar }) {
       <p className="arb-sub">Selecciona el evento en el que vas a registrar resultados hoy.</p>
 
       {loading ? (
-        <p style={{ color: '#94a3b8' }}>Cargando...</p>
+        <LoadingState mensaje="Cargando campeonatos…" light />
       ) : error ? (
         <p style={{ color: '#f87171' }}>{error}</p>
       ) : campeonatos.length === 0 ? (
@@ -198,7 +200,7 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
 
   const cargar = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/canchas`)
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/canchas`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setCombates(json.porCancha?.[cancha] || [])
@@ -220,7 +222,7 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
   async function marcarGanador(combate, idLinea, { walkover = false } = {}) {
     setMarcando(combate.id_llave)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/llaves/combate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLlave: combate.id_llave, ganadorIdLinea: idLinea, walkover }),
@@ -254,7 +256,7 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
       <p className="arb-sub">Toca el color del ganador apenas termine el combate. Se refleja al instante en pantalla TV y podios.</p>
 
       {loading ? (
-        <p style={{ color: '#94a3b8' }}>Cargando combates...</p>
+        <LoadingState mensaje="Cargando combates…" light />
       ) : error ? (
         <p style={{ color: '#f87171' }}>{error}</p>
       ) : pendientes.length === 0 ? (
@@ -352,7 +354,7 @@ function PanelPoomsae({ idCampeonato }) {
 
   const cargar = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`)
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setCategorias((json.categorias || []).filter((c) => c.inscritos > 0))
@@ -373,7 +375,7 @@ function PanelPoomsae({ idCampeonato }) {
     if (puntaje === undefined || puntaje === '') return
     setGuardando(idLinea)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/poomsae/puntaje`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae/puntaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLinea, puntaje: Number(puntaje) }),
@@ -394,7 +396,7 @@ function PanelPoomsae({ idCampeonato }) {
   async function cerrarCategoria() {
     if (!catActiva) return
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/poomsae/puntaje`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae/puntaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idCategoria: catActiva.id_categoria, cerrarCategoria: true }),
@@ -424,7 +426,7 @@ function PanelPoomsae({ idCampeonato }) {
         <h1 className="arb-h1">Poomsae — categorías</h1>
         <p className="arb-sub">Elige a qué categoría vas a calificar ahora. Puedes cambiar en cualquier momento.</p>
         {loading ? (
-          <p style={{ color: '#94a3b8' }}>Cargando...</p>
+          <LoadingState mensaje="Cargando categorías…" light />
         ) : error ? (
           <p style={{ color: '#f87171' }}>{error}</p>
         ) : categorias.length === 0 ? (

@@ -3,6 +3,16 @@
 **Campeonato oficial:** Taekwondo FestCup 2026 · slug `festcup-2026` · id `10`  
 **Ensayo técnico:** slug `prueba-llaves-cnu-2026` · id `9` (despublicado; TV sigue funcionando por URL directa)
 
+## Variables Vercel obligatorias (producción)
+
+En **Vercel → Settings → Environment Variables** y redeploy:
+
+- [ ] `SESSION_SECRET` — firma de sesión admin/portal/árbitro (largo, aleatorio). **Obligatorio: sin él el login y toda la API admin quedan bloqueados en producción (fail-closed).**
+- [ ] `PSS_API_SECRET` — token de las laptops Unity (header `X-PSS-Token`)
+- [ ] `CRON_SECRET` — backup nocturno (`/api/cron/backup-campeonato` es fail-closed sin él)
+- [ ] `ACCTKD_OPS_KEY` — clave dedicada de operaciones (seed producción, llaves sin pesaje). **Los 4 secretos deben ser distintos entre sí.**
+- [ ] Verificar auth: `curl -s -o /dev/null -w "%{http_code}" https://festcup2026.com/api/admin/campeonatos/10/detalle` → debe dar **401**
+
 ## Antes del campeonato (con internet)
 
 - [ ] Cerrar inscripciones y completar pesaje
@@ -31,12 +41,20 @@ Por cada área (1, 2, 3):
 ## TV y resultados (necesitan internet)
 
 - [ ] TV: `/campeonato/{slug}/cancha/1` (2, 3)
+- [ ] **Zona de llamados (4.ª PC):** `/campeonato/festcup-2026/llamados` — 3 áreas en una pantalla, F11 fullscreen
 - [ ] Resultados: `/campeonato/{slug}/resultados`
 - [ ] Router 4G/WiFi del coliseo activo
+
+## Logos de academia (Unity v1.1)
+
+- [ ] Subir logos de academias en admin (aparecen en marcador Unity y llamados web)
+- [ ] Al **DESCARGAR COLA** verificar mensaje "N logos de academia listos para offline"
 
 ## Poomsae
 
 - [ ] Unity: POOMSAE → COLA ACCTKD → descargar → siguiente atleta
+- [ ] **Modo proyector:** botón PROYECTOR o tecla **V** (puntajes gigantes, panel operador oculto)
+  - Atajos: Enter crono · Espacio cerrar técnica · P cerrar presentación · R mostrar · V volver
 - [ ] Plan B: `/arbitro` → Poomsae (celular/tablet con internet)
 
 ## Plan B si falla laptop

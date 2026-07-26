@@ -1,3 +1,4 @@
+import { adminFetch } from '@/lib/admin-client'
 import { getSupabase } from '@/lib/supabase'
 
 const CAMpeonato_SELECT = `
@@ -27,7 +28,7 @@ export async function obtenerCampeonato(id) {
 }
 
 export async function crearCampeonato(payload) {
-  const res = await fetch('/api/admin/campeonatos', {
+  const res = await adminFetch('/api/admin/campeonatos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

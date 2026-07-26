@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { descargarPoomsaeExcel, descargarPoomsaePdf, descargarPoomsaeCategoriaPdf } from '@/lib/campeonato/export-poomsae'
 
@@ -21,7 +23,7 @@ export default function CampeonatoPoomsaePage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'Error al cargar poomsae')
       setCampeonato(json.campeonato)
@@ -61,7 +63,7 @@ export default function CampeonatoPoomsaePage() {
   async function sortear(payload, mensajeOk) {
     setSorteando(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -135,7 +137,7 @@ export default function CampeonatoPoomsaePage() {
         )}
 
         {loading ? (
-          <p>Cargando…</p>
+          <LoadingState mensaje="Cargando poomsae…" />
         ) : !catsFiltradas.length ? (
           <p style={{ color: '#64748b' }}>No hay inscripciones poomsae aprobadas en este campeonato.</p>
         ) : (

@@ -1,6 +1,8 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 
 const ROL_LABEL = {
   admin: { label: 'Administrador', color: '#7C3AED' },
@@ -29,7 +31,7 @@ export default function UsuariosPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/usuarios')
+      const res = await adminFetch('/api/admin/usuarios')
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setUsuarios(json.usuarios || [])
@@ -53,7 +55,7 @@ export default function UsuariosPage() {
     setSaving(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/usuarios', {
+      const res = await adminFetch('/api/admin/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -73,7 +75,7 @@ export default function UsuariosPage() {
   async function toggleActivo(u) {
     setBusy(u.id_usuario)
     try {
-      await fetch(`/api/admin/usuarios/${u.id_usuario}`, {
+      await adminFetch(`/api/admin/usuarios/${u.id_usuario}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ activo: !u.activo }),
@@ -89,7 +91,7 @@ export default function UsuariosPage() {
     if (!pass) return
     setBusy(u.id_usuario)
     try {
-      const res = await fetch(`/api/admin/usuarios/${u.id_usuario}`, {
+      const res = await adminFetch(`/api/admin/usuarios/${u.id_usuario}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pass }),
@@ -109,7 +111,7 @@ export default function UsuariosPage() {
     if (!confirm(`¿Eliminar el usuario "${u.username}"?`)) return
     setBusy(u.id_usuario)
     try {
-      await fetch(`/api/admin/usuarios/${u.id_usuario}`, { method: 'DELETE' })
+      await adminFetch(`/api/admin/usuarios/${u.id_usuario}`, { method: 'DELETE' })
       await cargar()
     } finally {
       setBusy(null)
@@ -195,12 +197,7 @@ export default function UsuariosPage() {
 
         <div className="ios-form-section" style={{ padding: 0 }}>
           {loading ? (
-            <div className="ios-empty">
-              <div style={{ width: 28, height: 28, borderRadius: '50%',
-                border: '2.5px solid var(--red)', borderTopColor: 'transparent',
-                margin: '0 auto 10px', animation: 'spin 0.8s linear infinite' }} />
-              Cargando usuarios...
-            </div>
+            <LoadingState mensaje="Cargando usuarios…" />
           ) : usuarios.length === 0 ? (
             <div className="ios-empty">
               <span className="material-symbols-rounded ios-empty-icon">manage_accounts</span>

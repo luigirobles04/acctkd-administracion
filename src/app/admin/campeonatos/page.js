@@ -1,8 +1,10 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
 
@@ -58,7 +60,7 @@ export default function CampeonatosPage() {
     e.stopPropagation()
     if (!confirm(`¿Eliminar "${nombre}" y todos sus datos?`)) return
     try {
-      const res = await fetch(`/api/admin/campeonatos/${id}`, { method: 'DELETE' })
+      const res = await adminFetch(`/api/admin/campeonatos/${id}`, { method: 'DELETE' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       cargar()
@@ -71,7 +73,7 @@ export default function CampeonatosPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/campeonatos', {
+      const res = await adminFetch('/api/admin/campeonatos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,8 +116,8 @@ export default function CampeonatosPage() {
         )}
 
         {loading ? (
-          <div className="ios-card" style={{ padding: 48, textAlign: 'center', color: 'var(--label3)' }}>
-            Cargando campeonatos…
+          <div className="ios-card">
+            <LoadingState mensaje="Cargando campeonatos…" />
           </div>
         ) : campeonatos.length === 0 ? (
           <div className="ios-card anim-fade-up" style={{ padding: 48, textAlign: 'center' }}>

@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useState, Fragment } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { whatsappUrl } from '@/lib/campeonato/constants'
 import {
@@ -58,7 +60,7 @@ export default function CampeonatoAcademiasPage() {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
 
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`)
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/academias`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar academias')
 
@@ -83,7 +85,7 @@ export default function CampeonatoAcademiasPage() {
     setProcesando(acId)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/academias`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/academias`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ acId, accion: 'rechazar', motivo }),
@@ -189,7 +191,7 @@ export default function CampeonatoAcademiasPage() {
         </div>
 
         {loading ? (
-          <p>Cargando…</p>
+          <LoadingState mensaje="Cargando academias…" />
         ) : (
           <div className="ios-card" style={{ overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>

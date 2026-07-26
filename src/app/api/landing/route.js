@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { guardAdminSession } from '@/lib/admin-auth'
 import { getLandingConfig, saveLandingConfig } from '@/lib/campeonato/landing-config'
 
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,8 @@ export async function GET() {
 }
 
 export async function PATCH(request) {
+  const denied = guardAdminSession(request, 'full')
+  if (denied) return denied
   try {
     const body = await request.json()
     const sb = getSupabaseAdmin()

@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { descargarFestivalExcel, descargarFestivalPdf } from '@/lib/campeonato/export-festival'
 
@@ -20,7 +22,7 @@ export default function CampeonatoFestivalPage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/festival`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/festival`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'Error al cargar festival')
       setCampeonato(json.campeonato)
@@ -109,7 +111,7 @@ export default function CampeonatoFestivalPage() {
         </div>
 
         {loading ? (
-          <p>Cargando…</p>
+          <LoadingState mensaje="Cargando festival…" />
         ) : !gruposActivos.length ? (
           <p style={{ color: '#64748b' }}>
             No hay inscripciones de festival aprobadas. Importa la hoja FESTIVAL del Excel de inscripción.

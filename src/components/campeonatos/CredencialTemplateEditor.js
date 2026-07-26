@@ -1,4 +1,5 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useRef, useState } from 'react'
 import CredencialCard from '@/components/campeonatos/CredencialCard'
@@ -103,7 +104,7 @@ export default function CredencialTemplateEditor({
       const fd = new FormData()
       fd.append('file', file)
       fd.append('credencial_layout', JSON.stringify(layout))
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/credenciales/plantilla`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/credenciales/plantilla`, {
         method: 'POST',
         body: fd,
       })
@@ -123,7 +124,7 @@ export default function CredencialTemplateEditor({
   async function guardarLayout() {
     setSaving(true)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/credenciales/plantilla`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/credenciales/plantilla`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credencial_layout: layout }),

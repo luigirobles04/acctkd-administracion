@@ -1,9 +1,11 @@
 'use client'
+import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import LoadingState from '@/components/ui/LoadingState'
 import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
 import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
@@ -34,7 +36,7 @@ export default function CampeonatoPagosPage() {
       const camp = await obtenerCampeonato(idCampeonato)
       setCampeonato(camp)
 
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, { cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'No se pudo cargar pagos')
 
@@ -78,7 +80,7 @@ export default function CampeonatoPagosPage() {
     setProcesando(payload.key)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/pagos`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -135,7 +137,7 @@ export default function CampeonatoPagosPage() {
         )}
 
         {loading ? (
-          <p className="camp-loading">Cargando…</p>
+          <LoadingState mensaje="Cargando pagos…" />
         ) : (
           <>
             <div className="camp-stats-grid">
