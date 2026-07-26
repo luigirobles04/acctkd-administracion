@@ -39,11 +39,24 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
   let soporteCalificacion = true
   let { data: lineas, error: errL } = await sb
     .from('linea_inscripcion')
-    .select(`orden_poomsae, poomsae_puntaje, poomsae_estado, ${baseCols}`)
+    .select(`orden_poomsae, poomsae_puntaje, poomsae_estado, poomsae_cancha, ${baseCols}`)
     .eq('id_campeonato', idCampeonato)
     .in('modalidad', MODALIDADES_POOMSAE)
     .eq('estado', 'aprobado')
     .order('dorsal_numero', { ascending: true, nullsFirst: false })
+
+  // Fallback si poomsae_cancha aún no existe.
+  if (errL && /poomsae_cancha/.test(errL.message || '')) {
+    const retry = await sb
+      .from('linea_inscripcion')
+      .select(`orden_poomsae, poomsae_puntaje, poomsae_estado, ${baseCols}`)
+      .eq('id_campeonato', idCampeonato)
+      .in('modalidad', MODALIDADES_POOMSAE)
+      .eq('estado', 'aprobado')
+      .order('dorsal_numero', { ascending: true, nullsFirst: false })
+    lineas = retry.data
+    errL = retry.error
+  }
 
   // Fallback si las columnas de calificación aún no existen en la BD.
   if (errL && /poomsae_puntaje|poomsae_estado/.test(errL.message || '')) {
@@ -102,9 +115,11 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       academia: academiaNombre(l),
       academia_logo: l.academia_campeonato?.academia?.logo_url || '',
       puntaje: l.poomsae_puntaje ?? null,
-      calificado: l.poomsae_estado === 'calificado',
+      calificado: l.poomsae_estado === 'calificado' || l.poomsae_estado === 'ausente',
       en_curso: l.poomsae_estado === 'en_curso',
+      ausente: l.poomsae_estado === 'ausente',
       estado: l.poomsae_estado || 'pendiente',
+      poomsae_cancha: l.poomsae_cancha ?? null,
     }))
     const calificados = inscritos.filter((p) => p.calificado).length
     return {

@@ -3,12 +3,13 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { obtenerCampeonatoPorSlug } from '@/lib/campeonato/inscripcion-server'
 import { fetchCombatesCampeonato, organizarPantallaCancha } from '@/lib/campeonato/canchas-data'
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
-import { organizarPantallaPoomsae } from '@/lib/campeonato/poomsae-pss'
+import { organizarPantallaPoomsaePorAreas } from '@/lib/campeonato/poomsae-pss'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 /**
- * Zona de llamados: kyorugi (3 áreas) + poomsae (cola por categoría).
+ * Zona de llamados: kyorugi (3 áreas) + poomsae (3 áreas por forma).
  */
 export async function GET(_request, { params }) {
   try {
@@ -30,7 +31,7 @@ export async function GET(_request, { params }) {
       ...organizarPantallaCancha(porCancha[cancha] || []),
     }))
 
-    const poomsae = organizarPantallaPoomsae(poomsaeOrden.categorias || [])
+    const poomsae = organizarPantallaPoomsaePorAreas(poomsaeOrden.categorias || [])
 
     return NextResponse.json(
       {
@@ -47,7 +48,12 @@ export async function GET(_request, { params }) {
         totalPoomsae: poomsaeOrden.resumen?.totalParticipantes ?? 0,
         actualizado: new Date().toISOString(),
       },
-      { headers: { 'Cache-Control': 's-maxage=4, stale-while-revalidate=8' } }
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          Pragma: 'no-cache',
+        },
+      }
     )
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

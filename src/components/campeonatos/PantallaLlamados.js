@@ -149,15 +149,23 @@ function ColumnaArea({ area }) {
 
 function AtletaPoomsae({ atleta, destacado }) {
   if (!atleta) return null
+  const enVivo = atleta.estado === 'en_curso' || atleta.en_curso
   return (
     <div className={`llamados-poomsae-atleta${destacado ? ' llamados-poomsae-atleta--actual' : ''}`}>
-      <LogoAcademia competidor={atleta} size={destacado ? 64 : 44} />
+      <LogoAcademia competidor={atleta} size={destacado ? 56 : 40} />
       <div className="llamados-poomsae-atleta-info">
-        <span className="llamados-poomsae-orden">#{atleta.orden}</span>
+        <span className="llamados-poomsae-orden">
+          #{atleta.orden}
+          {enVivo && destacado ? ' · EN PISTA' : ''}
+        </span>
         <span className="llamados-dorsal">{atleta.dorsal}</span>
         <span className="llamados-nombre">{atleta.nombres}</span>
         <span className="llamados-academia">{atleta.academia}</span>
-        {atleta.calificado && atleta.puntaje != null && (
+        {atleta.categoria_nombre && (
+          <span className="llamados-poomsae-cat-mini">{atleta.categoria_nombre}</span>
+        )}
+        {atleta.ausente && <span className="llamados-poomsae-ausente">AUSENTE</span>}
+        {atleta.calificado && !atleta.ausente && atleta.puntaje != null && (
           <span className="llamados-poomsae-puntaje">{Number(atleta.puntaje).toFixed(1)}</span>
         )}
       </div>
@@ -165,90 +173,106 @@ function AtletaPoomsae({ atleta, destacado }) {
   )
 }
 
-function VistaPoomsae({ poomsae }) {
-  const cat = poomsae?.categoriaActual
-  const stats = poomsae?.stats
+function ColumnaAreaPoomsae({ area }) {
+  const { cancha, forma, actual, proximos, recientes, stats } = area
+  const enVivo = actual?.estado === 'en_curso' || actual?.en_curso
 
   return (
-    <main className="llamados-poomsae">
-      <section className="llamados-poomsae-main">
-        <header className="llamados-poomsae-cat">
-          <span className="llamados-seccion-titulo">CATEGORÍA EN PISTA</span>
-          <h2>{cat?.nombre || 'Sin categoría activa'}</h2>
-          {cat?.division && <p className="llamados-poomsae-division">{cat.division}</p>}
-          {cat && (
+    <section className="llamados-col llamados-col--poomsae">
+      <header className="llamados-col-header llamados-col-header--poomsae">
+        <span>ÁREA</span>
+        <strong>{cancha}</strong>
+        {stats?.total > 0 && (
+          <span className="llamados-col-stats">
+            {stats.terminados}/{stats.total}
+          </span>
+        )}
+      </header>
+
+      <div className="llamados-col-body">
+        {forma ? (
+          <>
+            <p className="llamados-seccion-titulo">FORMA EN LLAMADO</p>
+            <h3 className="llamados-poomsae-forma-titulo">
+              {forma.esRanking ? 'Ranking' : forma.nombre}
+            </h3>
             <p className="llamados-poomsae-progress">
-              {cat.calificados}/{cat.inscritos} calificados
-              {stats?.pendientes != null ? ` · ${stats.pendientes} pendientes en total` : ''}
+              Toda la forma (niños→adultos) · {forma.pendientes} pendientes
             </p>
-          )}
-        </header>
 
-        <div className="llamados-poomsae-cols">
-          <div>
-            <p className="llamados-seccion-titulo">
-              {poomsae?.actual?.en_curso || poomsae?.actual?.estado === 'en_curso' ? 'EN PISTA' : 'LLAMADO ACTUAL'}
-            </p>
-            {poomsae?.actual ? (
-              <AtletaPoomsae atleta={poomsae.actual} destacado />
+            <p className="llamados-seccion-titulo">{enVivo ? 'EN PISTA' : 'LLAMADO ACTUAL'}</p>
+            {actual ? (
+              <AtletaPoomsae atleta={actual} destacado />
             ) : (
-              <div className="llamados-sin-combate">
-                {stats?.pendientes === 0 ? 'Poomsae completado' : 'Sin atletas en cola'}
-              </div>
+              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin atleta</div>
             )}
-          </div>
 
-          <div>
             <p className="llamados-seccion-titulo">SIGUIENTES</p>
-            {poomsae?.proximos?.length ? (
+            {proximos?.length ? (
               <div className="llamados-lista-siguientes">
-                {poomsae.proximos.map((a) => (
+                {proximos.map((a) => (
                   <AtletaPoomsae key={a.id_linea} atleta={a} />
                 ))}
               </div>
             ) : (
-              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin más en esta categoría</div>
+              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin más en esta forma</div>
             )}
-          </div>
 
-          <div>
-            <p className="llamados-seccion-titulo">ÚLTIMOS RESULTADOS</p>
-            {poomsae?.recientes?.length ? (
-              <div className="llamados-lista-siguientes">
-                {poomsae.recientes.map((a) => (
+            {recientes?.[0] && (
+              <>
+                <p className="llamados-seccion-titulo">ÚLTIMO</p>
+                {recientes.slice(0, 1).map((a) => (
                   <div key={a.id_linea} className="llamados-resultado">
                     <span className="llamados-resultado-star">★</span>
                     <div className="llamados-resultado-info">
                       <span className="llamados-resultado-cat">{a.categoria_nombre}</span>
                       <span className="llamados-resultado-ganador">
                         {a.dorsal} {a.nombres}
-                        {a.puntaje != null ? ` · ${Number(a.puntaje).toFixed(1)}` : ''}
+                        {a.ausente ? ' · AUSENTE' : a.puntaje != null ? ` · ${Number(a.puntaje).toFixed(1)}` : ''}
                       </span>
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin resultados aún</div>
+              </>
             )}
-          </div>
-        </div>
-      </section>
+          </>
+        ) : (
+          <div className="llamados-sin-combate">Sin forma asignada a esta área</div>
+        )}
+      </div>
+    </section>
+  )
+}
 
-      {poomsae?.categoriasPendientes?.length > 0 && (
+function VistaPoomsae({ poomsae }) {
+  const areas = poomsae?.areas || []
+  const stats = poomsae?.stats
+
+  return (
+    <>
+      <div className="llamados-poomsae-banner">
+        Llamado por <strong>FORMA</strong> (toda la edad junta). Podios siguen por edad y sexo.
+        {stats ? ` · ${stats.pendientes} pendientes · ${stats.abiertas} formas abiertas` : ''}
+      </div>
+      <main className="llamados-grid">
+        {areas.map((area) => (
+          <ColumnaAreaPoomsae key={area.cancha} area={area} />
+        ))}
+      </main>
+      {poomsae?.formasPendientes?.length > 0 && (
         <aside className="llamados-poomsae-otros">
-          <p className="llamados-seccion-titulo">OTRAS CATEGORÍAS PENDIENTES</p>
+          <p className="llamados-seccion-titulo">OTRAS FORMAS PENDIENTES</p>
           <div className="llamados-poomsae-chips">
-            {poomsae.categoriasPendientes.map((c) => (
-              <div key={c.id_categoria} className="llamados-poomsae-chip">
-                <strong>{c.nombre}</strong>
-                <span>{c.pendientes} pendientes</span>
+            {poomsae.formasPendientes.map((f) => (
+              <div key={f.forma} className="llamados-poomsae-chip">
+                <strong>{f.esRanking ? 'Ranking' : f.forma}</strong>
+                <span>{f.pendientes} pendientes</span>
               </div>
             ))}
           </div>
         </aside>
       )}
-    </main>
+    </>
   )
 }
 

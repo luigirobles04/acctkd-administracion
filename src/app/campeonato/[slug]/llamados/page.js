@@ -1,36 +1,44 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import PantallaLlamados from '@/components/campeonatos/PantallaLlamados'
 import LoadingState from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/pantalla-llamados.css'
 
-const POLL_MS = 6000
+const POLL_MS = 3000
 
 export default function LlamadosPublicaPage() {
   const { slug } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
+  const firstLoad = useRef(true)
 
   const cargar = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campeonato/${slug}/llamados`, { cache: 'no-store' })
+      if (!firstLoad.current) setSyncing(true)
+      const res = await fetch(`/api/campeonato/${slug}/llamados?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { Pragma: 'no-cache', 'Cache-Control': 'no-cache' },
+      })
       const json = await readJsonResponse(res)
-      if (!res.ok) throw new Error(json.error)
+      if (!res.ok) throw new Error(json.error || 'Error al cargar llamados')
       setData(json)
       setError(null)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
+      setSyncing(false)
+      firstLoad.current = false
     }
   }, [slug])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState ocurre tras await (poll async), no síncrono
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- poll async
     cargar()
     const t = setInterval(cargar, POLL_MS)
     return () => clearInterval(t)
@@ -62,5 +70,5 @@ export default function LlamadosPublicaPage() {
     )
   }
 
-  return <PantallaLlamados data={data} loading={loading} />
+  return <PantallaLlamados data={data} loading={loading || syncing} />
 }
