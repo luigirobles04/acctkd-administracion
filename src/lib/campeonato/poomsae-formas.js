@@ -117,9 +117,10 @@ export function agruparPoomsaePorForma(categorias) {
 
 /**
  * Pantalla llamados poomsae: 3 áreas (como kyorugi).
- * Cada área muestra la forma que PSS está puntuando ahí (poomsae_cancha / en_curso).
+ * Prioridad: liveState (PSS Unity) → columnas en_curso/poomsae_cancha.
+ * @param {object} [liveState] { areas: {1: slot|null, ...} }
  */
-export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3 } = {}) {
+export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3, liveState = null } = {}) {
   const formas = agruparPoomsaePorForma(categorias)
   const abiertas = formas.filter((f) => !f.cerrada && f.pendientes > 0)
 
@@ -128,10 +129,40 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3 } = 
     return c >= 1 && c <= numAreas ? c : null
   }
 
-  // Forma activa por área: prioriza en_curso en esa cancha
   const formaPorArea = {}
-  for (let a = 1; a <= numAreas; a++) formaPorArea[a] = null
+  const actualForzado = {}
+  for (let a = 1; a <= numAreas; a++) {
+    formaPorArea[a] = null
+    actualForzado[a] = null
+  }
 
+  // 1) Overlay en vivo desde PSS (funciona sin migración DB)
+  for (let a = 1; a <= numAreas; a++) {
+    const slot = liveState?.areas?.[a] || liveState?.areas?.[String(a)]
+    if (!slot?.id_linea) continue
+    const forma =
+      formas.find((f) => f.forma === slot.forma) ||
+      formas.find((f) => f.participantes.some((p) => p.id_linea === slot.id_linea))
+    if (!forma) continue
+    formaPorArea[a] = forma
+    const fromQueue = forma.participantes.find((p) => p.id_linea === slot.id_linea)
+    actualForzado[a] = {
+      ...(fromQueue || {}),
+      id_linea: slot.id_linea,
+      dorsal: slot.dorsal || fromQueue?.dorsal,
+      nombres: slot.nombres || fromQueue?.nombres,
+      academia: slot.academia || fromQueue?.academia,
+      academia_logo: slot.academia_logo || fromQueue?.academia_logo,
+      orden: slot.orden ?? fromQueue?.orden,
+      categoria_nombre: slot.categoria_nombre || fromQueue?.categoria_nombre,
+      forma: forma.forma,
+      estado: 'en_curso',
+      en_curso: true,
+      calificado: false,
+    }
+  }
+
+  // 2) Columnas DB (si la migración ya está aplicada)
   for (const forma of formas) {
     const enCurso = forma.participantes.find(
       (p) => (p.estado === 'en_curso' || p.en_curso) && areaDeParticipante(p)
@@ -142,7 +173,6 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3 } = 
     }
   }
 
-  // en_curso sin cancha → área 1 (compat sin migración poomsae_cancha)
   for (const forma of formas) {
     const enCurso = forma.participantes.find((p) => p.estado === 'en_curso' || p.en_curso)
     if (enCurso && !areaDeParticipante(enCurso) && !formaPorArea[1]) {
@@ -150,7 +180,6 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3 } = 
     }
   }
 
-  // Forma con atletas ya asignados a cancha (aunque no en_curso) — mantiene cola en esa área
   for (const forma of formas) {
     if (forma.cerrada) continue
     for (const p of forma.participantes) {
@@ -179,6 +208,7 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3 } = 
 
     const parts = forma.participantes
     const actual =
+      actualForzado[cancha] ||
       parts.find(
         (p) =>
           (p.estado === 'en_curso' || p.en_curso) &&

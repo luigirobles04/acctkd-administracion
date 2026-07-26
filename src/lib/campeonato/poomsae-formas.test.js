@@ -90,4 +90,35 @@ describe('organizarPantallaPoomsaePorAreas', () => {
     expect(p.areas[0].forma).toBeNull()
     expect(p.areas[2].forma).toBeNull()
   })
+
+  it('usa liveState de Unity aunque no haya en_curso en DB', () => {
+    const cats = [
+      {
+        id_categoria: 1,
+        nombre: 'Poomsae Kibom · Infantil A · M',
+        inscritos: 1,
+        calificados: 0,
+        cerrada: false,
+        participantes: [
+          { id_linea: 99, orden: 1, dorsal: 'X-1', nombres: 'X', calificado: false, estado: 'pendiente' },
+        ],
+      },
+    ]
+    const p = organizarPantallaPoomsaePorAreas(cats, {
+      liveState: {
+        areas: {
+          1: {
+            id_linea: 99,
+            forma: 'Kibom',
+            dorsal: 'X-1',
+            nombres: 'X',
+            categoria_nombre: 'Poomsae Kibom · Infantil A · M',
+          },
+        },
+      },
+    })
+    expect(p.areas[0].forma.nombre).toBe('Kibom')
+    expect(p.areas[0].actual.id_linea).toBe(99)
+    expect(p.areas[0].actual.en_curso).toBe(true)
+  })
 })

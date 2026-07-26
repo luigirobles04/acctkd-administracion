@@ -4,6 +4,7 @@ import { obtenerCampeonatoPorSlug } from '@/lib/campeonato/inscripcion-server'
 import { fetchCombatesCampeonato, organizarPantallaCancha } from '@/lib/campeonato/canchas-data'
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
 import { organizarPantallaPoomsaePorAreas } from '@/lib/campeonato/poomsae-pss'
+import { getPoomsaeLiveState } from '@/lib/campeonato/poomsae-live'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,12 +19,13 @@ export async function GET(_request, { params }) {
     const campeonato = await obtenerCampeonatoPorSlug(sb, slug)
     if (!campeonato) return NextResponse.json({ error: 'Campeonato no encontrado' }, { status: 404 })
 
-    const [{ porCancha, total }, poomsaeOrden] = await Promise.all([
+    const [{ porCancha, total }, poomsaeOrden, liveState] = await Promise.all([
       fetchCombatesCampeonato(sb, campeonato.id_campeonato),
       fetchOrdenPoomsaeCampeonato(sb, campeonato.id_campeonato).catch(() => ({
         categorias: [],
         resumen: { totalParticipantes: 0 },
       })),
+      getPoomsaeLiveState(sb, campeonato.id_campeonato).catch(() => null),
     ])
 
     const areas = [1, 2, 3].map((cancha) => ({
@@ -31,7 +33,7 @@ export async function GET(_request, { params }) {
       ...organizarPantallaCancha(porCancha[cancha] || []),
     }))
 
-    const poomsae = organizarPantallaPoomsaePorAreas(poomsaeOrden.categorias || [])
+    const poomsae = organizarPantallaPoomsaePorAreas(poomsaeOrden.categorias || [], { liveState })
 
     return NextResponse.json(
       {
@@ -47,6 +49,7 @@ export async function GET(_request, { params }) {
         totalCampeonato: total,
         totalPoomsae: poomsaeOrden.resumen?.totalParticipantes ?? 0,
         actualizado: new Date().toISOString(),
+        poomsaeLiveAt: liveState?.updatedAt || null,
       },
       {
         headers: {

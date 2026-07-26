@@ -1,5 +1,6 @@
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
 import { agruparPoomsaePorForma, organizarPantallaPoomsaePorAreas, parseNombrePoomsae } from '@/lib/campeonato/poomsae-formas'
+import { clearPoomsaeLiveByLinea, getPoomsaeLiveState, setPoomsaeLiveArea } from '@/lib/campeonato/poomsae-live'
 
 export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
   const { data: camp, error: campErr } = await sb
@@ -75,13 +76,17 @@ export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
 /** Marca atleta en pista para zona de llamados (un en_curso por área). */
 export async function iniciarParticipantePoomsaePss(sb, idCampeonato, idLinea, { cancha } = {}) {
   const id = Number(idLinea)
-  const area = Number(cancha) || null
+  const area = Math.min(3, Math.max(1, Number(cancha) || 1))
   if (!id) throw new Error('ID de línea inválido')
-  if (area != null && (area < 1 || area > 3)) throw new Error('Área inválida (1-3)')
 
   const { data: linea, error } = await sb
     .from('linea_inscripcion')
-    .select('id_linea, id_campeonato, id_categoria, poomsae_estado')
+    .select(`
+      id_linea, id_campeonato, id_categoria, poomsae_estado, dorsal_display, orden_poomsae,
+      academia_campeonato(academia(nombre, logo_url)),
+      miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos)),
+      categoria:categoria_campeonato(nombre)
+    `)
     .eq('id_linea', id)
     .eq('id_campeonato', idCampeonato)
     .maybeSingle()
@@ -91,36 +96,65 @@ export async function iniciarParticipantePoomsaePss(sb, idCampeonato, idLinea, {
     throw new Error('Competidor ya calificado')
   }
 
-  // Liberar otros en_curso de la misma área (o de todo el campeonato si no hay área).
-  let liberar = sb
-    .from('linea_inscripcion')
-    .update({ poomsae_estado: 'pendiente', updated_at: new Date().toISOString() })
-    .eq('id_campeonato', idCampeonato)
-    .eq('poomsae_estado', 'en_curso')
-    .neq('id_linea', id)
-  if (area) liberar = liberar.eq('poomsae_cancha', area)
-  await liberar
+  // Liberar otros en_curso de la misma área (si la columna/estado existen).
+  try {
+    let liberar = sb
+      .from('linea_inscripcion')
+      .update({ poomsae_estado: 'pendiente', updated_at: new Date().toISOString() })
+      .eq('id_campeonato', idCampeonato)
+      .eq('poomsae_estado', 'en_curso')
+      .neq('id_linea', id)
+    liberar = liberar.eq('poomsae_cancha', area)
+    await liberar
+  } catch {
+    /* ignore */
+  }
 
   const patch = {
     poomsae_estado: 'en_curso',
+    poomsae_cancha: area,
     updated_at: new Date().toISOString(),
   }
-  if (area) patch.poomsae_cancha = area
 
-  const { data, error: upErr } = await sb
+  let data = null
+  let soft = false
+  const { data: updated, error: upErr } = await sb
     .from('linea_inscripcion')
     .update(patch)
     .eq('id_linea', id)
     .select('id_linea, id_categoria, poomsae_estado, poomsae_cancha')
     .single()
   if (upErr) {
-    if (/poomsae_estado|poomsae_cancha|check constraint/i.test(upErr.message || '')) {
-      return { ok: true, linea, soft: true, cancha: area }
+    if (/poomsae_estado|poomsae_cancha|check constraint|PGRST204|schema cache/i.test(upErr.message || '')) {
+      soft = true
+      data = linea
+    } else {
+      throw upErr
     }
-    throw upErr
+  } else {
+    data = updated
   }
 
-  return { ok: true, linea: data, cancha: area }
+  // Siempre escribir overlay en vivo (llamados se actualiza aunque falle el check constraint).
+  const catNombre = linea.categoria?.nombre || ''
+  const { forma } = parseNombrePoomsae(catNombre)
+  const nombres = (linea.miembros || [])
+    .map((m) => `${m.perfil?.nombres || ''} ${m.perfil?.apellidos || ''}`.trim())
+    .filter(Boolean)
+    .join(' · ')
+  await setPoomsaeLiveArea(sb, idCampeonato, area, {
+    id_linea: id,
+    id_categoria: linea.id_categoria,
+    forma,
+    categoria_nombre: catNombre,
+    dorsal: linea.dorsal_display || '',
+    nombres,
+    academia: linea.academia_campeonato?.academia?.nombre || '',
+    academia_logo: linea.academia_campeonato?.academia?.logo_url || '',
+    orden: linea.orden_poomsae,
+  })
+
+  return { ok: true, linea: data, cancha: area, soft }
 }
 
 export async function guardarPuntajePoomsaePss(sb, idCampeonato, idLinea, puntaje, { ausente = false } = {}) {
@@ -163,13 +197,21 @@ export async function guardarPuntajePoomsaePss(sb, idCampeonato, idLinea, puntaj
   if (error) throw error
   if (!data) throw new Error('Competidor no encontrado')
 
+  try {
+    await clearPoomsaeLiveByLinea(sb, idCampeonato, id)
+  } catch {
+    /* overlay opcional */
+  }
+
   return { ok: true, linea: data, ausente: Boolean(ausente) }
 }
 
 /** @deprecated usar organizarPantallaPoomsaePorAreas */
-export function organizarPantallaPoomsae(categorias) {
-  return organizarPantallaPoomsaePorAreas(categorias)
+export function organizarPantallaPoomsae(categorias, opts) {
+  return organizarPantallaPoomsaePorAreas(categorias, opts)
 }
+
+export { getPoomsaeLiveState }
 
 export { organizarPantallaPoomsaePorAreas, agruparPoomsaePorForma, parseNombrePoomsae }
 
