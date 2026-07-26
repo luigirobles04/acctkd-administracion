@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { obtenerCampeonatoPorSlug } from '@/lib/campeonato/inscripcion-server'
 import { fetchCombatesCampeonato, organizarPantallaCancha } from '@/lib/campeonato/canchas-data'
+import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
+import { organizarPantallaPoomsae } from '@/lib/campeonato/poomsae-pss'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Zona de llamados: las 3 áreas en una sola respuesta.
- * Pensado para 1 pantalla fija en el coliseo (1 request por poll en vez de 3).
+ * Zona de llamados: kyorugi (3 áreas) + poomsae (cola por categoría).
  */
 export async function GET(_request, { params }) {
   try {
@@ -16,12 +17,20 @@ export async function GET(_request, { params }) {
     const campeonato = await obtenerCampeonatoPorSlug(sb, slug)
     if (!campeonato) return NextResponse.json({ error: 'Campeonato no encontrado' }, { status: 404 })
 
-    const { porCancha, total } = await fetchCombatesCampeonato(sb, campeonato.id_campeonato)
+    const [{ porCancha, total }, poomsaeOrden] = await Promise.all([
+      fetchCombatesCampeonato(sb, campeonato.id_campeonato),
+      fetchOrdenPoomsaeCampeonato(sb, campeonato.id_campeonato).catch(() => ({
+        categorias: [],
+        resumen: { totalParticipantes: 0 },
+      })),
+    ])
 
     const areas = [1, 2, 3].map((cancha) => ({
       cancha,
       ...organizarPantallaCancha(porCancha[cancha] || []),
     }))
+
+    const poomsae = organizarPantallaPoomsae(poomsaeOrden.categorias || [])
 
     return NextResponse.json(
       {
@@ -33,7 +42,9 @@ export async function GET(_request, { params }) {
           estado: campeonato.estado,
         },
         areas,
+        poomsae,
         totalCampeonato: total,
+        totalPoomsae: poomsaeOrden.resumen?.totalParticipantes ?? 0,
         actualizado: new Date().toISOString(),
       },
       { headers: { 'Cache-Control': 's-maxage=4, stale-while-revalidate=8' } }

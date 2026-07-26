@@ -403,3 +403,165 @@
   font-weight: 800;
   color: #bbf7d0;
 }
+
+/* Tabs Kyorugi / Poomsae */
+.llamados-header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.llamados-tabs {
+  display: flex;
+  gap: 6px;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.llamados-tab {
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 10px 18px;
+  border-radius: 999px;
+}
+
+.llamados-tab--active {
+  background: #dc2626;
+  color: #fff;
+}
+
+.llamados-tab:nth-child(2).llamados-tab--active {
+  background: #2563eb;
+}
+
+/* Vista poomsae */
+.llamados-poomsae {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 22px 24px;
+  min-height: 0;
+}
+
+.llamados-poomsae-main {
+  flex: 1;
+  background: #111421;
+  border: 1px solid #232a3f;
+  border-radius: 18px;
+  padding: 22px 24px;
+  min-width: 0;
+}
+
+.llamados-poomsae-cat h2 {
+  margin: 6px 0 4px;
+  font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.llamados-poomsae-division {
+  margin: 0;
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.llamados-poomsae-progress {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.llamados-poomsae-cols {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 20px;
+  margin-top: 22px;
+}
+
+@media (max-width: 1100px) {
+  .llamados-poomsae-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.llamados-poomsae-atleta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.llamados-poomsae-atleta--actual {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #172554 0%, #0f172a 100%);
+  box-shadow: 0 0 0 1px #2563eb55;
+}
+
+.llamados-poomsae-atleta-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.llamados-poomsae-orden {
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.llamados-poomsae-puntaje {
+  margin-top: 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.llamados-poomsae-otros {
+  background: #111421;
+  border: 1px solid #232a3f;
+  border-radius: 18px;
+  padding: 16px 20px;
+}
+
+.llamados-poomsae-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.llamados-poomsae-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 180px;
+}
+
+.llamados-poomsae-chip strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.llamados-poomsae-chip span {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 700;
+}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { ganadorCombate } from '@/lib/campeonato/canchas-data'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 
@@ -146,9 +147,116 @@ function ColumnaArea({ area }) {
   )
 }
 
+function AtletaPoomsae({ atleta, destacado }) {
+  if (!atleta) return null
+  return (
+    <div className={`llamados-poomsae-atleta${destacado ? ' llamados-poomsae-atleta--actual' : ''}`}>
+      <LogoAcademia competidor={atleta} size={destacado ? 64 : 44} />
+      <div className="llamados-poomsae-atleta-info">
+        <span className="llamados-poomsae-orden">#{atleta.orden}</span>
+        <span className="llamados-dorsal">{atleta.dorsal}</span>
+        <span className="llamados-nombre">{atleta.nombres}</span>
+        <span className="llamados-academia">{atleta.academia}</span>
+        {atleta.calificado && atleta.puntaje != null && (
+          <span className="llamados-poomsae-puntaje">{Number(atleta.puntaje).toFixed(1)}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function VistaPoomsae({ poomsae }) {
+  const cat = poomsae?.categoriaActual
+  const stats = poomsae?.stats
+
+  return (
+    <main className="llamados-poomsae">
+      <section className="llamados-poomsae-main">
+        <header className="llamados-poomsae-cat">
+          <span className="llamados-seccion-titulo">CATEGORÍA EN PISTA</span>
+          <h2>{cat?.nombre || 'Sin categoría activa'}</h2>
+          {cat?.division && <p className="llamados-poomsae-division">{cat.division}</p>}
+          {cat && (
+            <p className="llamados-poomsae-progress">
+              {cat.calificados}/{cat.inscritos} calificados
+              {stats?.pendientes != null ? ` · ${stats.pendientes} pendientes en total` : ''}
+            </p>
+          )}
+        </header>
+
+        <div className="llamados-poomsae-cols">
+          <div>
+            <p className="llamados-seccion-titulo">
+              {poomsae?.actual?.en_curso || poomsae?.actual?.estado === 'en_curso' ? 'EN PISTA' : 'LLAMADO ACTUAL'}
+            </p>
+            {poomsae?.actual ? (
+              <AtletaPoomsae atleta={poomsae.actual} destacado />
+            ) : (
+              <div className="llamados-sin-combate">
+                {stats?.pendientes === 0 ? 'Poomsae completado' : 'Sin atletas en cola'}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="llamados-seccion-titulo">SIGUIENTES</p>
+            {poomsae?.proximos?.length ? (
+              <div className="llamados-lista-siguientes">
+                {poomsae.proximos.map((a) => (
+                  <AtletaPoomsae key={a.id_linea} atleta={a} />
+                ))}
+              </div>
+            ) : (
+              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin más en esta categoría</div>
+            )}
+          </div>
+
+          <div>
+            <p className="llamados-seccion-titulo">ÚLTIMOS RESULTADOS</p>
+            {poomsae?.recientes?.length ? (
+              <div className="llamados-lista-siguientes">
+                {poomsae.recientes.map((a) => (
+                  <div key={a.id_linea} className="llamados-resultado">
+                    <span className="llamados-resultado-star">★</span>
+                    <div className="llamados-resultado-info">
+                      <span className="llamados-resultado-cat">{a.categoria_nombre}</span>
+                      <span className="llamados-resultado-ganador">
+                        {a.dorsal} {a.nombres}
+                        {a.puntaje != null ? ` · ${Number(a.puntaje).toFixed(1)}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="llamados-sin-combate llamados-sin-combate--mini">Sin resultados aún</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {poomsae?.categoriasPendientes?.length > 0 && (
+        <aside className="llamados-poomsae-otros">
+          <p className="llamados-seccion-titulo">OTRAS CATEGORÍAS PENDIENTES</p>
+          <div className="llamados-poomsae-chips">
+            {poomsae.categoriasPendientes.map((c) => (
+              <div key={c.id_categoria} className="llamados-poomsae-chip">
+                <strong>{c.nombre}</strong>
+                <span>{c.pendientes} pendientes</span>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+    </main>
+  )
+}
+
 export default function PantallaLlamados({ data, loading }) {
   const camp = data?.campeonato
   const areas = data?.areas || []
+  const poomsae = data?.poomsae
+  const [modo, setModo] = useState('kyorugi')
 
   return (
     <div className="pantalla-llamados">
@@ -157,13 +265,40 @@ export default function PantallaLlamados({ data, loading }) {
           <span className="llamados-marca">ACCTKD · ZONA DE LLAMADOS</span>
           <h1>{camp?.nombre || 'Campeonato'}</h1>
         </div>
-        <span className={loading ? 'llamados-live llamados-live--sync' : 'llamados-live'}>● EN VIVO</span>
+        <div className="llamados-header-right">
+          <div className="llamados-tabs" role="tablist" aria-label="Modalidad">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={modo === 'kyorugi'}
+              className={`llamados-tab${modo === 'kyorugi' ? ' llamados-tab--active' : ''}`}
+              onClick={() => setModo('kyorugi')}
+            >
+              KYORUGI
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={modo === 'poomsae'}
+              className={`llamados-tab${modo === 'poomsae' ? ' llamados-tab--active' : ''}`}
+              onClick={() => setModo('poomsae')}
+            >
+              POOMSAE
+            </button>
+          </div>
+          <span className={loading ? 'llamados-live llamados-live--sync' : 'llamados-live'}>● EN VIVO</span>
+        </div>
       </header>
-      <main className="llamados-grid">
-        {areas.map((area) => (
-          <ColumnaArea key={area.cancha} area={area} />
-        ))}
-      </main>
+
+      {modo === 'kyorugi' ? (
+        <main className="llamados-grid">
+          {areas.map((area) => (
+            <ColumnaArea key={area.cancha} area={area} />
+          ))}
+        </main>
+      ) : (
+        <VistaPoomsae poomsae={poomsae} />
+      )}
     </div>
   )
 }

@@ -103,6 +103,8 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       academia_logo: l.academia_campeonato?.academia?.logo_url || '',
       puntaje: l.poomsae_puntaje ?? null,
       calificado: l.poomsae_estado === 'calificado',
+      en_curso: l.poomsae_estado === 'en_curso',
+      estado: l.poomsae_estado || 'pendiente',
     }))
     const calificados = inscritos.filter((p) => p.calificado).length
     return {
