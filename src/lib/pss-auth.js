@@ -28,6 +28,11 @@ export async function verifyPssAccess(sb, request, idCampeonato) {
   const token = readPssToken(request)
   if (!token) return { ok: false, status: 401, error: 'Token PSS requerido (X-PSS-Token)' }
 
+  // Nunca aceptar el token de desarrollo conocido en producción (ni como secreto global ni por campeonato).
+  if (isProductionRuntime() && token === DEV_FALLBACK) {
+    return { ok: false, status: 403, error: 'Token PSS de desarrollo no permitido en producción' }
+  }
+
   const global = getGlobalPssSecret()
   if (!global && isProductionRuntime()) {
     return { ok: false, status: 503, error: 'PSS_API_SECRET no configurado en el servidor' }
@@ -41,7 +46,9 @@ export async function verifyPssAccess(sb, request, idCampeonato) {
     .maybeSingle()
 
   if (!camp) return { ok: false, status: 404, error: 'Campeonato no encontrado' }
-  if (camp.pss_token && token === camp.pss_token) return { ok: true }
+  if (camp.pss_token && camp.pss_token !== DEV_FALLBACK && token === camp.pss_token) {
+    return { ok: true }
+  }
 
   return { ok: false, status: 403, error: 'Token PSS inválido' }
 }
