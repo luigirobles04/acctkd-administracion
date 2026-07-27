@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import PodioCard from '@/components/campeonatos/PodioCard'
-import { readJsonResponse } from '@/lib/public-app-url'
+import { fetchConTimeout, readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/resultados.css'
 
 const TABS = [
@@ -160,7 +160,7 @@ export default function ResultadosPublicosPage() {
 
   const cargar = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campeonato/${slug}/resultados`, { cache: 'no-store' })
+      const res = await fetchConTimeout(`/api/campeonato/${slug}/resultados`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setData(json)

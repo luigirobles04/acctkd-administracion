@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import PantallaCancha from '@/components/campeonatos/PantallaCancha'
-import { readJsonResponse } from '@/lib/public-app-url'
+import { fetchConTimeout, readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/pantalla-cancha.css'
 
 const POLL_MS = 5000
@@ -18,7 +18,7 @@ export default function CanchaPublicaPage() {
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch(`/api/campeonato/${slug}/cancha/${cancha}`, { cache: 'no-store' })
+      const res = await fetchConTimeout(`/api/campeonato/${slug}/cancha/${cancha}`, { cache: 'no-store' })
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error)
       setData(json)

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import PantallaLlamados from '@/components/campeonatos/PantallaLlamados'
 import LoadingState from '@/components/ui/LoadingState'
-import { readJsonResponse } from '@/lib/public-app-url'
+import { fetchConTimeout, readJsonResponse } from '@/lib/public-app-url'
 import '@/components/campeonatos/pantalla-llamados.css'
 
 const POLL_MS = 3000
@@ -16,11 +16,14 @@ export default function LlamadosPublicaPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
   const firstLoad = useRef(true)
+  const enVuelo = useRef(false)
 
   const cargar = useCallback(async () => {
+    if (enVuelo.current) return
+    enVuelo.current = true
     try {
       if (!firstLoad.current) setSyncing(true)
-      const res = await fetch(`/api/campeonato/${slug}/llamados?t=${Date.now()}`, {
+      const res = await fetchConTimeout(`/api/campeonato/${slug}/llamados?t=${Date.now()}`, {
         cache: 'no-store',
         headers: { Pragma: 'no-cache', 'Cache-Control': 'no-cache' },
       })
@@ -34,6 +37,7 @@ export default function LlamadosPublicaPage() {
       setLoading(false)
       setSyncing(false)
       firstLoad.current = false
+      enVuelo.current = false
     }
   }, [slug])
 

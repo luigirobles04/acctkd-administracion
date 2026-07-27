@@ -26,6 +26,20 @@ export function isProtectedPreviewHost(hostname) {
   return false
 }
 
+/**
+ * fetch con timeout (pantallas TV / polling): aborta si el servidor no responde,
+ * evitando requests colgados que se acumulan en redes lentas de coliseo.
+ */
+export async function fetchConTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 export async function readJsonResponse(res) {
   const text = await res.text()
   try {

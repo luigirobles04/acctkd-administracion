@@ -558,7 +558,8 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
   const p2 = puntaje2 != null ? Number(puntaje2) : 0
   const motivo = motivoResultado || 'normal'
 
-  await sb
+  // Guard anti-carrera: solo finaliza si nadie lo finalizó entre la lectura y este write.
+  const { data: finalizadoAhora } = await sb
     .from('llave_kyorugi')
     .update({
       ganador_id_linea: g,
@@ -568,20 +569,43 @@ export async function registrarGanadorCombate(sb, idLlave, ganadorIdLinea, { pun
       motivo_resultado: motivo,
     })
     .eq('id_llave', id)
+    .neq('estado', 'finalizado')
+    .select('id_llave')
+
+  if (!finalizadoAhora?.length) {
+    // Otro proceso finalizó primero: validar coherencia del ganador.
+    const { data: actual } = await sb.from('llave_kyorugi').select('ganador_id_linea, motivo_resultado').eq('id_llave', id).maybeSingle()
+    if (actual && Number(actual.ganador_id_linea) === g) {
+      return { ok: true, id_llave: id, ganador_id_linea: g, motivo_resultado: actual.motivo_resultado || motivo, idempotent: true }
+    }
+    throw new Error('Combate ya finalizado con otro ganador')
+  }
 
   if (match.siguiente_llave) {
     const { data: sig } = await sb.from('llave_kyorugi').select('*').eq('id_llave', match.siguiente_llave).maybeSingle()
-    if (sig) {
-      const patch = {}
+    if (sig && sig.id_linea1 !== g && sig.id_linea2 !== g) {
       if (!sig.id_linea1) {
-        patch.id_linea1 = g
-        patch.color1 = COLOR_CHUNG
-      } else if (!sig.id_linea2 && sig.id_linea1 !== g) {
-        patch.id_linea2 = g
-        patch.color2 = COLOR_HONG
-      }
-      if (Object.keys(patch).length) {
-        await sb.from('llave_kyorugi').update(patch).eq('id_llave', match.siguiente_llave)
+        // .is(null) evita pisar un slot llenado por otro proceso en paralelo.
+        const { data: upd } = await sb
+          .from('llave_kyorugi')
+          .update({ id_linea1: g, color1: COLOR_CHUNG })
+          .eq('id_llave', match.siguiente_llave)
+          .is('id_linea1', null)
+          .select('id_llave')
+        if (!upd?.length && !sig.id_linea2) {
+          await sb
+            .from('llave_kyorugi')
+            .update({ id_linea2: g, color2: COLOR_HONG })
+            .eq('id_llave', match.siguiente_llave)
+            .is('id_linea2', null)
+            .neq('id_linea1', g)
+        }
+      } else if (!sig.id_linea2) {
+        await sb
+          .from('llave_kyorugi')
+          .update({ id_linea2: g, color2: COLOR_HONG })
+          .eq('id_llave', match.siguiente_llave)
+          .is('id_linea2', null)
       }
     }
   }
