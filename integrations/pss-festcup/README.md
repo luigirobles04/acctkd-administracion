@@ -22,9 +22,9 @@ Todas requieren header `X-PSS-Token` (o `Authorization: Bearer`).
 
 **Admin web / árbitro:** rutas `/api/admin/*` requieren sesión (`Authorization: Bearer` del login). Middleware valida rol (`admin`, `admin_campeonato`, `organizador`, `arbitro_mesa` según ruta).
 
-**Token:** variable de entorno `PSS_API_SECRET` en Vercel, o `campeonato.pss_token` en BD.
+**Token:** variable de entorno `PSS_API_SECRET` en Vercel, o `campeonato.pss_token` en BD. En Unity Setup pegar el mismo secreto (no commitear).
 
-**Producción:** https://festcup2026.com
+**FestCup 2026:** `id_campeonato = 10`, slug `festcup-2026`.
 
 ## Mapeo colores
 
