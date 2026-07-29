@@ -1,6 +1,7 @@
 'use client'
 
 import { ganadorCombate } from '@/lib/campeonato/canchas-data'
+import { RoundsMarcador, inferRoundActual } from '@/components/campeonatos/RoundsMarcador'
 
 const COLOR = {
   azul: { bg: '#1d4ed8', panel: '#dbeafe', text: '#1e3a8a', sub: '#1e40af', label: 'AZUL' },
@@ -10,40 +11,6 @@ const COLOR = {
 function fmtCombateTV(orden, cancha) {
   if (!orden) return null
   return `${cancha || 1}/${String(orden).padStart(2, '0')}`
-}
-
-function roundWinnerLabel(ganador, combate) {
-  if (ganador === 1) return combate.color1 === 'rojo' ? 'ROJO' : 'AZUL'
-  if (ganador === 2) return combate.color2 === 'rojo' ? 'ROJO' : 'AZUL'
-  return null
-}
-
-function RoundsTV({ combate }) {
-  const rounds = [
-    { n: 1, g: combate.round1_ganador },
-    { n: 2, g: combate.round2_ganador },
-    { n: 3, g: combate.round3_ganador },
-  ]
-  const any = rounds.some((r) => r.g === 1 || r.g === 2)
-  if (!any) return null
-
-  return (
-    <div className="pantalla-rounds-live" aria-label="Ganadores por round">
-      {rounds.map(({ n, g }) => {
-        const winner = roundWinnerLabel(g, combate)
-        const played = g === 1 || g === 2
-        return (
-          <div
-            key={n}
-            className={`pantalla-round-chip${played ? ` pantalla-round-chip--${winner === 'ROJO' ? 'rojo' : 'azul'}` : ''}`}
-          >
-            <span className="pantalla-round-chip-num">R{n}</span>
-            <span className="pantalla-round-chip-winner">{played ? winner : '—'}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 function CompetidorTV({ data, color, lado, esGanador, grande }) {
@@ -100,12 +67,6 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
   )
 }
 
-function inferRoundActual(combate) {
-  if (combate.round2_ganador) return 3
-  if (combate.round1_ganador) return 2
-  return 1
-}
-
 function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
   if (!combate) return null
   const g1 = combate.ganador_id_linea === combate.id_linea1
@@ -149,7 +110,7 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
           </div>
         </div>
       )}
-      {enVivo && <RoundsTV combate={combate} />}
+      {enVivo && <RoundsMarcador combate={combate} prefix="pantalla" />}
       <div className="pantalla-combate-vs">
         <CompetidorTV
           data={combate.competidor1}

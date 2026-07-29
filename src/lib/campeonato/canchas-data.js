@@ -58,15 +58,27 @@ function enrichCombate(l, lineaMap, catMap) {
 }
 
 export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltados = false } = {}) {
-  let q = sb
-    .from('llave_kyorugi')
-    .select('*')
-    .eq('id_campeonato', idCampeonato)
-    .neq('estado', 'vacío')
-    .neq('estado', 'bye')
-  if (!incluirSaltados) q = q.neq('estado', 'saltado')
-  const { data: llaves, error } = await q.order('orden_pista', { ascending: true, nullsFirst: false })
-  if (error) throw error
+  const llaves = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    let q = sb
+      .from('llave_kyorugi')
+      .select('*')
+      .eq('id_campeonato', idCampeonato)
+      .neq('estado', 'vacío')
+      .neq('estado', 'bye')
+    if (!incluirSaltados) q = q.neq('estado', 'saltado')
+    const { data, error } = await q
+      .order('orden_pista', { ascending: true, nullsFirst: false })
+      .order('id_llave', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    llaves.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
 
   const lineaIds = new Set()
   const catIds = new Set()
@@ -115,21 +127,53 @@ export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltado
   return { combates: enriched, porCancha, total: enriched.length }
 }
 
-function combateListo(c) {
-  return (c.estado === 'pendiente' || c.estado === 'en_curso') && c.id_linea1 && c.id_linea2 && c.competidor1 && c.competidor2
+function sortOrdenPista(a, b) {
+  const oa = a.orden_pista ?? 9999
+  const ob = b.orden_pista ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.id_llave || 0) - (b.id_llave || 0)
+}
+
+/** Pendiente programado en pista (se muestra el Nº aunque falten rivales). */
+export function combateProgramadoEnPista(c) {
+  if (c.estado !== 'pendiente') return false
+  if (c.es_bye) return false
+  const orden = Number(c.orden_pista)
+  return Number.isFinite(orden) && orden > 0
+}
+
+/** En curso o listo para entrar ya (ambos rivales). */
+export function combateListoAmbosRivales(c) {
+  return Boolean(c.id_linea1 && c.id_linea2)
+}
+
+/** @deprecated alias interno TV */
+export function combateEnCola(c) {
+  if (c.estado === 'en_curso') return combateListoAmbosRivales(c)
+  return combateProgramadoEnPista(c) || (c.estado === 'pendiente' && (c.id_linea1 || c.id_linea2))
+}
+
+function esSiguienteDe(actual, c) {
+  if (!actual) return true
+  if (c.id_llave === actual.id_llave) return false
+  const o = c.orden_pista ?? 9999
+  const oa = actual.orden_pista ?? 9999
+  if (actual.estado === 'en_curso') return o > oa
+  return o > oa || (o === oa && (c.id_llave || 0) > (actual.id_llave || 0))
 }
 
 /** Organiza datos para pantalla pública de una cancha */
 export function organizarPantallaCancha(combates) {
-  const lista = [...(combates || [])].sort((a, b) => (a.orden_pista || 9999) - (b.orden_pista || 9999))
-  const enCurso = lista.filter((c) => c.estado === 'en_curso' && combateListo(c))
-  const pendientes = lista.filter((c) => c.estado === 'pendiente' && combateListo(c))
+  const lista = [...(combates || [])].sort(sortOrdenPista)
+  const enCurso = lista.filter((c) => c.estado === 'en_curso' && combateListoAmbosRivales(c))
+  const pendientesPista = lista.filter((c) => combateProgramadoEnPista(c)).sort(sortOrdenPista)
   const finalizados = lista.filter((c) => c.estado === 'finalizado' && c.ganador_id_linea)
 
-  const actual = enCurso[0] || pendientes[0] || null
-  const proximos = actual?.estado === 'en_curso' ? pendientes.slice(0, 8) : pendientes.slice(1, 8)
+  const actual = enCurso[0] || pendientesPista[0] || null
+  const proximos = pendientesPista.filter((c) => esSiguienteDe(actual, c)).slice(0, 8)
   const recientes = finalizados.slice(-4).reverse()
 
+  const pendientesListos = pendientesPista.filter(combateListoAmbosRivales)
   const terminados = finalizados.length
   const total = lista.filter((c) => c.estado !== 'vacío').length
 
@@ -140,7 +184,7 @@ export function organizarPantallaCancha(combates) {
     stats: {
       terminados,
       total,
-      pendientes: pendientes.length,
+      pendientes: pendientesListos.length,
     },
   }
 }

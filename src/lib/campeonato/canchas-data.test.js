@@ -28,11 +28,10 @@ describe('organizarPantallaCancha (base de /llamados y TV)', () => {
       combate(3, 'pendiente', 3),
     ])
     expect(r.actual.id_llave).toBe(2)
-    // con combate en curso, todos los pendientes van a la cola
-    expect(r.proximos.map((c) => c.id_llave)).toEqual([1, 3])
+    expect(r.proximos.map((c) => c.id_llave)).toEqual([3])
   })
 
-  it('sin en curso: primer pendiente por orden_pista es el actual', () => {
+  it('sin en curso: primer pendiente por orden_pista es el actual (aunque falte rival)', () => {
     const r = organizarPantallaCancha([
       combate(5, 'pendiente', 9),
       combate(4, 'pendiente', 2),
@@ -41,10 +40,22 @@ describe('organizarPantallaCancha (base de /llamados y TV)', () => {
     expect(r.proximos.map((c) => c.id_llave)).toEqual([5])
   })
 
-  it('combates sin ambos competidores no cuentan como listos', () => {
-    const incompleto = combate(7, 'pendiente', 1, { id_linea2: 0, competidor2: null })
+  it('siguientes respetan numeración de pista aunque el combate no tenga ambos rivales', () => {
+    const espera = combate(3, 'pendiente', 3, { id_linea1: null, competidor1: null })
+    const r = organizarPantallaCancha([
+      combate(2, 'en_curso', 2),
+      espera,
+      combate(5, 'pendiente', 5),
+    ])
+    expect(r.actual.id_llave).toBe(2)
+    expect(r.proximos.map((c) => c.orden_pista)).toEqual([3, 5])
+  })
+
+  it('combate pendiente con un solo competidor es actual si es el menor orden en pista', () => {
+    const incompleto = combate(7, 'pendiente', 1, { id_linea2: null, competidor2: null })
     const r = organizarPantallaCancha([incompleto, combate(8, 'pendiente', 2)])
-    expect(r.actual.id_llave).toBe(8)
+    expect(r.actual.id_llave).toBe(7)
+    expect(r.proximos.map((c) => c.id_llave)).toEqual([8])
   })
 
   it('finalizados alimentan recientes (últimos primero) y stats', () => {

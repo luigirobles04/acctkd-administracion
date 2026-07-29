@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ganadorCombate } from '@/lib/campeonato/canchas-data'
+import { RoundsMarcador, inferRoundActual } from '@/components/campeonatos/RoundsMarcador'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 
 function fmtCombateTV(orden, cancha) {
@@ -57,23 +58,33 @@ function CombateLlamado({ combate, cancha, esActual }) {
   const enVivo = combate.estado === 'en_curso'
   const p1 = combate.puntaje1 ?? 0
   const p2 = combate.puntaje2 ?? 0
-  // En "siguientes" apilar (evita que nombres largos se crucen en TV/móvil).
+  const roundActual = inferRoundActual(combate)
+  const faltaRival = !combate.id_linea1 || !combate.id_linea2
   const apilado = !esActual
 
   return (
-    <div className={`llamados-combate${esActual ? ' llamados-combate--actual' : ' llamados-combate--cola'}${enVivo ? ' llamados-combate--vivo' : ''}`}>
+    <div className={`llamados-combate${esActual ? ' llamados-combate--actual' : ' llamados-combate--cola'}${enVivo ? ' llamados-combate--vivo' : ''}${faltaRival && !esActual ? ' llamados-combate--espera' : ''}`}>
       <div className="llamados-combate-meta">
         {combateNo && <em className="llamados-combate-no">{combateNo}</em>}
         <span className="llamados-combate-cat" title={combate.categoria_nombre}>{combate.categoria_nombre}</span>
         <span className="llamados-combate-ronda">{combate.rondaLabel}</span>
         {enVivo && <span className="llamados-badge-vivo">EN CURSO</span>}
       </div>
+      {faltaRival && (
+        <p className="llamados-espera-rival">
+          Nº de combate reservado · rival(es) se confirman al cerrar llaves anteriores
+        </p>
+      )}
       {esActual && (enVivo || p1 > 0 || p2 > 0) && (
         <div className="llamados-marcador">
+          {enVivo && <span className="llamados-marcador-round-tag">ROUND {roundActual}</span>}
           <strong className={`llamados-punto llamados-punto--azul${p1 > p2 ? ' llamados-punto--lider' : ''}`}>{p1}</strong>
           <span className="llamados-marcador-sep">—</span>
           <strong className={`llamados-punto llamados-punto--rojo${p2 > p1 ? ' llamados-punto--lider' : ''}`}>{p2}</strong>
         </div>
+      )}
+      {esActual && enVivo && (
+        <RoundsMarcador combate={combate} prefix="llamados" showWhenEmpty />
       )}
       <div className={`llamados-vs${apilado ? ' llamados-vs--stack' : ''}`}>
         <LadoLlamado competidor={combate.competidor1} color="azul" compact={apilado} />
@@ -103,7 +114,7 @@ function UltimoResultado({ combate }) {
 
 function ColumnaArea({ area }) {
   const { cancha, actual, proximos, recientes, stats } = area
-  const enCola = actual ? proximos : proximos?.slice(1)
+  const enCola = proximos
 
   return (
     <section className="llamados-col">
@@ -130,7 +141,7 @@ function ColumnaArea({ area }) {
         <p className="llamados-seccion-titulo">SIGUIENTES</p>
         {enCola?.length ? (
           <div className="llamados-lista-siguientes">
-            {enCola.slice(0, 3).map((c) => (
+            {enCola.slice(0, 5).map((c) => (
               <CombateLlamado key={c.id_llave} combate={c} cancha={cancha} esActual={false} />
             ))}
           </div>
