@@ -57,14 +57,17 @@ function enrichCombate(l, lineaMap, catMap) {
   })
 }
 
-export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltados = false } = {}) {
+const LLAVE_COLS_LLAMADOS =
+  'id_llave,id_categoria,ronda,match_numero,estado,es_bye,cancha,orden_pista,color1,color2,ganador_id_linea,id_linea1,id_linea2,puntaje1,puntaje2,round1_ganador,round2_ganador,round3_ganador,siguiente_llave,motivo_resultado,es_exhibicion'
+
+async function fetchLlavesSlimPaginado(sb, idCampeonato, { incluirSaltados = false } = {}) {
   const llaves = []
   const pageSize = 1000
   let from = 0
   while (true) {
     let q = sb
       .from('llave_kyorugi')
-      .select('*')
+      .select(LLAVE_COLS_LLAMADOS)
       .eq('id_campeonato', idCampeonato)
       .neq('estado', 'vacío')
       .neq('estado', 'bye')
@@ -79,43 +82,116 @@ export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltado
     if (data.length < pageSize) break
     from += pageSize
   }
+  return llaves
+}
 
+async function fetchLineasYCategorias(sb, lineaIds, catIds) {
+  let lineaMap = {}
+  const ids = [...lineaIds]
+  if (ids.length) {
+    const CHUNK = 200
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK)
+      const { data: lineas, error } = await sb
+        .from('linea_inscripcion')
+        .select(`
+          id_linea, dorsal_display,
+          academia_campeonato(academia(nombre, logo_url)),
+          miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, foto_url))
+        `)
+        .in('id_linea', slice)
+      if (error) throw error
+      for (const l of lineas || []) {
+        lineaMap[l.id_linea] = {
+          ...l,
+          academia_nombre: l.academia_campeonato?.academia?.nombre || '',
+          academia_logo_url: l.academia_campeonato?.academia?.logo_url || '',
+        }
+      }
+    }
+  }
+
+  let catMap = {}
+  const cats = [...catIds]
+  if (cats.length) {
+    const { data: rows, error } = await sb
+      .from('categoria_campeonato')
+      .select('id_categoria, nombre')
+      .in('id_categoria', cats)
+    if (error) throw error
+    catMap = Object.fromEntries((rows || []).map((c) => [c.id_categoria, c]))
+  }
+
+  return { lineaMap, catMap }
+}
+
+function combatesVisiblesEnPantalla(pantalla) {
+  const out = []
+  for (const c of [pantalla.actual, ...(pantalla.proximos || []), ...(pantalla.recientes || [])]) {
+    if (c) out.push(c)
+  }
+  return out
+}
+
+function enrichCombatesLista(combates, lineaMap, catMap) {
+  return (combates || []).map((l) => enrichCombate(l, lineaMap, catMap))
+}
+
+function enrichPantallaCancha(pantalla, lineaMap, catMap) {
+  if (!pantalla) return pantalla
+  const enrichOne = (c) => (c ? enrichCombate(c, lineaMap, catMap) : null)
+  return {
+    ...pantalla,
+    actual: enrichOne(pantalla.actual),
+    proximos: (pantalla.proximos || []).map(enrichOne),
+    recientes: (pantalla.recientes || []).map(enrichOne),
+  }
+}
+
+/** Kyorugi para /llamados: todas las llaves (ligero) pero solo enriquece ~15 combates visibles por área. */
+export async function fetchPantallaLlamadosKyorugi(sb, idCampeonato) {
+  const llaves = await fetchLlavesSlimPaginado(sb, idCampeonato)
+  const porCanchaSlim = { 1: [], 2: [], 3: [] }
+  for (const l of llaves) {
+    if (l.cancha && porCanchaSlim[l.cancha]) porCanchaSlim[l.cancha].push(l)
+  }
+
+  const pantallas = {}
   const lineaIds = new Set()
   const catIds = new Set()
-  for (const l of llaves || []) {
+
+  for (const cancha of [1, 2, 3]) {
+    pantallas[cancha] = organizarPantallaCancha(porCanchaSlim[cancha] || [])
+    for (const c of combatesVisiblesEnPantalla(pantallas[cancha])) {
+      if (c.id_linea1) lineaIds.add(c.id_linea1)
+      if (c.id_linea2) lineaIds.add(c.id_linea2)
+      if (c.id_categoria) catIds.add(c.id_categoria)
+    }
+  }
+
+  const { lineaMap, catMap } = await fetchLineasYCategorias(sb, lineaIds, catIds)
+
+  const areas = [1, 2, 3].map((cancha) => ({
+    cancha,
+    ...enrichPantallaCancha(pantallas[cancha], lineaMap, catMap),
+  }))
+
+  return { areas, total: llaves.length }
+}
+
+export async function fetchCombatesCampeonato(sb, idCampeonato, { incluirSaltados = false } = {}) {
+  const llaves = await fetchLlavesSlimPaginado(sb, idCampeonato, { incluirSaltados })
+  // Full enrich: todas las líneas (admin, PSS snapshot, etc.)
+  const lineaIds = new Set()
+  const catIds = new Set()
+  for (const l of llaves) {
     if (l.id_linea1) lineaIds.add(l.id_linea1)
     if (l.id_linea2) lineaIds.add(l.id_linea2)
     if (l.id_categoria) catIds.add(l.id_categoria)
   }
 
-  let lineaMap = {}
-  if (lineaIds.size) {
-    const { data: lineas } = await sb
-      .from('linea_inscripcion')
-      .select(`
-        id_linea, dorsal_display,
-        academia_campeonato(academia(nombre, logo_url)),
-        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, foto_url))
-      `)
-      .in('id_linea', [...lineaIds])
-    lineaMap = Object.fromEntries(
-      (lineas || []).map((l) => [
-        l.id_linea,
-        { ...l, academia_nombre: l.academia_campeonato?.academia?.nombre || '', academia_logo_url: l.academia_campeonato?.academia?.logo_url || '' },
-      ])
-    )
-  }
-
-  let catMap = {}
-  if (catIds.size) {
-    const { data: cats } = await sb
-      .from('categoria_campeonato')
-      .select('id_categoria, nombre')
-      .in('id_categoria', [...catIds])
-    catMap = Object.fromEntries((cats || []).map((c) => [c.id_categoria, c]))
-  }
-
-  const enriched = (llaves || []).map((l) => enrichCombate(l, lineaMap, catMap))
+  const { lineaMap, catMap } = await fetchLineasYCategorias(sb, lineaIds, catIds)
+  const enriched = enrichCombatesLista(llaves, lineaMap, catMap)
   const porCancha = { 1: [], 2: [], 3: [] }
   for (const c of enriched) {
     if (c.cancha && porCancha[c.cancha]) porCancha[c.cancha].push(c)
@@ -226,4 +302,8 @@ export function ganadorCombate(c) {
   if (c.ganador_id_linea === c.id_linea1) return c.competidor1
   if (c.ganador_id_linea === c.id_linea2) return c.competidor2
   return null
+}
+
+export function hayKyorugiEnCurso(areas) {
+  return (areas || []).some((a) => a.actual?.estado === 'en_curso')
 }

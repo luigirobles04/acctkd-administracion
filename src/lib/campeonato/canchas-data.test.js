@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { organizarPantallaCancha, ganadorCombate } from './canchas-data'
+import { organizarPantallaCancha, ganadorCombate, hayKyorugiEnCurso } from './canchas-data'
 
 const combate = (id, estado, orden, extra = {}) => ({
   id_llave: id,
@@ -86,6 +86,18 @@ describe('organizarPantallaCancha (base de /llamados y TV)', () => {
     ])
     expect(r.recientes.map((c) => c.id_llave)).toEqual([2, 1])
     expect(r.stats).toEqual({ terminados: 2, total: 3, pendientes: 1 })
+  })
+})
+
+describe('hayKyorugiEnCurso', () => {
+  it('true si algún área tiene combate en curso', () => {
+    expect(
+      hayKyorugiEnCurso([
+        { actual: combate(1, 'pendiente', 1) },
+        { actual: combate(2, 'en_curso', 5) },
+      ])
+    ).toBe(true)
+    expect(hayKyorugiEnCurso([{ actual: combate(1, 'pendiente', 1) }])).toBe(false)
   })
 })
 

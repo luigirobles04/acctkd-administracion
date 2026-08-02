@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { ganadorCombate } from '@/lib/campeonato/canchas-data'
 import { RoundsMarcador, inferRoundActual } from '@/components/campeonatos/RoundsMarcador'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
@@ -290,11 +289,11 @@ function VistaPoomsae({ poomsae }) {
   )
 }
 
-export default function PantallaLlamados({ data, loading }) {
+export default function PantallaLlamados({ data, loading, modo = 'kyorugi', onModoChange }) {
   const camp = data?.campeonato
   const areas = data?.areas || []
   const poomsae = data?.poomsae
-  const [modo, setModo] = useState('kyorugi')
+  const setModo = onModoChange || (() => {})
 
   return (
     <div className="pantalla-llamados">
