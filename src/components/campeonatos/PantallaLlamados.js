@@ -5,9 +5,10 @@ import { ganadorCombate } from '@/lib/campeonato/canchas-data'
 import { RoundsMarcador, inferRoundActual } from '@/components/campeonatos/RoundsMarcador'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 
-function fmtCombateTV(orden, cancha) {
-  if (!orden) return null
-  return `${cancha || 1}/${String(orden).padStart(2, '0')}`
+function fmtCombateTV(combate, cancha) {
+  if (combate?.combate_no) return combate.combate_no
+  if (!combate?.orden_pista) return null
+  return `${combate.cancha || cancha || 1}/${String(combate.orden_pista).padStart(2, '0')}`
 }
 
 function LogoAcademia({ competidor, size = 44 }) {
@@ -54,7 +55,7 @@ function LadoLlamado({ competidor, color, compact }) {
 
 function CombateLlamado({ combate, cancha, esActual }) {
   if (!combate) return null
-  const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
+  const combateNo = fmtCombateTV(combate, cancha)
   const enVivo = combate.estado === 'en_curso'
   const p1 = combate.puntaje1 ?? 0
   const p2 = combate.puntaje2 ?? 0

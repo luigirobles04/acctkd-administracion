@@ -5,6 +5,7 @@ const combate = (id, estado, orden, extra = {}) => ({
   id_llave: id,
   estado,
   orden_pista: orden,
+  cancha: 1,
   id_linea1: 100 + id,
   id_linea2: 200 + id,
   competidor1: { id_linea: 100 + id, dorsal: `A${id}`, nombres: `Azul ${id}` },
@@ -51,11 +52,30 @@ describe('organizarPantallaCancha (base de /llamados y TV)', () => {
     expect(r.proximos.map((c) => c.orden_pista)).toEqual([3, 5])
   })
 
+  it('combate pendiente con un solo competidor no es actual si ya pasó el puntero', () => {
+    const incompleto = combate(7, 'pendiente', 1, { id_linea2: null, competidor2: null })
+    const r = organizarPantallaCancha([
+      combate(6, 'finalizado', 49, { ganador_id_linea: 106 }),
+      incompleto,
+      combate(8, 'pendiente', 52),
+    ])
+    expect(r.actual.id_llave).toBe(8)
+    expect(r.proximos.map((c) => c.id_llave)).toEqual([])
+  })
+
   it('combate pendiente con un solo competidor es actual si es el menor orden en pista', () => {
     const incompleto = combate(7, 'pendiente', 1, { id_linea2: null, competidor2: null })
     const r = organizarPantallaCancha([incompleto, combate(8, 'pendiente', 2)])
     expect(r.actual.id_llave).toBe(7)
     expect(r.proximos.map((c) => c.id_llave)).toEqual([8])
+  })
+
+  it('duplicados de orden_pista reciben combate_no distinto', () => {
+    const a = combate(1, 'pendiente', 52, { cancha: 1 })
+    const b = combate(2, 'pendiente', 52, { cancha: 1 })
+    const r = organizarPantallaCancha([a, b])
+    expect(r.actual.combate_no).toBe('1/52')
+    expect(r.proximos[0].combate_no).toBe('1/52a')
   })
 
   it('finalizados alimentan recientes (últimos primero) y stats', () => {

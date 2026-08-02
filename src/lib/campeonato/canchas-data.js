@@ -134,6 +134,33 @@ function sortOrdenPista(a, b) {
   return (a.id_llave || 0) - (b.id_llave || 0)
 }
 
+/** Etiqueta TV única; si hay orden_pista repetido en el área añade sufijo (1/52a). */
+export function enrichNumeracionArea(combates) {
+  const sorted = [...(combates || [])].sort(sortOrdenPista)
+  const seenOrden = new Map()
+  return sorted.map((c) => {
+    const o = Number(c.orden_pista)
+    if (!Number.isFinite(o) || o <= 0) return { ...c, combate_no: null }
+    const dup = seenOrden.get(o) || 0
+    seenOrden.set(o, dup + 1)
+    const suf = dup === 0 ? '' : String.fromCharCode(96 + dup)
+    return {
+      ...c,
+      combate_no: `${c.cancha || 1}/${String(o).padStart(2, '0')}${suf}`,
+    }
+  })
+}
+
+function punteroOrdenPista(lista) {
+  let max = 0
+  for (const c of lista || []) {
+    if (c.estado !== 'finalizado' && c.estado !== 'en_curso') continue
+    const o = Number(c.orden_pista)
+    if (Number.isFinite(o) && o > max) max = o
+  }
+  return max
+}
+
 /** Pendiente programado en pista (se muestra el Nº aunque falten rivales). */
 export function combateProgramadoEnPista(c) {
   if (c.estado !== 'pendiente') return false
@@ -164,12 +191,17 @@ function esSiguienteDe(actual, c) {
 
 /** Organiza datos para pantalla pública de una cancha */
 export function organizarPantallaCancha(combates) {
-  const lista = [...(combates || [])].sort(sortOrdenPista)
+  const lista = enrichNumeracionArea(combates)
+  const puntero = punteroOrdenPista(lista)
   const enCurso = lista.filter((c) => c.estado === 'en_curso' && combateListoAmbosRivales(c))
   const pendientesPista = lista.filter((c) => combateProgramadoEnPista(c)).sort(sortOrdenPista)
   const finalizados = lista.filter((c) => c.estado === 'finalizado' && c.ganador_id_linea)
 
-  const actual = enCurso[0] || pendientesPista[0] || null
+  const actual =
+    enCurso[0] ||
+    pendientesPista.find((c) => (c.orden_pista ?? 0) > puntero) ||
+    pendientesPista.find(combateListoAmbosRivales) ||
+    null
   const proximos = pendientesPista.filter((c) => esSiguienteDe(actual, c)).slice(0, 8)
   const recientes = finalizados.slice(-4).reverse()
 

@@ -294,6 +294,22 @@ async function batchUpdateCanchas(sb, rows) {
   }
 }
 
+/** Garantiza orden_pista 1…N único por cancha antes de persistir. */
+function normalizarUpdatesOrdenPista(updates) {
+  const byCancha = new Map()
+  for (const u of updates) {
+    const k = Number(u.cancha) || 1
+    if (!byCancha.has(k)) byCancha.set(k, [])
+    byCancha.get(k).push({ ...u })
+  }
+  const out = []
+  for (const rows of byCancha.values()) {
+    rows.sort((a, b) => (a.orden_pista ?? 9999) - (b.orden_pista ?? 9999) || (a.id_llave || 0) - (b.id_llave || 0))
+    rows.forEach((r, i) => out.push({ ...r, orden_pista: i + 1 }))
+  }
+  return out
+}
+
 import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
 
 /** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
@@ -306,12 +322,23 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     .order('orden', { ascending: true })
   if (errC) throw errC
 
-  const { data: llaves, error } = await sb
-    .from('llave_kyorugi')
-    .select('id_llave, ronda, match_numero, estado, id_categoria')
-    .eq('id_campeonato', idCampeonato)
-    .neq('estado', 'vacío')
-  if (error) throw error
+  const llaves = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    const { data, error } = await sb
+      .from('llave_kyorugi')
+      .select('id_llave, ronda, match_numero, estado, id_categoria')
+      .eq('id_campeonato', idCampeonato)
+      .neq('estado', 'vacío')
+      .order('id_llave', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    llaves.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
 
   const porCat = {}
   for (const l of llaves || []) {
@@ -327,7 +354,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
   })
 
   const resumen = []
-  const updates = []
+  let updates = []
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
@@ -350,7 +377,10 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     }
   }
 
-  if (updates.length) await batchUpdateCanchas(sb, updates)
+  if (updates.length) {
+    updates = normalizarUpdatesOrdenPista(updates)
+    await batchUpdateCanchas(sb, updates)
+  }
 
   return { asignados: llaves?.length || 0, canchas: numCanchas, porCategoria: resumen }
 }

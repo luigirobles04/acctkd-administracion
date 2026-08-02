@@ -8,9 +8,10 @@ const COLOR = {
   rojo: { bg: '#b91c1c', panel: '#fee2e2', text: '#7f1d1d', sub: '#991b1b', label: 'ROJO' },
 }
 
-function fmtCombateTV(orden, cancha) {
-  if (!orden) return null
-  return `${cancha || 1}/${String(orden).padStart(2, '0')}`
+function fmtCombateTV(combate, cancha) {
+  if (combate?.combate_no) return combate.combate_no
+  if (!combate?.orden_pista) return null
+  return `${combate.cancha || cancha || 1}/${String(combate.orden_pista).padStart(2, '0')}`
 }
 
 function CompetidorTV({ data, color, lado, esGanador, grande }) {
@@ -71,7 +72,7 @@ function CombateTV({ combate, grande = false, showMeta = true, cancha = 1 }) {
   if (!combate) return null
   const g1 = combate.ganador_id_linea === combate.id_linea1
   const g2 = combate.ganador_id_linea === combate.id_linea2
-  const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
+  const combateNo = fmtCombateTV(combate, cancha)
   const enVivo = combate.estado === 'en_curso'
   const roundActual = inferRoundActual(combate)
   const p1 = combate.puntaje1 ?? 0
@@ -153,7 +154,7 @@ function ResultadoMini({ combate }) {
 }
 
 function ProximoMini({ combate, index, cancha = 1 }) {
-  const combateNo = fmtCombateTV(combate.orden_pista, combate.cancha || cancha)
+  const combateNo = fmtCombateTV(combate, cancha)
   return (
     <div className="pantalla-proximo-mini">
       <span className="pantalla-proximo-num">{index + 1}</span>
