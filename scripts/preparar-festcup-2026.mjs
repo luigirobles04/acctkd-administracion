@@ -67,7 +67,12 @@ const payload = {
   fecha_fin_regular: '2026-10-31',
   fecha_cierre_inscripcion: '2026-11-05',
   fecha_gracia_pago: '2026-11-06',
-  cuenta_bancaria_info: 'BCP · ACCTKD · Consultar bases PDF en festcup2026.com',
+  cuenta_bancaria_info: `Depósito / transferencia
+Titular: Christopher Martin Cabrera Nole
+
+BCP: 570-262300000-0-4
+BBVA: 0011-0814-0215894385
+Interbank: 898-3202686690`,
   publicado: true,
 }
 

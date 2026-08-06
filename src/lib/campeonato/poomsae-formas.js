@@ -4,17 +4,18 @@
  */
 
 const EDAD_ORDER = [
+  'Pre Infantil',
   'Infantil A',
   'Infantil B',
-  'Pre-cadete',
+  'Pre Cadete',
   'Cadete',
-  'Juvenil',
-  'Senior I',
-  'Senior II',
-  'Master I',
-  'Master II',
-  'Master III',
-  'Master IV',
+  'Junior',
+  'Senior 1',
+  'Senior 2',
+  'Master 1',
+  'Master 2',
+  'Master 3',
+  'Master 4',
 ]
 
 /** @param {string} nombre ej. "Poomsae Kibom · Infantil A · M" */
@@ -23,6 +24,10 @@ export function parseNombrePoomsae(nombre) {
   const ranking = n.match(/^Poomsae Ranking · (.+?) · ([MFX])$/i)
   if (ranking) {
     return { forma: 'Ranking', edad: ranking[1].trim(), genero: ranking[2].toUpperCase(), esRanking: true }
+  }
+  const dan = n.match(/^Poomsae (Koryo|Keumgang|Taebaek|Pyongwon|Sip Jin|Jitae|Chongkwon|Hansu) · (.+?) · ([MFX])$/i)
+  if (dan) {
+    return { forma: dan[1].trim(), edad: dan[2].trim(), genero: dan[3].toUpperCase(), esRanking: false, esDan: true }
   }
   const m = n.match(/^Poomsae (.+?) · (.+?) · ([MFX])$/i)
   if (m) {

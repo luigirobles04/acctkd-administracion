@@ -8,6 +8,7 @@ import {
   matchPerfilPorNombre,
   normTxt,
   parseFechaExcel,
+  parseGradoExcel,
   parsePesoExcel,
   perfilKeyFromNombre,
   poomsaeFormFromExcel,
@@ -80,6 +81,16 @@ function looksLikeCategoryText(s) {
   return /CADET|JUNIOR|JUVENIL|SENIOR|MASTER|INFANTIL|PRE-|PRE\s|MAYORES|NOVEL|AVANZ|FESTIVAL|KG|^IA$|^IB$|^I\s*B|^I\s*A|^C\s|^J\s|^C\d|^IB\d|^IA\d|\bMAS\b|\+\s*MAS|\bMAS\s+\d/.test(n)
 }
 
+function extractGradoFromRow(row, pesoCol) {
+  // Grado opcional a la derecha del peso (col+1) o más allá
+  for (const idx of [pesoCol + 1, pesoCol + 2, 6, 7]) {
+    if (idx == null || idx < 0) continue
+    const g = parseGradoExcel(row[idx])
+    if (g) return g
+  }
+  return null
+}
+
 function parseKyorugiRow(row, ctx) {
   const nombre = String(row[1] || '').trim()
   if (!nombre) return null
@@ -90,45 +101,62 @@ function parseKyorugiRow(row, ctx) {
   let categoriaTxt = String(row[4] || '').trim()
   let pesoRaw = row[5] ?? row[6]
   let sexo = parseSexo(row[5] ?? row[6])
+  let pesoCol = 5
 
+  // Layout oficial: N° | Nombre | Fecha | Codigo | Categoria | Sexo | PESO [| Grado]
   if (looksLikeCategoryText(String(row[4] || '')) && !looksLikeWeightText(row[4]) && parseSexo(row[5]) && (parsePesoExcel(row[6]) != null || looksLikeWeightText(row[6]))) {
     categoriaTxt = String(row[4] || '').trim()
     sexo = parseSexo(row[5])
     pesoRaw = row[6]
+    pesoCol = 6
     codigo = String(row[3] || '').trim()
+  // Layout coach: N° | Nombre | Fecha | Categoria | Sexo | PESO [| Grado]
+  } else if (looksLikeCategoryText(row[3]) && parseSexo(row[4]) && (looksLikeWeightText(row[5]) || typeof row[5] === 'number' || parsePesoExcel(row[5]) != null)) {
+    categoriaTxt = String(row[3] || '').trim()
+    sexo = parseSexo(row[4])
+    pesoRaw = row[5]
+    pesoCol = 5
+    codigo = ''
   } else if (looksLikeCategoryText(row[3]) && (looksLikeWeightText(row[4]) || typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
     categoriaTxt = String(row[3] || '').trim()
     pesoRaw = typeof row[6] === 'number' && row[6] > 0 ? row[6] : row[4]
+    pesoCol = typeof row[6] === 'number' && row[6] > 0 ? 6 : 4
     sexo = parseSexo(row[5]) || sexo
     codigo = ''
   } else if (looksLikeCategoryText(codigo) && looksLikeWeightText(categoriaTxt)) {
     pesoRaw = typeof row[6] === 'number' && row[6] > 0 ? row[6] : categoriaTxt
+    pesoCol = typeof row[6] === 'number' && row[6] > 0 ? 6 : 4
     sexo = parseSexo(row[5]) || sexo
     categoriaTxt = codigo
     codigo = ''
   } else if (looksLikeCategoryText(row[3]) && (typeof row[4] === 'number' || parsePesoExcel(row[4]) != null)) {
     categoriaTxt = String(row[3] || '').trim()
     pesoRaw = row[4]
+    pesoCol = 4
     sexo = parseSexo(row[5]) || sexo
   } else if (looksLikeCategoryText(codigo) && !categoriaTxt) {
     categoriaTxt = codigo
     codigo = ''
     pesoRaw = row[4]
+    pesoCol = 4
     sexo = parseSexo(row[5]) || sexo
   } else if (decodeKyorugiCodigoExcel(codigo).division || decodeKyorugiCodigoExcel(codigo).sexo) {
     const decoded = decodeKyorugiCodigoExcel(codigo)
     categoriaTxt = decoded.categoriaTexto || codigo
     if (decoded.sexo) sexo = decoded.sexo
     pesoRaw = typeof row[4] === 'number' ? row[4] : parsePesoExcel(row[4]) != null ? row[4] : row[5]
+    pesoCol = typeof row[4] === 'number' || parsePesoExcel(row[4]) != null ? 4 : 5
     sexo = sexo || parseSexo(row[5])
     codigo = ''
   } else if (parsePesoExcel(categoriaTxt) != null && !looksLikeCategoryText(categoriaTxt)) {
     pesoRaw = categoriaTxt
+    pesoCol = 4
     categoriaTxt = codigo || ''
     codigo = ''
     sexo = parseSexo(row[5]) || sexo
   } else if (parsePesoExcel(codigo) != null && !looksLikeCategoryText(codigo)) {
     pesoRaw = codigo
+    pesoCol = 3
     categoriaTxt = ''
     codigo = ''
     sexo = parseSexo(row[4]) || parseSexo(row[5]) || sexo
@@ -136,16 +164,21 @@ function parseKyorugiRow(row, ctx) {
 
   if (!sexo) sexo = inferSexoFromNombre(nombre)
 
+  const gradoTxt = extractGradoFromRow(row, pesoCol)
   const peso = parsePesoExcel(pesoRaw)
-  const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: null, sheet: 'KYORUGUI', codigo })
+  const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: gradoTxt, sheet: 'KYORUGUI', codigo })
 
-  const cat = resolverCategoriaKyorugi(ctx.categorias, {
+  const { cat, advertencias: advCat } = resolverCategoriaKyorugi(ctx.categorias, {
     categoriaTexto: categoriaTxt || codigo,
     pesoRaw: peso ?? pesoRaw,
     sexo: perfil.sexo,
     perfil,
     anio: ctx.anio,
+    gradoTexto: gradoTxt,
   })
+
+  const advertencias = [...(advCat || [])]
+  if (!perfil.fecha_nacimiento) advertencias.push('Sin fecha de nacimiento — verifica categoría')
 
   return {
     tipo: 'kyorugi_individual',
@@ -156,7 +189,7 @@ function parseKyorugiRow(row, ctx) {
     label: `${nombre} · Kyorugi ${cat?.nombre || categoriaTxt || ''}`.trim(),
     hoja: 'KYORUGUI',
     errores: cat ? [] : ['No se pudo resolver categoría kyorugi'],
-    advertencias: !perfil.fecha_nacimiento ? ['Sin fecha de nacimiento — verifica categoría'] : [],
+    advertencias,
   }
 }
 
@@ -169,17 +202,20 @@ function parsePoomsaeIndividualRow(row, ctx) {
   const poomsae = String(row[4] || '').trim()
   if (!division && !poomsae) return null
   const sexo = parseSexo(row[5])
-  const gradoHint = inferGradoFromPoomsae(poomsae)
+  const gradoHint = parseGradoExcel(row[6]) || parseGradoExcel(row[7]) || inferGradoFromPoomsae(poomsae)
 
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: gradoHint, sheet: 'POOMSAE' })
 
-  const cat = resolverCategoriaPoomsae(ctx.categorias, {
+  const { cat, advertencias: advCat } = resolverCategoriaPoomsae(ctx.categorias, {
     divisionTexto: division,
     poomsaeTexto: poomsae,
     sexo: perfil.sexo,
     perfil,
     anio: ctx.anio,
   })
+
+  const advertencias = [...(advCat || [])]
+  if (!perfil.fecha_nacimiento) advertencias.push('Sin fecha de nacimiento')
 
   return {
     tipo: 'poomsae_individual',
@@ -189,7 +225,7 @@ function parsePoomsaeIndividualRow(row, ctx) {
     label: `${nombre} · Poomsae ${cat?.nombre || division}`.trim(),
     hoja: 'POOMSAE',
     errores: cat ? [] : ['No se pudo resolver división poomsae'],
-    advertencias: !perfil.fecha_nacimiento ? ['Sin fecha de nacimiento'] : [],
+    advertencias,
   }
 }
 
@@ -235,11 +271,16 @@ function parseFestivalRow(row, ctx) {
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
 
   const edad = fecha ? edadWT(fecha, ctx.anio) : edadDeclarada
-  const grupo = divisionFestivalFromText(divisionHint) || divisionFestivalPorEdad(edad)
+  const grupoEdad = divisionFestivalPorEdad(edad)
+  const grupoExcel = divisionFestivalFromText(divisionHint)
+  const grupo = grupoEdad || grupoExcel
 
   const advertencias = ['Importado desde hoja Festival']
   if (!fecha && !edadDeclarada && divisionHint) advertencias.push('Sin fecha — división tomada del Excel')
   if (edadDeclarada && !parseFechaExcel(row[2])) advertencias.push(`Edad declarada: ${edadDeclarada} años`)
+  if (grupoEdad && grupoExcel && grupoEdad.key !== grupoExcel.key) {
+    advertencias.push(`Excel dice ${grupoExcel.division} pero edad WT ${edad} → ${grupoEdad.division}`)
+  }
 
   return {
     tipo: 'festival',
@@ -537,6 +578,14 @@ function parseEntrenadores(rows, ctx) {
   return lineas
 }
 
+function gradoDesdeNivelDelRio(nivel) {
+  const n = normTxt(nivel)
+  if (n.includes('FESTIVAL')) return '9º kup'
+  if (n.includes('AVANZ')) return '1º kup'
+  if (n.includes('NOVEL')) return '5º kup'
+  return null
+}
+
 /** Formato alternativo ASOC. DEL RIO (Hoja1 simplificada). */
 function parseDelRioAltRows(rows, ctx) {
   const lineas = []
@@ -570,12 +619,13 @@ function parseDelRioAltRows(rows, ctx) {
       continue
     }
 
-    const cat = resolverCategoriaKyorugi(ctx.categorias, {
+    const { cat, advertencias: advCat } = resolverCategoriaKyorugi(ctx.categorias, {
       categoriaTexto: `${divisionTxt} ${nivel}`.trim(),
       pesoRaw: peso ?? row[6],
       sexo: perfil.sexo,
       perfil,
       anio: ctx.anio,
+      gradoTexto: gradoDesdeNivelDelRio(nivel),
     })
     lineas.push({
       tipo: 'kyorugi_individual',
@@ -586,7 +636,7 @@ function parseDelRioAltRows(rows, ctx) {
       label: `${nombre} · Kyorugi ${cat?.nombre || divisionTxt}`,
       hoja: 'Hoja1',
       errores: cat ? [] : ['No se pudo resolver categoría kyorugi'],
-      advertencias: ['Formato planilla alternativa (Del Río)'],
+      advertencias: ['Formato planilla alternativa (Del Río)', ...(advCat || [])],
     })
   }
   return lineas

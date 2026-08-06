@@ -8,14 +8,14 @@ function parseKupRango(rango) {
   return { min: a, max: b ?? a }
 }
 
-/** kup: 10 = blanco, 1 = rojo · dan/poom compiten en subdivisiones altas */
+/** kup: 10 = blanco, 1 = rojo · dan/poom solo en nivel Avanzados (kup:1-2) */
 export function calzaGradoKyorugi(cat, gradoInfo) {
   const rango = parseKupRango(cat.grado_rango)
   if (!rango) return true
   if (!gradoInfo) return false
 
   if (gradoInfo.tipo === 'dan' || gradoInfo.tipo === 'poom') {
-    return rango.min <= 3
+    return rango.min <= 2
   }
   if (gradoInfo.tipo !== 'kup') return false
   return gradoInfo.nivel >= rango.min && gradoInfo.nivel <= rango.max
@@ -46,12 +46,12 @@ export function categoriasValidas(categorias, perfil, anioCampeonato, pesoDeclar
 
 export function parseGrado(grado) {
   if (!grado) return null
-  const g = String(grado).toLowerCase()
-  const dan = g.match(/(\d+)[º°]?\s*dan/)
+  const g = String(grado).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const dan = g.match(/(\d+)\s*(?:[oº°]|er|do|to|mo|no|vo|ro)?\s*dan/)
   if (dan) return { tipo: 'dan', nivel: Number(dan[1]) }
-  const poom = g.match(/(\d+)[º°]?\s*poom/)
+  const poom = g.match(/(\d+)\s*(?:[oº°]|er|do|to|mo|no|vo|ro)?\s*poom/)
   if (poom) return { tipo: 'poom', nivel: Number(poom[1]) }
-  const kup = g.match(/(\d+)[º°]?\s*kup/)
+  const kup = g.match(/(\d+)\s*(?:[oº°]|er|do|to|mo|no|vo|ro)?\s*kup/)
   if (kup) return { tipo: 'kup', nivel: Number(kup[1]) }
   return null
 }
@@ -66,13 +66,16 @@ export function parseGradoRango(rango) {
 
 function calzaGradoPoomsae(cat, grado) {
   const rango = cat.grado_rango
-  if (rango === 'ranking') {
-    if (grado?.tipo === 'kup') return grado.nivel === 1
-    return grado?.tipo === 'dan' || grado?.tipo === 'poom'
+  if (rango?.startsWith('dan:')) {
+    const nivel = Number(rango.slice(4))
+    if (grado?.tipo === 'poom') return grado.nivel === nivel
+    if (grado?.tipo === 'dan') return grado.nivel === nivel
+    return false
   }
   const kupRango = parseKupRango(rango)
   if (!kupRango) return true
-  if (grado?.tipo === 'dan' || grado?.tipo === 'poom') return false
+  // Cinturón negro puede inscribirse en poomsae reconocido además de su forma de dan
+  if (grado?.tipo === 'dan' || grado?.tipo === 'poom') return true
   if (grado?.tipo !== 'kup') return false
   return grado.nivel >= kupRango.min && grado.nivel <= kupRango.max
 }
@@ -130,8 +133,8 @@ export function modalidadRequiereCategoriaPoomsae(key) {
 }
 
 export function grupoPoomsae(cat) {
-  if (cat?.grado_rango === 'ranking') return 'Ranking G3'
-  return 'Cintas de color'
+  if (cat?.grado_rango?.startsWith('dan:')) return 'Poomsae de dan'
+  return 'Poomsae reconocido'
 }
 
 /** Si hay una sola opción válida, sugerirla al activar poomsae */

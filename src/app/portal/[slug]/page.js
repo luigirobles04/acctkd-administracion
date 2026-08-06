@@ -848,8 +848,8 @@ export default function PortalCampeonatoPage() {
               {edad != null && (
                 <p className="portal-field-hint">
                   Edad WT al 31-dic-{anio}: <strong>{edad} años</strong>
-                  {esDan && ' · Cinturón negro compite en Ranking G3 (no en cintas de color)'}
-                  {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup puede elegir cintas (Pal Jang) o Ranking G3'}
+                  {esDan && ' · Cinturón negro: puede inscribirse en poomsae reconocido y en su poomsae de dan'}
+                  {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup elige su forma (Pal Jang) según edad'}
                 </p>
               )}
               <PortalField label="Foto carnet (credencial)">
@@ -941,9 +941,9 @@ export default function PortalCampeonatoPage() {
                           label="División poomsae"
                           hint={
                             esDan
-                              ? 'Ranking G3 según edad WT — todas las divisiones dan compiten juntas por categoría.'
+                              ? 'Elige poomsae reconocido (cintas) o tu forma de dan (Koryo, Keumgang…).'
                               : gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1
-                                ? 'Puedes inscribirte en Cintas (Pal Jang) o en Ranking G3.'
+                                ? 'Elige la forma que corresponde a tu grado (Pal Jang).'
                                 : undefined
                           }
                         >
