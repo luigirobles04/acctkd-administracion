@@ -6,9 +6,31 @@ import {
   parseFestcupInscripcionExcel,
   buildImportPreviewResponse,
 } from '@/lib/campeonato/import-inscripcion-excel'
-import { commitFestcupImport } from '@/lib/campeonato/import-excel-commit'
+import { commitFestcupImport, CHUNK_DEFAULT } from '@/lib/campeonato/import-excel-commit'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+/** Excel grandes: commit por lotes; cada lote puede tardar ~30–60s */
+export const maxDuration = 300
+
+async function fetchCategoriasCampeonato(sb, idCampeonato) {
+  const pageSize = 1000
+  const all = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb
+      .from('categoria_campeonato')
+      .select(
+        'id_categoria, nombre, genero, edad_min, edad_max, peso_min, peso_max, modalidad, division, grado_rango, orden',
+      )
+      .eq('id_campeonato', idCampeonato)
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    all.push(...data)
+    if (data.length < pageSize) break
+  }
+  return all
+}
 
 export async function POST(request, { params }) {
   try {
@@ -24,6 +46,8 @@ export async function POST(request, { params }) {
     const form = await request.formData()
     const file = form.get('file')
     const commit = form.get('commit') === 'true'
+    const offset = Number(form.get('offset') || 0) || 0
+    const limit = Number(form.get('limit') || CHUNK_DEFAULT) || CHUNK_DEFAULT
 
     if (!file) return NextResponse.json({ error: 'Archivo Excel requerido' }, { status: 400 })
 
@@ -32,33 +56,40 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Solo archivos .xlsx' }, { status: 400 })
     }
 
-    const { data: categorias } = await sb
-      .from('categoria_campeonato')
-      .select('*')
-      .eq('id_campeonato', ac.id_campeonato)
-
+    const categorias = await fetchCategoriasCampeonato(sb, ac.id_campeonato)
     const anio = new Date(ac.campeonato.fecha_inicio).getFullYear()
-    const parsed = parseFestcupInscripcionExcel(buffer, { categorias: categorias || [], anioCampeonato: anio })
-    const preview = buildImportPreviewResponse(parsed)
+    const parsed = parseFestcupInscripcionExcel(buffer, { categorias, anioCampeonato: anio })
+    const preview = buildImportPreviewResponse(parsed, { maxLineasUi: 120 })
 
     if (!commit) {
-      return NextResponse.json({ preview: true, ...preview })
+      const { perfiles, ...rest } = preview
+      return NextResponse.json({
+        preview: true,
+        ...rest,
+        perfilesCount: perfiles.length,
+      })
     }
 
     if (!ac.aceptacion_bases_at) {
       return NextResponse.json({ error: 'Debes aceptar las bases primero' }, { status: 400 })
     }
 
-    const result = await commitFestcupImport(sb, ac, parsed)
+    const result = await commitFestcupImport(sb, ac, parsed, { offset, limit })
     return NextResponse.json({
       ok: true,
       importado: result.creadas,
       fallidas: result.fallidas,
       omitidas: result.omitidas,
       dorsales: result.dorsales,
+      offset: result.offset,
+      nextOffset: result.nextOffset,
+      totalValidas: result.totalValidas,
+      remaining: result.remaining,
+      done: result.done,
       resumen: preview.resumen,
     })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    console.error('[import-excel]', e)
+    return NextResponse.json({ error: e.message || 'Error al procesar Excel' }, { status: 500 })
   }
 }

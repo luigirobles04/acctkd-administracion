@@ -50,6 +50,12 @@ export async function readJsonResponse(res) {
         'Este enlace es un preview de Vercel con protección. Abre la app en producción: ' + getProductionAppUrl()
       )
     }
+    const head = (text || '').trim().slice(0, 80)
+    if (/^An error/i.test(head) || /<!DOCTYPE|<html/i.test(head) || res.status >= 500) {
+      throw new Error(
+        'El servidor no pudo terminar la operación (tiempo o tamaño). Prueba con menos filas en el Excel, o vuelve a intentar en unos segundos.'
+      )
+    }
     throw new Error(`Respuesta inválida del servidor (${res.status}). Recarga o usa ${getProductionAppUrl()}`)
   }
 }

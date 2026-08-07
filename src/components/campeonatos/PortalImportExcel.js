@@ -2,8 +2,11 @@
 
 import { useRef, useState } from 'react'
 import { portalFetch } from '@/lib/portal-client'
+import { readJsonResponse } from '@/lib/public-app-url'
 import { FESTCUP_DOCS } from '@/lib/site-config'
 import { LoadingSpinner } from '@/components/ui/LoadingState'
+
+const COMMIT_CHUNK = 80
 
 export default function PortalImportExcel({ slug, onSuccess, disabled = false }) {
   const inputRef = useRef(null)
@@ -12,38 +15,91 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [done, setDone] = useState(null)
+  const [progress, setProgress] = useState(null)
 
-  async function enviar(commit = false) {
+  async function analizar() {
     if (!file) return
     setLoading(true)
     setError(null)
-    if (!commit) setPreview(null)
+    setPreview(null)
+    setProgress(null)
 
     try {
       const fd = new FormData()
       fd.append('file', file)
-      if (commit) fd.append('commit', 'true')
-
       const res = await portalFetch(`/api/portal/campeonato/${slug}/import-excel`, {
         method: 'POST',
         body: fd,
       })
-      const json = await res.json()
+      const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(json.error || 'Error al procesar Excel')
-
-      if (commit) {
-        setDone(json)
-        setPreview(null)
-        setFile(null)
-        if (inputRef.current) inputRef.current.value = ''
-        onSuccess?.()
-      } else {
-        setPreview(json)
-      }
+      setPreview(json)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function confirmar() {
+    if (!file || !preview) return
+    setLoading(true)
+    setError(null)
+    setProgress(null)
+
+    const total = preview.resumen?.ok || 0
+    let offset = 0
+    let importado = 0
+    let dorsales = 0
+    const fallidas = []
+    const omitidas = []
+
+    try {
+      while (true) {
+        setProgress({
+          hechos: Math.min(offset, total),
+          total,
+          lote: Math.floor(offset / COMMIT_CHUNK) + 1,
+          lotes: Math.max(1, Math.ceil(total / COMMIT_CHUNK)),
+        })
+
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('commit', 'true')
+        fd.append('offset', String(offset))
+        fd.append('limit', String(COMMIT_CHUNK))
+
+        const res = await portalFetch(`/api/portal/campeonato/${slug}/import-excel`, {
+          method: 'POST',
+          body: fd,
+        })
+        const json = await readJsonResponse(res)
+        if (!res.ok) throw new Error(json.error || 'Error al importar Excel')
+
+        importado += json.importado || 0
+        dorsales += json.dorsales || 0
+        if (json.fallidas?.length) fallidas.push(...json.fallidas)
+        if (json.omitidas?.length) omitidas.push(...json.omitidas)
+
+        if (json.done) break
+        offset = json.nextOffset ?? offset + COMMIT_CHUNK
+      }
+
+      setDone({ importado, dorsales, fallidas, omitidas })
+      setPreview(null)
+      setFile(null)
+      setProgress(null)
+      if (inputRef.current) inputRef.current.value = ''
+      onSuccess?.()
+    } catch (e) {
+      setError(
+        importado > 0
+          ? `${e.message} (se importaron ${importado} línea(s) antes del corte; vuelve a confirmar — las ya creadas se omiten).`
+          : e.message,
+      )
+    } finally {
+      setLoading(false)
+      setProgress(null)
     }
   }
 
@@ -134,6 +190,11 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
           {preview.advertencias?.map((a) => (
             <p key={a} className="portal-field-hint portal-field-hint--warn">{a}</p>
           ))}
+          {(preview.resumen?.ok || 0) > COMMIT_CHUNK && (
+            <p className="portal-field-hint">
+              Se importará en {Math.ceil((preview.resumen?.ok || 0) / COMMIT_CHUNK)} lotes automáticos (no cierres esta pestaña).
+            </p>
+          )}
           <div className="portal-import-table-wrap">
             <table className="portal-import-table">
               <thead>
@@ -156,8 +217,11 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
               </tbody>
             </table>
           </div>
-          {(preview.lineas?.length || 0) > 80 && (
-            <p className="portal-field-hint">Mostrando 80 de {preview.lineas.length} líneas.</p>
+          {(preview.lineasTotal || preview.lineas?.length || 0) > (preview.lineas?.length || 0) && (
+            <p className="portal-field-hint">
+              Mostrando {preview.lineas.length} de {preview.lineasTotal || preview.lineas.length} líneas
+              (primero las que tienen error).
+            </p>
           )}
         </div>
       )}
@@ -167,25 +231,29 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
           type="button"
           className="ios-btn ios-btn-secondary portal-btn-spinner"
           disabled={!file || loading || disabled}
-          onClick={() => enviar(false)}
+          onClick={analizar}
         >
-          {loading && !preview ? <><LoadingSpinner size={16} /> Analizando…</> : 'Vista previa'}
+          {loading && !preview && !progress ? <><LoadingSpinner size={16} /> Analizando…</> : 'Vista previa'}
         </button>
         <button
           type="button"
           className="ios-btn ios-btn-primary portal-btn-spinner"
           disabled={!preview || loading || disabled || !(preview.resumen?.ok > 0)}
-          onClick={() => enviar(true)}
+          onClick={confirmar}
         >
-          {loading && preview
-            ? <><LoadingSpinner size={16} light /> Importando…</>
+          {loading && progress
+            ? <><LoadingSpinner size={16} light /> Lote {progress.lote}/{progress.lotes}…</>
             : `Confirmar importación (${preview?.resumen?.ok || 0})`}
         </button>
       </div>
       {loading && (
         <p className="portal-field-hint" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           <LoadingSpinner size={16} />
-          {preview ? 'Creando inscripciones…' : 'Leyendo Excel…'}
+          {progress
+            ? `Importando ${progress.hechos} de ${progress.total}… (lote ${progress.lote}/${progress.lotes})`
+            : preview
+              ? 'Preparando importación…'
+              : 'Leyendo Excel…'}
         </p>
       )}
     </div>

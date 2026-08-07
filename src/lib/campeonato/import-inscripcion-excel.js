@@ -781,7 +781,27 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
   }
 }
 
-export function buildImportPreviewResponse(parsed) {
+export function buildImportPreviewResponse(parsed, { maxLineasUi = 120 } = {}) {
+  const lineas = parsed.lineas.map((l, i) => ({
+    id: i,
+    tipo: l.tipo,
+    perfilKeys: l.perfilKeys,
+    idCategoria: l.idCategoria,
+    categoriaNombre: l.categoriaNombre,
+    pesoDeclarado: l.pesoDeclarado ?? null,
+    tipoOficial: l.tipoOficial ?? null,
+    label: l.label,
+    hoja: l.hoja,
+    errores: l.errores || [],
+    advertencias: l.advertencias || [],
+    valido: !(l.errores?.length),
+  }))
+
+  // Prioriza errores en la muestra UI; evita payloads enormes en preview
+  const conError = lineas.filter((l) => !l.valido)
+  const ok = lineas.filter((l) => l.valido)
+  const lineasUi = [...conError, ...ok].slice(0, maxLineasUi)
+
   return {
     perfiles: parsed.perfiles.map((p) => ({
       key: p.key,
@@ -795,20 +815,8 @@ export function buildImportPreviewResponse(parsed) {
       docPendiente: p.docPendiente,
       hoja: p.sheet,
     })),
-    lineas: parsed.lineas.map((l, i) => ({
-      id: i,
-      tipo: l.tipo,
-      perfilKeys: l.perfilKeys,
-      idCategoria: l.idCategoria,
-      categoriaNombre: l.categoriaNombre,
-      pesoDeclarado: l.pesoDeclarado ?? null,
-      tipoOficial: l.tipoOficial ?? null,
-      label: l.label,
-      hoja: l.hoja,
-      errores: l.errores || [],
-      advertencias: l.advertencias || [],
-      valido: !(l.errores?.length),
-    })),
+    lineas: lineasUi,
+    lineasTotal: lineas.length,
     resumen: parsed.resumen,
     advertencias: parsed.advertencias,
   }
