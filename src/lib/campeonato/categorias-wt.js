@@ -2,7 +2,7 @@ import { TARIFAS_FDPTKD_DEFAULT } from '@/lib/campeonato/constants'
 import { slugify } from '@/lib/campeonato/constants'
 
 /** Versión del catálogo FestCup — incrementar al cambiar categorías */
-export const CATALOG_VERSION = 5
+export const CATALOG_VERSION = 6
 
 /** Kyorugi · niveles por cinturón (FestCup 2026) */
 const KYORUGI_NIVELES = [
@@ -11,16 +11,33 @@ const KYORUGI_NIVELES = [
   { nivel: 'Avanzados', grado_rango: 'kup:1-2' },
 ]
 
-/** Kyorugi · divisiones edad + pesos (FestCup 2026) */
+/** Kyorugi · divisiones edad + pesos (FestCup 2026). Siempre M y F separados. */
 const KYORUGI_DIVISIONES = [
-  { division: 'Infantil A', edadMin: 6, edadMax: 7, unisex: true, pesos: [19, 22, 25, 28, 31] },
-  { division: 'Infantil B', edadMin: 8, edadMax: 9, unisex: true, pesos: [21, 24, 27, 30, 33, 36, 39] },
-  { division: 'Pre Cadete', edadMin: 10, edadMax: 11, unisex: true, pesos: [30, 33, 36, 39, 42, 45, 48, 51, 54] },
+  {
+    division: 'Infantil A',
+    edadMin: 6,
+    edadMax: 7,
+    pesosM: [19, 22, 25, 28, 31],
+    pesosF: [19, 22, 25, 28, 31],
+  },
+  {
+    division: 'Infantil B',
+    edadMin: 8,
+    edadMax: 9,
+    pesosM: [21, 24, 27, 30, 33, 36, 39],
+    pesosF: [21, 24, 27, 30, 33, 36, 39],
+  },
+  {
+    division: 'Pre Cadete',
+    edadMin: 10,
+    edadMax: 11,
+    pesosM: [30, 33, 36, 39, 42, 45, 48, 51, 54],
+    pesosF: [30, 33, 36, 39, 42, 45, 48, 51, 54],
+  },
   {
     division: 'Cadete',
     edadMin: 12,
     edadMax: 14,
-    unisex: false,
     pesosM: [33, 37, 41, 45, 49, 53, 57, 61, 65],
     pesosF: [29, 33, 37, 41, 44, 47, 51, 55, 59],
   },
@@ -28,7 +45,6 @@ const KYORUGI_DIVISIONES = [
     division: 'Juvenil',
     edadMin: 15,
     edadMax: 17,
-    unisex: false,
     pesosM: [45, 48, 51, 55, 59, 63, 68, 73],
     pesosF: [42, 44, 46, 49, 53, 57, 62],
   },
@@ -36,7 +52,6 @@ const KYORUGI_DIVISIONES = [
     division: 'Mayores',
     edadMin: 18,
     edadMax: 99,
-    unisex: false,
     pesosM: [54, 58, 63, 68, 74, 80],
     pesosF: [46, 49, 53, 57, 62, 67],
   },
@@ -132,33 +147,28 @@ function buildKyorugiFestcup() {
   let orden = 1
   for (const div of KYORUGI_DIVISIONES) {
     for (const { nivel, grado_rango } of KYORUGI_NIVELES) {
-      if (div.unisex) {
-        const bands = bandasPeso(div.pesos)
-        cats.push(...kyorugiNivelDivision(div, nivel, grado_rango, div.edadMin, div.edadMax, bands, null, orden))
-      } else {
-        cats.push(
-          ...kyorugiNivelDivision(
-            div,
-            nivel,
-            grado_rango,
-            div.edadMin,
-            div.edadMax,
-            bandasPeso(div.pesosM),
-            'M',
-            orden,
-          ),
-          ...kyorugiNivelDivision(
-            div,
-            nivel,
-            grado_rango,
-            div.edadMin,
-            div.edadMax,
-            bandasPeso(div.pesosF),
-            'F',
-            orden,
-          ),
-        )
-      }
+      cats.push(
+        ...kyorugiNivelDivision(
+          div,
+          nivel,
+          grado_rango,
+          div.edadMin,
+          div.edadMax,
+          bandasPeso(div.pesosM),
+          'M',
+          orden,
+        ),
+        ...kyorugiNivelDivision(
+          div,
+          nivel,
+          grado_rango,
+          div.edadMin,
+          div.edadMax,
+          bandasPeso(div.pesosF),
+          'F',
+          orden,
+        ),
+      )
       orden = cats.length + 1
     }
   }
@@ -348,7 +358,7 @@ export async function asegurarTarifasCampeonato(sb, idCampeonato) {
   return faltantes.length
 }
 
-/** Detecta catálogo viejo (FDPTKD v4 o anterior) */
+/** Detecta catálogo viejo (unisex infantil / sin M-F / sin dan) */
 export async function catalogoNecesitaReseed(sb, idCampeonato) {
   const { count } = await sb
     .from('categoria_campeonato')
@@ -373,10 +383,138 @@ export async function catalogoNecesitaReseed(sb, idCampeonato) {
     .ilike('nombre', 'Poomsae Koryo%')
     .limit(1)
 
-  return !dan?.length
+  if (!dan?.length) return true
+
+  // v5 tenía Infantil/Pre Cadete unisex (genero X) — v6 exige M/F
+  const { data: unisex } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .eq('genero', 'X')
+    .limit(1)
+
+  return Boolean(unisex?.length)
+}
+
+/**
+ * Convierte categorías kyorugi unisex (genero X) en M/F y reasigna inscripciones por sexo.
+ * No borra el catálogo completo (seguro con plantel ya cargado).
+ */
+export async function migrarKyorugiUnisexAMF(sb, idCampeonato) {
+  const { data: xcats, error } = await sb
+    .from('categoria_campeonato')
+    .select('*')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .eq('genero', 'X')
+  if (error) throw error
+  if (!xcats?.length) {
+    const { count } = await sb
+      .from('categoria_campeonato')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_campeonato', idCampeonato)
+    return count || 0
+  }
+
+  const toInsert = []
+  for (const cat of xcats) {
+    for (const genero of ['M', 'F']) {
+      const sufijo = genero === 'M' ? ' M' : ' F'
+      const nombre = String(cat.nombre || '').replace(/ ([-+]\d+kg)$/i, `${sufijo} $1`)
+      toInsert.push({
+        id_campeonato: idCampeonato,
+        nombre,
+        genero,
+        edad_min: cat.edad_min,
+        edad_max: cat.edad_max,
+        peso_min: cat.peso_min,
+        peso_max: cat.peso_max,
+        modalidad: cat.modalidad,
+        division: cat.division,
+        grado_rango: cat.grado_rango,
+        orden: cat.orden,
+        anio_nacimiento_desde: cat.anio_nacimiento_desde ?? null,
+        anio_nacimiento_hasta: cat.anio_nacimiento_hasta ?? null,
+      })
+    }
+  }
+
+  for (let i = 0; i < toInsert.length; i += 100) {
+    const { error: errIns } = await sb.from('categoria_campeonato').insert(toInsert.slice(i, i + 100))
+    if (errIns) throw errIns
+  }
+
+  const { data: nuevas, error: errN } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria, genero, division, peso_min, peso_max, grado_rango')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .in('genero', ['M', 'F'])
+  if (errN) throw errN
+
+  const destKey = (c, genero) =>
+    `${genero}|${c.division}|${c.peso_min}|${c.peso_max}|${c.grado_rango}`
+  const destMap = new Map((nuevas || []).map((c) => [destKey(c, c.genero), c.id_categoria]))
+
+  const { data: lineas, error: errL } = await sb
+    .from('linea_inscripcion')
+    .select(`
+      id_linea, id_categoria,
+      miembros:linea_inscripcion_miembro(perfil:competidor_perfil(sexo)),
+      categoria:categoria_campeonato(genero, division, peso_min, peso_max, grado_rango)
+    `)
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .neq('estado', 'anulado')
+  if (errL) throw errL
+
+  for (const l of lineas || []) {
+    if (l.categoria?.genero !== 'X') continue
+    const sexo = l.miembros?.[0]?.perfil?.sexo
+    if (sexo !== 'M' && sexo !== 'F') continue
+    const idDest = destMap.get(destKey(l.categoria, sexo))
+    if (!idDest) continue
+    const { error: errU } = await sb
+      .from('linea_inscripcion')
+      .update({ id_categoria: idDest, updated_at: new Date().toISOString() })
+      .eq('id_linea', l.id_linea)
+    if (errU) throw errU
+  }
+
+  const idsX = xcats.map((c) => c.id_categoria)
+  for (let i = 0; i < idsX.length; i += 50) {
+    const { error: errDel } = await sb
+      .from('categoria_campeonato')
+      .delete()
+      .in('id_categoria', idsX.slice(i, i + 50))
+    if (errDel) throw errDel
+  }
+
+  await sb
+    .from('campeonato')
+    .update({ bases_version: String(CATALOG_VERSION) })
+    .eq('id_campeonato', idCampeonato)
+
+  const { count } = await sb
+    .from('categoria_campeonato')
+    .select('*', { count: 'exact', head: true })
+    .eq('id_campeonato', idCampeonato)
+  return count || 0
 }
 
 export async function resincronizarCatalogo(sb, idCampeonato) {
+  const { count: lineasActivas } = await sb
+    .from('linea_inscripcion')
+    .select('*', { count: 'exact', head: true })
+    .eq('id_campeonato', idCampeonato)
+    .neq('estado', 'anulado')
+
+  // Con plantel cargado: no borrar catálogo; migrar unisex → M/F si aplica
+  if ((lineasActivas || 0) > 0) {
+    return migrarKyorugiUnisexAMF(sb, idCampeonato)
+  }
+
   await sb.from('categoria_campeonato').delete().eq('id_campeonato', idCampeonato)
   await sembrarCampeonatoCompleto(sb, idCampeonato)
   const { count } = await sb
@@ -386,4 +524,4 @@ export async function resincronizarCatalogo(sb, idCampeonato) {
   return count || 0
 }
 
-export const MIN_CATEGORIAS_CATALOGO = 550
+export const MIN_CATEGORIAS_CATALOGO = 620
