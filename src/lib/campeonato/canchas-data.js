@@ -38,6 +38,7 @@ function enrichCombate(l, lineaMap, catMap) {
     es_bye: l.es_bye,
     cancha: l.cancha,
     orden_pista: l.orden_pista,
+    combate_no: l.combate_no ?? null,
     color1: l.color1,
     color2: l.color2,
     ganador_id_linea: l.ganador_id_linea,
@@ -227,14 +228,28 @@ export function enrichNumeracionArea(combates) {
   })
 }
 
+/**
+ * Puntero de pista = último Nº finalizado en secuencia desde el inicio.
+ * No usa el máximo absoluto: un finalizado suelto con Nº alto no debe saltar
+ * combates pendientes anteriores (bug típico tras reordenar / regenerar llaves).
+ */
 function punteroOrdenPista(lista) {
-  let max = 0
-  for (const c of lista || []) {
-    if (c.estado !== 'finalizado' && c.estado !== 'en_curso') continue
+  const programados = [...(lista || [])]
+    .filter((c) => Number(c.orden_pista) > 0)
+    .sort(sortOrdenPista)
+
+  let puntero = 0
+  for (const c of programados) {
     const o = Number(c.orden_pista)
-    if (Number.isFinite(o) && o > max) max = o
+    if (!Number.isFinite(o)) continue
+    if (c.estado === 'finalizado') {
+      puntero = o
+      continue
+    }
+    // Primer no-finalizado corta la secuencia (pendiente / en_curso / otro)
+    break
   }
-  return max
+  return puntero
 }
 
 /** Pendiente programado en pista (se muestra el Nº aunque falten rivales). */

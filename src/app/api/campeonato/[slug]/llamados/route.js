@@ -8,6 +8,7 @@ import { getPoomsaeLiveState } from '@/lib/campeonato/poomsae-live'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 60
 
 /**
  * Zona de llamados: kyorugi (3 áreas) + poomsae (3 áreas por forma).

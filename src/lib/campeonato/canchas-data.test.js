@@ -52,14 +52,25 @@ describe('organizarPantallaCancha (base de /llamados y TV)', () => {
     expect(r.proximos.map((c) => c.orden_pista)).toEqual([3, 5])
   })
 
-  it('combate pendiente con un solo competidor no es actual si ya pasó el puntero', () => {
+  it('un finalizado con Nº alto no salta pendientes anteriores (puntero secuencial)', () => {
     const incompleto = combate(7, 'pendiente', 1, { id_linea2: null, competidor2: null })
     const r = organizarPantallaCancha([
       combate(6, 'finalizado', 49, { ganador_id_linea: 106 }),
       incompleto,
       combate(8, 'pendiente', 52),
     ])
-    expect(r.actual.id_llave).toBe(8)
+    expect(r.actual.id_llave).toBe(7)
+    expect(r.proximos.map((c) => c.id_llave)).toEqual([8])
+  })
+
+  it('puntero avanza solo con finalizados consecutivos desde el Nº 1', () => {
+    const r = organizarPantallaCancha([
+      combate(1, 'finalizado', 1, { ganador_id_linea: 101 }),
+      combate(2, 'finalizado', 2, { ganador_id_linea: 202 }),
+      combate(3, 'pendiente', 3),
+      combate(9, 'finalizado', 9, { ganador_id_linea: 109 }),
+    ])
+    expect(r.actual.id_llave).toBe(3)
     expect(r.proximos.map((c) => c.id_llave)).toEqual([])
   })
 
