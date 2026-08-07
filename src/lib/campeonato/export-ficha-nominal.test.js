@@ -37,6 +37,19 @@ describe('agruparLineasFichaAcademia', () => {
     )
     expect(grupos.festival).toHaveLength(1)
     expect(grupos.festival[0].nombre).toBe('Ana López')
+    // Sin categoría DB: usa edad → etiqueta Festival
+    const festSinCat = agruparLineasFichaAcademia(
+      [{
+        modalidad: 'festival',
+        estado: 'aprobado',
+        dorsal_display: 'FY-02',
+        peso_declarado: null,
+        categoria: null,
+        miembros: [{ perfil: { nombres: 'Pepe', apellidos: 'Choclo', fecha_nacimiento: '2018-06-15', sexo: 'M' } }],
+      }],
+      2026,
+    )
+    expect(festSinCat.festival[0].categoria).toMatch(/Festival/)
     expect(grupos.kyorugi).toHaveLength(1)
     expect(grupos.kyorugi[0].nombre).toBe('Luis Pérez')
     expect(grupos.poomsae).toHaveLength(1)

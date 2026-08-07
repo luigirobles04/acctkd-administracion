@@ -1,4 +1,5 @@
 import { MODALIDADES, ROLES_OFICIAL, edadWT } from '@/lib/campeonato/constants'
+import { divisionFestivalPorEdad } from '@/lib/campeonato/festival-grupos'
 
 function labelModalidad(modalidad) {
   if (modalidad === 'oficial') return 'Oficial'
@@ -19,6 +20,17 @@ function nombresLinea(linea) {
   return (linea.miembros || []).map(nombreParticipante).filter((n) => n !== '—').join(' · ') || '—'
 }
 
+function categoriaFicha(linea, anioCampeonato) {
+  if (linea.categoria?.nombre) return linea.categoria.nombre
+  if (linea.modalidad === 'festival') {
+    const p = linea.miembros?.[0]?.perfil
+    const edad = p?.fecha_nacimiento && anioCampeonato ? edadWT(p.fecha_nacimiento, anioCampeonato) : null
+    const grupo = divisionFestivalPorEdad(edad)
+    return grupo ? `Festival · ${grupo.division}` : 'Festival'
+  }
+  return '—'
+}
+
 function mapFilaCompetidor(linea, anioCampeonato) {
   const p = linea.miembros?.[0]?.perfil
   const edad = p?.fecha_nacimiento && anioCampeonato ? edadWT(p.fecha_nacimiento, anioCampeonato) : null
@@ -29,11 +41,42 @@ function mapFilaCompetidor(linea, anioCampeonato) {
     sexo: p?.sexo === 'M' ? 'M' : p?.sexo === 'F' ? 'F' : '—',
     grado: p?.grado || '—',
     edad: edad != null ? edad : '—',
-    categoria: linea.categoria?.nombre || '—',
+    categoria: categoriaFicha(linea, anioCampeonato),
     peso: linea.peso_declarado != null ? `${linea.peso_declarado} kg` : '—',
     modalidad: labelModalidad(linea.modalidad),
     estado: linea.estado,
   }
+}
+
+/** Supabase corta en 1000 filas por defecto — paginar para fichas grandes */
+async function fetchAllLineasFicha(sb, idCampeonato) {
+  const pageSize = 1000
+  const all = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb
+      .from('linea_inscripcion')
+      .select(`
+        id_linea,
+        id_academia_campeonato,
+        modalidad,
+        tipo_oficial,
+        estado,
+        dorsal_display,
+        dorsal_numero,
+        peso_declarado,
+        categoria:categoria_campeonato(nombre),
+        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento))
+      `)
+      .eq('id_campeonato', idCampeonato)
+      .neq('estado', 'anulado')
+      .order('dorsal_numero', { ascending: true, nullsFirst: false })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    all.push(...data)
+    if (data.length < pageSize) break
+  }
+  return all
 }
 
 function mapFilaOficial(linea) {
@@ -89,7 +132,7 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
     ? new Date(campeonato.fecha_inicio).getFullYear()
     : new Date().getFullYear()
 
-  const [{ data: academias, error: errAc }, { data: lineas, error: errLi }] = await Promise.all([
+  const [{ data: academias, error: errAc }, lineas] = await Promise.all([
     sb
       .from('academia_campeonato')
       .select(`
@@ -102,27 +145,10 @@ export async function buildExportFichaNominal(sb, idCampeonato) {
       .eq('id_campeonato', idCampeonato)
       .neq('estado_aprobacion', 'rechazada')
       .order('created_at', { ascending: true }),
-    sb
-      .from('linea_inscripcion')
-      .select(`
-        id_linea,
-        id_academia_campeonato,
-        modalidad,
-        tipo_oficial,
-        estado,
-        dorsal_display,
-        dorsal_numero,
-        peso_declarado,
-        categoria:categoria_campeonato(nombre),
-        miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, documento_numero, sexo, grado, fecha_nacimiento))
-      `)
-      .eq('id_campeonato', idCampeonato)
-      .neq('estado', 'anulado')
-      .order('dorsal_numero', { ascending: true, nullsFirst: false }),
+    fetchAllLineasFicha(sb, idCampeonato),
   ])
 
   if (errAc) throw errAc
-  if (errLi) throw errLi
 
   const academiasExport = (academias || []).map((ac) => {
     const lineasAc = (lineas || []).filter((l) => l.id_academia_campeonato === ac.id)
