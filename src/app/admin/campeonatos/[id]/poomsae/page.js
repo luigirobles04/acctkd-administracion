@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
-import LoadingState from '@/components/ui/LoadingState'
+import LoadingState, { LoadingSpinner } from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { descargarPoomsaeExcel, descargarPoomsaePdf, descargarPoomsaeCategoriaPdf } from '@/lib/campeonato/export-poomsae'
 
@@ -19,6 +19,7 @@ export default function CampeonatoPoomsaePage() {
   const [selCat, setSelCat] = useState(null)
   const [buscar, setBuscar] = useState('')
   const [sorteando, setSorteando] = useState(false)
+  const [sorteoMsg, setSorteoMsg] = useState('')
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -61,6 +62,14 @@ export default function CampeonatoPoomsaePage() {
   }, [selCat, categorias, catsFiltradas])
 
   async function sortear(payload, mensajeOk) {
+    const esTodas = Boolean(payload.todas)
+    setSorteoMsg(
+      payload.reset
+        ? 'Restaurando orden por dorsal…'
+        : esTodas
+          ? 'Sorteando todas las categorías…'
+          : 'Sorteando categoría…',
+    )
     setSorteando(true)
     try {
       const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, {
@@ -72,11 +81,18 @@ export default function CampeonatoPoomsaePage() {
       if (!res.ok) throw new Error(json.error || 'Error en el sorteo')
       setCategorias(json.categorias || [])
       setResumen(json.resumen || null)
-      if (mensajeOk) alert(mensajeOk)
+      if (mensajeOk) {
+        const extra =
+          json.categoriasSorteadas != null
+            ? ` (${json.categoriasSorteadas} cat. · ${json.lineasActualizadas ?? '—'} líneas)`
+            : ''
+        alert(`${mensajeOk}${extra}`)
+      }
     } catch (e) {
       alert(e.message)
     } finally {
       setSorteando(false)
+      setSorteoMsg('')
     }
   }
 
@@ -116,7 +132,7 @@ export default function CampeonatoPoomsaePage() {
           <button
             type="button"
             className="ios-btn ios-btn-primary"
-            style={{ fontSize: 13 }}
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 8 }}
             disabled={sorteando}
             onClick={() => {
               if (confirm('¿Sortear el orden de salida de TODAS las categorías poomsae? Se reemplazará cualquier sorteo previo.')) {
@@ -124,11 +140,43 @@ export default function CampeonatoPoomsaePage() {
               }
             }}
           >
-            {sorteando ? 'Sorteando…' : '🎲 Sortear todas'}
+            {sorteando ? <><LoadingSpinner size={16} light /> Sorteando…</> : '🎲 Sortear todas'}
           </button>
-          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} onClick={() => exportar('excel')}>⬇ Excel</button>
-          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} onClick={() => exportar('pdf')}>⬇ PDF</button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('excel')}>⬇ Excel</button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('pdf')}>⬇ PDF</button>
         </div>
+
+        {sorteando && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 99 }} aria-hidden />
+            <div
+              className="ios-card"
+              role="status"
+              aria-live="polite"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 100,
+                margin: 'auto',
+                maxWidth: 380,
+                height: 'fit-content',
+                padding: 28,
+                textAlign: 'center',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+              }}
+            >
+              <LoadingSpinner size={40} />
+              <p className="ios-headline" style={{ marginBottom: 8, marginTop: 16 }}>
+                {sorteoMsg || 'Sorteando…'}
+              </p>
+              <p className="ios-caption" style={{ color: 'var(--label3)' }}>
+                {resumen
+                  ? `${resumen.conInscritos || 0} categorías · ${resumen.totalParticipantes || 0} participantes`
+                  : 'No cierres esta ventana'}
+              </p>
+            </div>
+          </>
+        )}
 
         {resumen && resumen.soporteSorteo === false && (
           <div className="no-print ios-card" style={{ padding: 12, marginBottom: 16, background: 'rgba(255,149,0,0.12)', color: '#8a5300', fontSize: 13 }}>
@@ -193,11 +241,11 @@ export default function CampeonatoPoomsaePage() {
                       <button
                         type="button"
                         className="ios-btn ios-btn-primary"
-                        style={{ fontSize: 12, padding: '6px 12px' }}
+                        style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                         disabled={sorteando}
                         onClick={() => sortear({ idCategoria: catActiva.id_categoria }, `Sorteo realizado: ${catActiva.nombre}.`)}
                       >
-                        🎲 Sortear
+                        {sorteando ? <><LoadingSpinner size={14} light /> …</> : '🎲 Sortear'}
                       </button>
                       {catActiva.sorteada && (
                         <button
