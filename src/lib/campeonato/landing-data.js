@@ -159,7 +159,7 @@ export const FESTCUP_DOCUMENTOS = [
   },
   {
     titulo: 'Plantilla de inscripción',
-    desc: 'Excel oficial — igual que años anteriores. Kyorugi, Poomsae, parejas, equipos y festival.',
+    desc: 'Excel oficial FestCup 2026. Kyorugi, Poomsae, parejas, equipos y festival.',
     href: FESTCUP_DOCS.plantillaExcel,
     icon: '📊',
     tipo: 'Excel',

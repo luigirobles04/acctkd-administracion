@@ -107,12 +107,17 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
     <div className="portal-card portal-import-excel">
       <h3 className="portal-section-title">Importar plantel desde Excel</h3>
       <p className="portal-section-lead">
-        Usa la misma ficha de inscripción de años anteriores (Kyorugi, Poomsae, parejas, equipos, festival y entrenadores).
+        Usa la ficha oficial FestCup 2026 (Kyorugi, Poomsae, parejas, equipos, festival y entrenadores).
       </p>
 
       <div className="portal-import-docs">
-        <a href={FESTCUP_DOCS.plantillaExcel} download className="ios-btn ios-btn-secondary" style={{ fontSize: 13 }}>
-          ⬇ Descargar plantilla Excel
+        <a
+          href={FESTCUP_DOCS.plantillaExcel}
+          download="Ficha-inscripcion-FestCup-2026-poomsae-kyorugi.xlsx"
+          className="ios-btn ios-btn-secondary"
+          style={{ fontSize: 13 }}
+        >
+          ⬇ Descargar plantilla Excel 2026
         </a>
         <a href={FESTCUP_DOCS.bases} target="_blank" rel="noreferrer" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }}>
           Bases PDF

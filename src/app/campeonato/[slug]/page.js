@@ -88,8 +88,12 @@ export default function CampeonatoPublicoPage() {
               <a href={FESTCUP_DOCS.programa} target="_blank" rel="noreferrer" style={{ color: 'var(--red)' }}>
                 Programa del evento (PDF)
               </a>
-              <a href={FESTCUP_DOCS.plantillaExcel} download style={{ color: 'var(--red)' }}>
-                Plantilla inscripción Excel
+              <a
+                href={FESTCUP_DOCS.plantillaExcel}
+                download="Ficha-inscripcion-FestCup-2026-poomsae-kyorugi.xlsx"
+                style={{ color: 'var(--red)' }}
+              >
+                Plantilla inscripción Excel 2026
               </a>
             </div>
           </>
