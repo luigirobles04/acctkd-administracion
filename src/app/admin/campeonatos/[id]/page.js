@@ -643,16 +643,22 @@ export default function CampeonatoDetallePage() {
                   {MODALIDADES[editLinea.modalidad]?.label || editLinea.modalidad}
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {editLinea.modalidad === 'kyorugi_individual' && (
+                  {(editLinea.modalidad === 'kyorugi_individual' || editLinea.modalidad === 'festival') && (
                     <>
                       <label className="ios-label">Peso declarado (kg)</label>
                       <input
                         className="ios-input"
                         type="number"
                         step="0.1"
-                        value={editLinea.peso_declarado}
+                        value={editLinea.peso_declarado ?? ''}
                         onChange={(e) => setEditLinea((l) => ({ ...l, peso_declarado: e.target.value }))}
+                        required={editLinea.modalidad === 'festival'}
                       />
+                      {editLinea.modalidad === 'festival' && (
+                        <p className="ios-caption" style={{ color: 'var(--label3)' }}>
+                          Festival: planilla con peso · sin pesaje ni llaves
+                        </p>
+                      )}
                     </>
                   )}
                   {editLinea.modalidad === 'kyorugi_individual' && (
@@ -678,29 +684,39 @@ export default function CampeonatoDetallePage() {
                       </select>
                     </>
                   )}
-                  <label className="ios-label">Categoría</label>
-                  <select
-                    className="ios-input"
-                    value={editLinea.id_categoria}
-                    onChange={(e) => setEditLinea((l) => ({ ...l, id_categoria: e.target.value }))}
-                    required
-                  >
-                    <option value="">Seleccionar…</option>
-                    {(editLinea.modalidad === 'kyorugi_individual'
-                      ? categoriasPorDivision(editLinea, editLinea.perfil, editLinea.division)
-                      : categoriasParaLinea(editLinea, editLinea.perfil)
-                    ).map((c) => (
-                      <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
-                    ))}
-                  </select>
-                  {editLinea.categoria_nombre && (
-                    <p className="ios-caption" style={{ color: 'var(--label3)' }}>Actual: {editLinea.categoria_nombre}</p>
-                  )}
-                  {categorias.length === 0 && (
-                    <p className="ios-caption" style={{ color: '#C0000A' }}>Genera categorías WT primero (pestaña Categorías).</p>
+                  {editLinea.modalidad !== 'festival' && (
+                    <>
+                      <label className="ios-label">Categoría</label>
+                      <select
+                        className="ios-input"
+                        value={editLinea.id_categoria}
+                        onChange={(e) => setEditLinea((l) => ({ ...l, id_categoria: e.target.value }))}
+                        required
+                      >
+                        <option value="">Seleccionar…</option>
+                        {(editLinea.modalidad === 'kyorugi_individual'
+                          ? categoriasPorDivision(editLinea, editLinea.perfil, editLinea.division)
+                          : categoriasParaLinea(editLinea, editLinea.perfil)
+                        ).map((c) => (
+                          <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                        ))}
+                      </select>
+                      {editLinea.categoria_nombre && (
+                        <p className="ios-caption" style={{ color: 'var(--label3)' }}>Actual: {editLinea.categoria_nombre}</p>
+                      )}
+                      {categorias.length === 0 && (
+                        <p className="ios-caption" style={{ color: '#C0000A' }}>Genera categorías WT primero (pestaña Categorías).</p>
+                      )}
+                    </>
                   )}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="submit" className="ios-btn ios-btn-primary" disabled={guardandoLinea || categorias.length === 0}>Guardar</button>
+                    <button
+                      type="submit"
+                      className="ios-btn ios-btn-primary"
+                      disabled={guardandoLinea || (editLinea.modalidad !== 'festival' && categorias.length === 0)}
+                    >
+                      Guardar
+                    </button>
                     <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditLinea(null)}>Cancelar</button>
                   </div>
                 </div>

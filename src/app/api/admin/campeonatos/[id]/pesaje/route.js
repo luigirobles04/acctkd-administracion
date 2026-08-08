@@ -21,7 +21,7 @@ export async function GET(_request, { params }) {
       .select(`
         id_linea, dorsal_display, dorsal_numero, peso_declarado, peso_oficial,
         pesaje_estado, pesaje_intentos, id_categoria,
-        categoria:categoria_campeonato(nombre, peso_min, peso_max),
+        categoria:categoria_campeonato(nombre, division, peso_min, peso_max),
         academia_campeonato(academia:academia(nombre)),
         miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
       `)
@@ -31,7 +31,12 @@ export async function GET(_request, { params }) {
       .order('dorsal_numero', { ascending: true })
     if (errL) throw errL
 
-    return NextResponse.json({ lineas: lineas || [], maxIntentos: MAX_INTENTOS_PESAJE })
+    // Festival no se pesa (planilla aparte)
+    const sinFestival = (lineas || []).filter(
+      (l) => !/·\s*Festival\b/i.test(String(l.categoria?.nombre || l.categoria?.division || '')),
+    )
+
+    return NextResponse.json({ lineas: sinFestival, maxIntentos: MAX_INTENTOS_PESAJE })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

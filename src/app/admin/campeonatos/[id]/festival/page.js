@@ -89,8 +89,8 @@ export default function CampeonatoFestivalPage() {
         </div>
 
         <div className="no-print ios-card" style={{ padding: 14, marginBottom: 16, fontSize: 13, color: '#475569' }}>
-          Los festivales no generan llaves. Esta planilla agrupa participantes por edad (formato oficial FestCup) para
-          imprimir o entregar al área de festival.
+          Festival = kyorugi principiantes (10º–7º kup). No hay pesaje oficial ni llaves/Unity: esta planilla agrupa
+          por edad con nombre, academia y peso declarado para organizar el área en el campeonato.
         </div>
 
         <div className="no-print" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -164,6 +164,7 @@ export default function CampeonatoFestivalPage() {
                         <th style={{ padding: '8px 10px' }}>Nombre y apellido</th>
                         <th style={{ padding: '8px 10px' }}>Institución</th>
                         <th style={{ padding: '8px 10px', width: 120 }}>Categoría</th>
+                        <th style={{ padding: '8px 10px', width: 80 }}>Peso</th>
                         <th style={{ padding: '8px 10px', width: 64 }}>Género</th>
                       </tr>
                     </thead>
@@ -173,6 +174,9 @@ export default function CampeonatoFestivalPage() {
                           <td style={{ padding: '8px 10px', fontWeight: 500 }}>{p.nombre}</td>
                           <td style={{ padding: '8px 10px', color: '#475569' }}>{p.academia}</td>
                           <td style={{ padding: '8px 10px', fontSize: 12 }}>{p.division}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>
+                            {p.peso != null ? `${p.peso} kg` : '—'}
+                          </td>
                           <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>{p.sexo}</td>
                         </tr>
                       ))}

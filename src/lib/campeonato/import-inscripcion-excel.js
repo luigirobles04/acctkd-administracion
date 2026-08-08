@@ -18,6 +18,7 @@ import {
   splitNombreCompleto,
   docTemporalImport,
 } from '@/lib/campeonato/import-excel-categorias'
+import { esCategoriaKyorugiFestival } from '@/lib/campeonato/validar-categoria'
 
 function sheetRows(wb, ...names) {
   for (const want of names) {
@@ -180,6 +181,24 @@ function parseKyorugiRow(row, ctx) {
   const advertencias = [...(advCat || [])]
   if (!perfil.fecha_nacimiento) advertencias.push('Sin fecha de nacimiento — verifica categoría')
 
+  // Nivel Festival → modalidad festival (planilla con peso, sin llaves/pesaje)
+  if (cat && esCategoriaKyorugiFestival(cat)) {
+    const edad = perfil.fecha_nacimiento ? edadWT(perfil.fecha_nacimiento, ctx.anio) : null
+    const grupo = divisionFestivalPorEdad(edad)
+    if (peso == null) advertencias.push('Festival: sin peso declarado — complétalo en el portal')
+    return {
+      tipo: 'festival',
+      perfilKeys: [perfil.key],
+      idCategoria: null,
+      categoriaNombre: grupo?.division || cat.nombre,
+      pesoDeclarado: peso,
+      label: `${nombre} · Festival ${grupo?.division || ''}`.trim(),
+      hoja: 'KYORUGUI',
+      errores: [],
+      advertencias: ['Nivel Festival → planilla Festival (sin llaves ni pesaje)', ...advertencias],
+    }
+  }
+
   return {
     tipo: 'kyorugi_individual',
     perfilKeys: [perfil.key],
@@ -268,6 +287,18 @@ function parseFestivalRow(row, ctx) {
 
   if (!sexo) sexo = inferSexoFromNombre(nombre)
 
+  let peso = null
+  for (const idx of [4, 5, 6, 7]) {
+    if (idx === 5 && parseSexo(row[5])) continue
+    if (divisionFestivalFromText(row[idx])) continue
+    if (normTxt(row[idx]) === 'FESTIVAL') continue
+    const p = parsePesoExcel(row[idx])
+    if (p != null) {
+      peso = p
+      break
+    }
+  }
+
   const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
 
   const edad = fecha ? edadWT(fecha, ctx.anio) : edadDeclarada
@@ -281,12 +312,14 @@ function parseFestivalRow(row, ctx) {
   if (grupoEdad && grupoExcel && grupoEdad.key !== grupoExcel.key) {
     advertencias.push(`Excel dice ${grupoExcel.division} pero edad WT ${edad} → ${grupoEdad.division}`)
   }
+  if (peso == null) advertencias.push('Festival: sin peso declarado — complétalo en el portal')
 
   return {
     tipo: 'festival',
     perfilKeys: [perfil.key],
     idCategoria: null,
     categoriaNombre: grupo?.division || divisionHint || 'Festival',
+    pesoDeclarado: peso,
     label: `${nombre} · Festival ${grupo?.division || divisionHint || ''}`.trim(),
     hoja: 'FESTIVAL',
     errores: grupo ? [] : ['Festival: no se pudo determinar división (revisa edad o categoría)'],
@@ -606,15 +639,18 @@ function parseDelRioAltRows(rows, ctx) {
 
     if (nivel.includes('FESTIVAL')) {
       const grupo = divisionFestivalFromText(divisionTxt) || divisionFestivalPorEdad(edad)
+      const adv = ['Formato planilla alternativa (Del Río)']
+      if (peso == null) adv.push('Festival: sin peso declarado — complétalo en el portal')
       lineas.push({
         tipo: 'festival',
         perfilKeys: [perfil.key],
         idCategoria: null,
         categoriaNombre: grupo?.division || divisionTxt,
+        pesoDeclarado: peso,
         label: `${nombre} · Festival ${grupo?.division || divisionTxt}`,
         hoja: 'Hoja1',
         errores: grupo ? [] : ['Festival: revisa edad/división'],
-        advertencias: ['Formato planilla alternativa (Del Río)'],
+        advertencias: adv,
       })
       continue
     }

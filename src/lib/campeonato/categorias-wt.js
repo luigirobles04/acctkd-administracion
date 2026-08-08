@@ -2,7 +2,7 @@ import { TARIFAS_FDPTKD_DEFAULT } from '@/lib/campeonato/constants'
 import { slugify } from '@/lib/campeonato/constants'
 
 /** Versión del catálogo FestCup — incrementar al cambiar categorías */
-export const CATALOG_VERSION = 6
+export const CATALOG_VERSION = 7
 
 /** Kyorugi · niveles por cinturón (FestCup 2026) */
 const KYORUGI_NIVELES = [
@@ -45,19 +45,19 @@ const KYORUGI_DIVISIONES = [
     division: 'Juvenil',
     edadMin: 15,
     edadMax: 17,
-    pesosM: [45, 48, 51, 55, 59, 63, 68, 73],
-    pesosF: [42, 44, 46, 49, 53, 57, 62],
+    pesosM: [45, 48, 51, 55, 59, 63, 68, 73, 78],
+    pesosF: [42, 44, 46, 49, 52, 55, 59, 63, 68],
   },
   {
     division: 'Mayores',
     edadMin: 18,
     edadMax: 99,
-    pesosM: [54, 58, 63, 68, 74, 80],
-    pesosF: [46, 49, 53, 57, 62, 67],
+    pesosM: [54, 58, 62, 68, 72, 78, 84],
+    pesosF: [46, 49, 53, 57, 62, 67, 73],
   },
 ]
 
-/** Poomsae · divisiones edad (FestCup 2026) */
+/** Poomsae · divisiones edad (FestCup 2026) — Master 4 = 65 años a más */
 export const POOMSAE_DIVISIONES = [
   { division: 'Pre Infantil', edadMin: 4, edadMax: 5, anioDesde: 2021, anioHasta: 2022 },
   { division: 'Infantil A', edadMin: 6, edadMax: 7, anioDesde: 2019, anioHasta: 2020 },
@@ -69,8 +69,8 @@ export const POOMSAE_DIVISIONES = [
   { division: 'Senior 2', edadMin: 31, edadMax: 40, anioDesde: 1986, anioHasta: 1995 },
   { division: 'Master 1', edadMin: 41, edadMax: 50, anioDesde: 1976, anioHasta: 1985 },
   { division: 'Master 2', edadMin: 51, edadMax: 60, anioDesde: 1966, anioHasta: 1975 },
-  { division: 'Master 3', edadMin: 61, edadMax: 65, anioDesde: 1962, anioHasta: 1965 },
-  { division: 'Master 4', edadMin: 66, edadMax: 99, anioDesde: 1900, anioHasta: 1961 },
+  { division: 'Master 3', edadMin: 61, edadMax: 64, anioDesde: 1962, anioHasta: 1965 },
+  { division: 'Master 4', edadMin: 65, edadMax: 99, anioDesde: 1900, anioHasta: 1961 },
 ]
 
 /** Poomsae reconocido · cintas de color */
@@ -394,7 +394,30 @@ export async function catalogoNecesitaReseed(sb, idCampeonato) {
     .eq('genero', 'X')
     .limit(1)
 
-  return Boolean(unisex?.length)
+  if (unisex?.length) return true
+
+  // v7: Juvenil M incluye +78 (foto oficial FestCup 2026)
+  const { data: juv78 } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi')
+    .ilike('nombre', '%Juvenil%+78kg%')
+    .limit(1)
+
+  if (!juv78?.length) return true
+
+  // v7: Master 4 desde 65 inclusive (antes edad_min 66)
+  const { data: m4viejo } = await sb
+    .from('categoria_campeonato')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'poomsae')
+    .ilike('nombre', '%Master 4%')
+    .eq('edad_min', 66)
+    .limit(1)
+
+  return Boolean(m4viejo?.length)
 }
 
 /**
@@ -524,4 +547,4 @@ export async function resincronizarCatalogo(sb, idCampeonato) {
   return count || 0
 }
 
-export const MIN_CATEGORIAS_CATALOGO = 620
+export const MIN_CATEGORIAS_CATALOGO = 635

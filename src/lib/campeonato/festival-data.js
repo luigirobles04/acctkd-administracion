@@ -26,7 +26,7 @@ export async function fetchPlanillaFestival(sb, idCampeonato) {
   const { data: lineas, error: errL } = await sb
     .from('linea_inscripcion')
     .select(`
-      id_linea, modalidad, dorsal_display, estado,
+      id_linea, modalidad, dorsal_display, estado, peso_declarado,
       academia_campeonato(academia(nombre)),
       miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos, sexo, fecha_nacimiento))
     `)
@@ -51,6 +51,7 @@ export async function fetchPlanillaFestival(sb, idCampeonato) {
       academia: academiaNombre(linea).toUpperCase(),
       sexo: perfil?.sexo === 'M' ? 'M' : perfil?.sexo === 'F' ? 'F' : '—',
       edad,
+      peso: linea.peso_declarado != null ? Number(linea.peso_declarado) : null,
       division: grupo.division,
     })
   }

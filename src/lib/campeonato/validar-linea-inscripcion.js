@@ -14,6 +14,10 @@ export async function validarLineaInscripcion(sb, ac, body) {
   if (modalidad === 'oficial') return
   if (modalidad === 'festival') {
     if (!idPerfiles?.length) throw new Error('Perfil requerido')
+    const peso = pesoDeclarado != null && pesoDeclarado !== '' ? Number(pesoDeclarado) : null
+    if (peso == null || !Number.isFinite(peso) || peso <= 0) {
+      throw new Error('Festival requiere peso declarado (kg)')
+    }
     return
   }
   if (esModalidadGrupo(modalidad)) {

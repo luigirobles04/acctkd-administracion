@@ -57,6 +57,7 @@ function modalidadLabel(key) {
 }
 
 function resumenCategoria(key, sel, catsKyorugi, catsPoomsae, allCats) {
+  if (key === 'festival') return sel?.peso ? `Planilla Festival · ${sel.peso} kg` : 'Planilla Festival'
   const id = sel?.idCategoria
   if (!id) return null
   if (key === 'kyorugi_individual') {
@@ -189,6 +190,7 @@ export default function PortalCampeonatoPage() {
         return next
       }
       if (key === 'kyorugi_individual') next[key] = { peso: '', idCategoria: '' }
+      else if (key === 'festival') next[key] = { peso: '' }
       else if (key === 'oficial') next[key] = { tipoOficial: 'coach' }
       else if (modalidadRequiereCategoriaPoomsae(key)) {
         const sugerida = poomsaeCategoriaSugerida(data?.categorias || [], perfil, anio)
@@ -237,6 +239,7 @@ export default function PortalCampeonatoPage() {
   const step2Valid = modalidadesActivas.length > 0 && modalidadesActivas.every((key) => {
     const sel = modalidadesSel[key]
     if (key === 'kyorugi_individual') return sel.peso && sel.idCategoria
+    if (key === 'festival') return sel.peso && Number(sel.peso) > 0
     if (modalidadRequiereCategoriaPoomsae(key)) return sel.idCategoria
     if (key === 'oficial') return sel.tipoOficial
     return true
@@ -387,7 +390,10 @@ export default function PortalCampeonatoPage() {
         const lineas = keys.map((key) => ({
           modalidad: key,
           idCategoria: item.modalidadesSel[key]?.idCategoria ? Number(item.modalidadesSel[key].idCategoria) : null,
-          pesoDeclarado: key === 'kyorugi_individual' ? Number(item.modalidadesSel[key].peso) : null,
+          pesoDeclarado:
+            key === 'kyorugi_individual' || key === 'festival'
+              ? Number(item.modalidadesSel[key].peso)
+              : null,
           tipoOficial: key === 'oficial' ? item.modalidadesSel[key].tipoOficial : null,
         }))
         const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
@@ -422,7 +428,8 @@ export default function PortalCampeonatoPage() {
       const lineas = modalidadesActivas.map((key) => ({
         modalidad: key,
         idCategoria: modalidadesSel[key]?.idCategoria ? Number(modalidadesSel[key].idCategoria) : null,
-        pesoDeclarado: key === 'kyorugi_individual' ? Number(modalidadesSel[key].peso) : null,
+        pesoDeclarado:
+          key === 'kyorugi_individual' || key === 'festival' ? Number(modalidadesSel[key].peso) : null,
         tipoOficial: key === 'oficial' ? modalidadesSel[key].tipoOficial : null,
       }))
 
@@ -930,10 +937,26 @@ export default function PortalCampeonatoPage() {
                               categorias={catsKyorugi}
                               value={modalidadesSel[key]?.idCategoria || ''}
                               onChange={(v) => updateModalidad(key, { idCategoria: v })}
-                              emptyMessage="No hay categorías válidas. Revisa edad, sexo o peso."
+                              emptyMessage="No hay categorías válidas. Revisa edad, sexo o peso. Principiantes (10º–7º kup) usan Festival."
                             />
                           </PortalField>
                         </>
+                      )}
+
+                      {key === 'festival' && modalidadesSel[key] && (
+                        <PortalField
+                          label="Peso declarado (kg)"
+                          hint="Se registra en la planilla Festival. No hay pesaje oficial ni llaves."
+                        >
+                          <input
+                            className="ios-input"
+                            type="number"
+                            step="0.1"
+                            placeholder="Ej. 28"
+                            value={modalidadesSel[key]?.peso || ''}
+                            onChange={(e) => updateModalidad(key, { peso: e.target.value })}
+                          />
+                        </PortalField>
                       )}
 
                       {modalidadRequiereCategoriaPoomsae(key) && modalidadesSel[key] && (
@@ -995,7 +1018,7 @@ export default function PortalCampeonatoPage() {
                             {modalidadLabel(key)}
                             {key === 'oficial' && ` · ${modalidadesSel[key].tipoOficial}`}
                           </div>
-                          {key === 'kyorugi_individual' && modalidadesSel[key].peso && (
+                          {(key === 'kyorugi_individual' || key === 'festival') && modalidadesSel[key].peso && (
                             <div className="portal-line-meta">{modalidadesSel[key].peso} kg</div>
                           )}
                           <div className="portal-line-meta">

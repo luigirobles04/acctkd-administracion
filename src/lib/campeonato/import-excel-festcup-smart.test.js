@@ -29,6 +29,8 @@ describe('FestCup 2026 · divisiones por edad', () => {
     expect(divisionPoomsaePorEdad(25)).toBe('Senior 1')
     expect(divisionPoomsaePorEdad(35)).toBe('Senior 2')
     expect(divisionPoomsaePorEdad(45)).toBe('Master 1')
+    expect(divisionPoomsaePorEdad(64)).toBe('Master 3')
+    expect(divisionPoomsaePorEdad(65)).toBe('Master 4')
   })
 })
 

@@ -119,8 +119,8 @@ export function divisionPoomsaePorEdad(edad) {
   if (edad <= 40) return 'Senior 2'
   if (edad <= 50) return 'Master 1'
   if (edad <= 60) return 'Master 2'
-  if (edad <= 65) return 'Master 3'
-  return 'Master 4'
+  if (edad <= 64) return 'Master 3'
+  return 'Master 4' // 65 años a más
 }
 
 /** Extrae nivel kyorugi Festival / Noveles / Avanzados del texto */

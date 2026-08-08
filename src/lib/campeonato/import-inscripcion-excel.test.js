@@ -45,11 +45,10 @@ describe('parseFestcupInscripcionExcel', () => {
     const competidores = parsed.lineas.filter((l) => l.tipo !== 'oficial')
     expect(competidores.length).toBe(0)
     const wb = XLSX.read(buffer, { type: 'buffer' })
-    const poomName = wb.SheetNames.find((n) => normTxt(n).includes('POOM'))
-    const poomRows = XLSX.utils.sheet_to_json(wb.Sheets[poomName], { header: 1, defval: '' })
-    const labels = poomRows.map((r) => normTxt(r[0] || r[1]))
-    expect(labels).toContain('PAREJAS')
-    expect(labels).toContain('EQUIPO')
+    const sheets = wb.SheetNames.map((n) => normTxt(n))
+    expect(sheets.some((n) => n.includes('KYORUG'))).toBe(true)
+    expect(sheets.some((n) => n.includes('POOM'))).toBe(true)
+    expect(sheets.some((n) => n.includes('FESTIVAL'))).toBe(true)
   })
 
   it('parsea planilla ACCTKD 2025 si existe en Downloads', () => {

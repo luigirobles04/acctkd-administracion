@@ -1,5 +1,6 @@
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import { lineaAptaParaLlave, PESAJE_ESTADOS_APTOS_LLAVE } from '@/lib/campeonato/pesaje'
+import { esCategoriaKyorugiFestival } from '@/lib/campeonato/validar-categoria'
 
 const SELECT_LINEA_LLAVE = `
   id_linea, id_categoria, dorsal_display, dorsal_numero, id_academia_campeonato, pesaje_estado,
@@ -394,6 +395,9 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
     .single()
   if (!cat) throw new Error('Categoría no encontrada')
   if (cat.modalidad !== 'kyorugi') throw new Error('Solo categorías kyorugi')
+  if (esCategoriaKyorugiFestival(cat)) {
+    throw new Error('Festival no genera llaves — usa la planilla Festival')
+  }
 
   const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
   const { data: lineas, error } = await queryLineasKyorugiLlave(sb, idCampeonato, {
@@ -538,6 +542,7 @@ export async function generarTodasLasLlaves(sb, idCampeonato, { idsCategorias = 
   const errores = []
 
   for (const cat of categorias || []) {
+    if (esCategoriaKyorugiFestival(cat)) continue
     if ((aptosPorCat[cat.id_categoria] || 0) < 2) continue
 
     try {

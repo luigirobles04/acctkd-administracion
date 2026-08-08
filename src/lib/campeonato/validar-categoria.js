@@ -21,6 +21,13 @@ export function calzaGradoKyorugi(cat, gradoInfo) {
   return gradoInfo.nivel >= rango.min && gradoInfo.nivel <= rango.max
 }
 
+/** Nivel Festival (10º–7º kup): planilla con peso, sin pesaje ni llaves. */
+export function esCategoriaKyorugiFestival(cat) {
+  const div = String(cat?.division || '')
+  const nom = String(cat?.nombre || '')
+  return /·\s*Festival\b/i.test(div) || /·\s*Festival\b/i.test(nom)
+}
+
 /** Filtra categorías kyorugi válidas para un perfil */
 export function categoriasValidas(categorias, perfil, anioCampeonato, pesoDeclarado = null) {
   const edad = edadWT(perfil.fecha_nacimiento, anioCampeonato)
@@ -29,6 +36,8 @@ export function categoriasValidas(categorias, perfil, anioCampeonato, pesoDeclar
 
   return (categorias || []).filter((cat) => {
     if (cat.modalidad && cat.modalidad !== 'kyorugi') return false
+    // Festival se inscribe como modalidad festival (planilla), no como llave/pesaje
+    if (esCategoriaKyorugiFestival(cat)) return false
     if (cat.genero && cat.genero !== 'X' && perfil.sexo && cat.genero !== perfil.sexo) return false
     if (edad != null) {
       if (cat.edad_min != null && edad < cat.edad_min) return false

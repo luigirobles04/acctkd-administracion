@@ -20,6 +20,12 @@ function trunc(doc, text, maxW) {
   return s
 }
 
+function fmtPeso(p) {
+  if (p == null || Number.isNaN(Number(p))) return '—'
+  const n = Number(p)
+  return Number.isInteger(n) ? `${n}` : `${n}`
+}
+
 function drawPageChrome(doc, { campeonato, pageW, esPortada = false }) {
   try {
     doc.addImage(WT_LOGO_PNG, 'PNG', 10, 8, 26, 11.9, 'wtLogo', 'FAST')
@@ -61,9 +67,10 @@ function buildFestivalPdfBlob(campeonato, grupos) {
   const headH = 8
 
   const colW = [
-    (pageW - marginL * 2) * 0.38,
-    (pageW - marginL * 2) * 0.32,
-    (pageW - marginL * 2) * 0.18,
+    (pageW - marginL * 2) * 0.34,
+    (pageW - marginL * 2) * 0.28,
+    (pageW - marginL * 2) * 0.14,
+    (pageW - marginL * 2) * 0.12,
     (pageW - marginL * 2) * 0.12,
   ]
 
@@ -78,7 +85,7 @@ function buildFestivalPdfBlob(campeonato, grupos) {
   }
 
   const drawGroupHeader = (grupo) => {
-    const headers = ['NOMBRE Y APELLIDO', 'INSTITUCION', grupo.edadLabel, 'GENERO']
+    const headers = ['NOMBRE Y APELLIDO', 'INSTITUCION', grupo.edadLabel, 'PESO (kg)', 'GENERO']
     doc.setFillColor(...HEAD_BG)
     doc.rect(marginL, y, pageW - marginL * 2, headH, 'F')
     doc.setFont('helvetica', 'bold')
@@ -119,13 +126,13 @@ function buildFestivalPdfBlob(campeonato, grupos) {
         doc.setFillColor(...ROW_ALT)
         doc.rect(marginL, y, pageW - marginL * 2, rowH, 'F')
       }
-      const cells = [p.nombre, p.academia, p.division, p.sexo]
+      const cells = [p.nombre, p.academia, p.division, fmtPeso(p.peso), p.sexo]
       let x = marginL
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8.5)
       doc.setTextColor(...DARK)
       for (let i = 0; i < cells.length; i++) {
-        const align = i === 3 ? 'center' : 'left'
+        const align = i >= 3 ? 'center' : 'left'
         const tx = align === 'center' ? x + colW[i] / 2 : x + 2
         doc.text(trunc(doc, cells[i], colW[i] - 3), tx, y + rowH - 2.3, { align })
         x += colW[i]
@@ -173,25 +180,26 @@ export function descargarFestivalExcel(campeonato, grupos) {
             ${tdCell(p.nombre, { bg })}
             ${tdCell(p.academia, { bg })}
             ${tdCell(p.division, { bg, align: 'center' })}
+            ${tdCell(fmtPeso(p.peso), { bg, align: 'center', bold: true })}
             ${tdCell(p.sexo, { bg, align: 'center', bold: true })}
           </tr>`
         })
         .join('')
       return `
-        <tr>${thCell('FESTIVAL KYORUGI — ' + g.division, XL.red, '#fff', 4)}</tr>
-        <tr>${thCell('NOMBRE Y APELLIDO')}${thCell('INSTITUCION')}${thCell(g.edadLabel)}${thCell('GENERO')}</tr>
+        <tr>${thCell('FESTIVAL KYORUGI — ' + g.division, XL.red, '#fff', 5)}</tr>
+        <tr>${thCell('NOMBRE Y APELLIDO')}${thCell('INSTITUCION')}${thCell(g.edadLabel)}${thCell('PESO (kg)')}${thCell('GENERO')}</tr>
         ${filas}
-        <tr><td colspan="4" style="height:10px"></td></tr>`
+        <tr><td colspan="5" style="height:10px"></td></tr>`
     })
     .join('')
 
   const total = activos.reduce((s, g) => s + g.total, 0)
   const html = `
     <table>
-      <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 4)}</tr>
-      <tr>${thCell('PLANILLA FESTIVAL KYORUGI', XL.red, '#fff', 4)}</tr>
-      <tr><td colspan="4">${activos.length} grupos · ${total} participantes</td></tr>
-      <tr><td colspan="4" style="height:6px"></td></tr>
+      <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 5)}</tr>
+      <tr>${thCell('PLANILLA FESTIVAL KYORUGI', XL.red, '#fff', 5)}</tr>
+      <tr><td colspan="5">${activos.length} grupos · ${total} participantes</td></tr>
+      <tr><td colspan="5" style="height:6px"></td></tr>
       ${bloques}
     </table>`
 

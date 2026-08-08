@@ -102,7 +102,13 @@ export function PortalModalityCard({ active, icon, title, desc, priceLabel, onTo
 }
 
 export const MODALIDADES_PORTAL = [
-  { key: 'kyorugi_individual', label: 'Kyorugi', desc: 'Combate individual por peso y edad', icon: 'sports_mma' },
+  { key: 'kyorugi_individual', label: 'Kyorugi', desc: 'Combate individual (Noveles / Avanzados)', icon: 'sports_mma' },
+  {
+    key: 'festival',
+    label: 'Festival Kyorugi',
+    desc: 'Principiantes 10º–7º kup — planilla con peso, sin pesaje ni llaves',
+    icon: 'celebration',
+  },
   { key: 'poomsae_individual', label: 'Poomsae individual', desc: 'Formas — elige tu división', icon: 'accessibility_new' },
   { key: 'oficial', label: 'Oficial', desc: 'Coach, delegado, médico… (gratis, máx. 3)', icon: 'badge' },
 ]
