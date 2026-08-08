@@ -28,7 +28,7 @@ export default function PortalShell({
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
           <Link href="/portal" className="portal-topbar-brand">
-            <Image src="/logo-dark.png" alt="" width={32} height={32} className="portal-topbar-logo" />
+            <Image src="/logo-transparent.png" alt="ACCTKD" width={32} height={32} className="portal-topbar-logo" />
             <span>
               ACCTKD
               <small>Portal de inscripción</small>

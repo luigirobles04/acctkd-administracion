@@ -104,7 +104,7 @@ export default function RegistroAcademiaPage() {
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
           <Link href="/" className="portal-topbar-brand">
-            <Image src="/logo-dark.png" alt="ACCTKD" width={28} height={28} className="portal-topbar-logo" />
+            <Image src="/logo-transparent.png" alt="ACCTKD" width={28} height={28} className="portal-topbar-logo" />
             <span>ACCTKD</span>
           </Link>
         </div>

@@ -69,7 +69,7 @@ export default function LoginPage() {
         {/* Logo suelto, sin caja */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
           <Image
-            src="/logo-dark.png"
+            src="/logo-transparent.png"
             alt="Christopher Cabrera Tae Kwon Do"
             width={88}
             height={88}

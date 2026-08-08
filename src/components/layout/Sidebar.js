@@ -99,8 +99,8 @@ export default function Sidebar({ open, onClose }) {
         <div style={{ padding: '22px 18px 18px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Image
-              src="/logo-dark.png"
-              alt="Logo"
+              src="/logo-transparent.png"
+              alt="ACCTKD"
               width={40}
               height={40}
               style={{ objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 12px rgba(225,6,0,0.35))' }}
