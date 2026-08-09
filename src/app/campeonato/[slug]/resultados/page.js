@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import PodioCard from '@/components/campeonatos/PodioCard'
 import { fetchConTimeout, readJsonResponse } from '@/lib/public-app-url'
+import '@/components/campeonatos/podios.css'
 import '@/components/campeonatos/resultados.css'
 
 const TABS = [

@@ -264,32 +264,145 @@
   text-decoration: underline;
 }
 
+/* Podios kyorugi / poomsae sobre fondo oscuro */
 .resultados-page .podios-grid {
   gap: 18px;
 }
 
 .resultados-page .podio-card {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: rgba(51, 65, 85, 0.8);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(71, 85, 105, 0.75);
   color: #f1f5f9;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
 }
 
 .resultados-page .podio-card--completo {
-  border-color: rgba(251, 191, 36, 0.45);
-  box-shadow: 0 8px 32px rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 10px 36px rgba(251, 191, 36, 0.1);
+}
+
+.resultados-page .podio-card--sin-puntos {
+  border-color: rgba(148, 163, 184, 0.45);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
 }
 
 .resultados-page .podio-cat-nombre {
   color: #fca5a5;
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.resultados-page .podio-sin-puntos {
+  color: #94a3b8;
 }
 
 .resultados-page .podio-estado {
-  color: #64748b;
+  color: #94a3b8;
+}
+
+.resultados-page .podio-plataforma {
+  gap: 12px;
+}
+
+.resultados-page .podio-puesto {
+  gap: 4px;
+  padding: 12px 14px;
+  min-height: 88px;
+}
+
+.resultados-page .podio-puesto--oro {
+  background: linear-gradient(160deg, #fef08a 0%, #facc15 45%, #eab308 100%);
+  border-color: #a16207;
+  color: #1c1917;
+  min-height: 110px;
+}
+
+.resultados-page .podio-puesto--plata {
+  background: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  border-color: #64748b;
+  color: #0f172a;
+}
+
+.resultados-page .podio-puesto--bronce {
+  background: linear-gradient(160deg, #ffedd5 0%, #fdba74 50%, #f97316 100%);
+  border-color: #c2410c;
+  color: #1c1917;
+}
+
+.resultados-page .podio-puesto--vacio {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px dashed rgba(100, 116, 139, 0.7);
+  color: #94a3b8;
+}
+
+.resultados-page .podio-dorsal {
+  color: inherit;
+  font-size: 17px;
+}
+
+.resultados-page .podio-puesto--oro .podio-dorsal {
+  font-size: 20px;
+}
+
+.resultados-page .podio-nombre {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.resultados-page .podio-academia {
+  color: rgba(15, 23, 42, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.resultados-page .podio-puesto--vacio .podio-academia,
+.resultados-page .podio-puesto--vacio .podio-nombre {
+  color: #94a3b8;
 }
 
 .resultados-page .podio-puntaje {
-  font-size: 13px;
-  font-weight: 800;
+  display: inline-block;
+  margin: 2px auto 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #1c1917;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+}
+
+.resultados-page .podio-puesto--oro .podio-puntaje {
+  background: rgba(120, 53, 15, 0.18);
+  color: #713f12;
+}
+
+.resultados-page .podio-puesto--plata .podio-puntaje {
+  background: rgba(15, 23, 42, 0.1);
   color: #1e293b;
-  opacity: 0.85;
+}
+
+.resultados-page .podio-puesto--bronce .podio-puntaje {
+  background: rgba(124, 45, 18, 0.16);
+  color: #7c2d12;
+}
+
+.resultados-page .podio-vacio-text {
+  color: #64748b;
+}
+
+@media (max-width: 560px) {
+  .resultados-page .podio-plataforma {
+    grid-template-columns: 1fr;
+  }
+
+  .resultados-page .podio-col--centro {
+    order: -1;
+  }
 }

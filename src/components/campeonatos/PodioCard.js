@@ -1,6 +1,7 @@
 'use client'
 
 import { MEDALLA_EMOJI } from '@/lib/campeonato/podio-kyorugi'
+import '@/components/campeonatos/podios.css'
 
 function Medallista({ tipo, competidor, compact, modalidad }) {
   if (!competidor) {
@@ -14,13 +15,13 @@ function Medallista({ tipo, competidor, compact, modalidad }) {
 
   return (
     <div className={`podio-puesto podio-puesto--${tipo}${compact ? ' podio-puesto--compact' : ''}`}>
-      <span className="podio-medalla">{MEDALLA_EMOJI[tipo]}</span>
-      <span className="podio-dorsal">{competidor.dorsal}</span>
+      <span className="podio-medalla" aria-hidden>{MEDALLA_EMOJI[tipo]}</span>
+      {competidor.dorsal ? <span className="podio-dorsal">{competidor.dorsal}</span> : null}
       <span className="podio-nombre">{competidor.nombres}</span>
       {modalidad === 'poomsae' && competidor.puntaje != null && (
         <span className="podio-puntaje">{Number(competidor.puntaje).toFixed(3)} pts</span>
       )}
-      {competidor.academia && <span className="podio-academia">{competidor.academia}</span>}
+      {competidor.academia ? <span className="podio-academia">{competidor.academia}</span> : null}
     </div>
   )
 }
