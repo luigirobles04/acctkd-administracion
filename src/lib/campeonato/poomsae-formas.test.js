@@ -1,5 +1,39 @@
 import { describe, it, expect } from 'vitest'
-import { agruparPoomsaePorForma, organizarPantallaPoomsaePorAreas, parseNombrePoomsae } from './poomsae-formas'
+import {
+  agruparPoomsaePorForma,
+  compareCategoriasPorPoomsae,
+  formaRank,
+  organizarPantallaPoomsaePorAreas,
+  parseNombrePoomsae,
+} from './poomsae-formas'
+
+describe('formaRank / compareCategoriasPorPoomsae', () => {
+  it('ordena formas de menor a mayor dificultad', () => {
+    expect(formaRank('Kibom')).toBeLessThan(formaRank('Il Jang'))
+    expect(formaRank('Il Jang')).toBeLessThan(formaRank('Pal Jang'))
+    expect(formaRank('Pal Jang')).toBeLessThan(formaRank('Koryo'))
+    expect(formaRank('Koryo')).toBeLessThan(formaRank('Hansu'))
+    expect(formaRank('Hansu')).toBeLessThan(formaRank('Ranking'))
+  })
+
+  it('ordena categorías por forma y luego edad/sexo', () => {
+    const cats = [
+      { nombre: 'Poomsae Il Jang · Cadete · F' },
+      { nombre: 'Poomsae Kibom · Senior 1 · M' },
+      { nombre: 'Poomsae Kibom · Infantil A · F' },
+      { nombre: 'Poomsae Kibom · Infantil A · M' },
+      { nombre: 'Poomsae Ranking · Cadete · M' },
+    ]
+    const sorted = [...cats].sort(compareCategoriasPorPoomsae).map((c) => c.nombre)
+    expect(sorted).toEqual([
+      'Poomsae Kibom · Infantil A · M',
+      'Poomsae Kibom · Infantil A · F',
+      'Poomsae Kibom · Senior 1 · M',
+      'Poomsae Il Jang · Cadete · F',
+      'Poomsae Ranking · Cadete · M',
+    ])
+  })
+})
 
 describe('parseNombrePoomsae', () => {
   it('separa forma, edad y género', () => {
@@ -56,6 +90,7 @@ describe('agruparPoomsaePorForma', () => {
     expect(kibom.inscritos).toBe(2)
     expect(kibom.participantes.map((p) => p.id_linea)).toEqual([10, 20])
     expect(formas.find((f) => f.forma === 'Il Jang').inscritos).toBe(1)
+    expect(formas.map((f) => f.forma)).toEqual(['Kibom', 'Il Jang'])
   })
 })
 

@@ -1,6 +1,7 @@
 /** Orden de salida Poomsae — listado por categoría (no bracket eliminatorio) */
 
 import { MODALIDADES } from '@/lib/campeonato/constants'
+import { compareCategoriasPorPoomsae } from '@/lib/campeonato/poomsae-formas'
 
 const MODALIDADES_POOMSAE = Object.keys(MODALIDADES).filter((k) => k.startsWith('poomsae_'))
 
@@ -134,6 +135,9 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       participantes: inscritos,
     }
   })
+
+  // Vista admin + PDF/Excel: menor poomsae → mayor (luego edad / sexo)
+  categoriasOut.sort(compareCategoriasPorPoomsae)
 
   const conInscritos = categoriasOut.filter((c) => c.inscritos > 0)
   const resumen = {

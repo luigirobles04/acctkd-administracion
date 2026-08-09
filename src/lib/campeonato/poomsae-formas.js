@@ -18,6 +18,28 @@ const EDAD_ORDER = [
   'Master 4',
 ]
 
+/** Menor → mayor dificultad (reconocido + dan). Ranking al final. */
+export const FORMA_ORDER = [
+  'Kibom',
+  'Il Jang',
+  'I Jang',
+  'Sam Jang',
+  'Sa Jang',
+  'Oh Jang',
+  'Yuk Jang',
+  'Chil Jang',
+  'Pal Jang',
+  'Koryo',
+  'Keumgang',
+  'Taebaek',
+  'Pyongwon',
+  'Sip Jin',
+  'Jitae',
+  'Chongkwon',
+  'Hansu',
+  'Ranking',
+]
+
 /** @param {string} nombre ej. "Poomsae Kibom · Infantil A · M" */
 export function parseNombrePoomsae(nombre) {
   const n = String(nombre || '').trim()
@@ -36,15 +58,35 @@ export function parseNombrePoomsae(nombre) {
   return { forma: n || 'Poomsae', edad: '', genero: '', esRanking: false }
 }
 
+export function formaRank(forma) {
+  const key = String(forma || '').trim().toLowerCase()
+  const i = FORMA_ORDER.findIndex((f) => f.toLowerCase() === key)
+  // Desconocidas al final, pero antes de Ranking
+  if (i >= 0) return i
+  return FORMA_ORDER.length - 0.5
+}
+
 function edadRank(edad) {
   const i = EDAD_ORDER.findIndex((e) => e.toLowerCase() === String(edad || '').toLowerCase())
   return i >= 0 ? i : 99
 }
 
 function generoRank(g) {
-  if (g === 'M') return 0
-  if (g === 'F') return 1
+  const gU = String(g || '').toUpperCase()
+  if (gU === 'M') return 0
+  if (gU === 'F') return 1
   return 2
+}
+
+/** Orden de categorías: forma (menor→mayor) → edad → género. */
+export function compareCategoriasPorPoomsae(a, b) {
+  const pa = parseNombrePoomsae(a?.nombre)
+  const pb = parseNombrePoomsae(b?.nombre)
+  const fa = formaRank(pa.forma) - formaRank(pb.forma)
+  if (fa !== 0) return fa
+  const ea = edadRank(pa.edad) - edadRank(pb.edad)
+  if (ea !== 0) return ea
+  return generoRank(pa.genero || a?.genero) - generoRank(pb.genero || b?.genero)
 }
 
 /**
@@ -114,7 +156,7 @@ export function agruparPoomsaePorForma(categorias) {
 
   formas.sort((a, b) => {
     if (a.esRanking !== b.esRanking) return a.esRanking ? 1 : -1
-    return a.forma.localeCompare(b.forma, 'es')
+    return formaRank(a.forma) - formaRank(b.forma)
   })
 
   return formas
