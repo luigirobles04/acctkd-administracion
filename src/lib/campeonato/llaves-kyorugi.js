@@ -113,13 +113,43 @@ function firstRoundOpponentSeed(bracketSize, seed) {
   return null
 }
 
+/**
+ * Parejas de seeds que pelean en 1.ª ronda real (ambos presentes; sin byes).
+ * Usa layouts CNU para n=6/7; WT estándar para el resto.
+ */
+function firstRoundFightSeedPairs(n) {
+  const num = Number(n) || 0
+  if (num < 2) return []
+  if (num === 6) return [[2, 3], [4, 5]]
+  if (num === 7) return [[2, 3], [4, 5], [6, 7]]
+  const bracketSize = bracketSizeFor(num)
+  const order = getSeedOrder(bracketSize)
+  const pairs = []
+  for (let i = 0; i < order.length; i += 2) {
+    const a = order[i]
+    const b = order[i + 1]
+    if (a <= num && b <= num) pairs.push([a, b])
+  }
+  return pairs
+}
+
 function academyId(p) {
   return p?.id_academia_campeonato ?? null
 }
 
+function countSameAcademyR1Conflicts(seeds, n) {
+  let conflicts = 0
+  for (const [s1, s2] of firstRoundFightSeedPairs(n)) {
+    const a = academyId(seeds[s1])
+    const b = academyId(seeds[s2])
+    if (a && b && a === b) conflicts++
+  }
+  return conflicts
+}
+
 /**
  * Asigna participantes a seeds 1..n con aleatoriedad y separación de academia
- * (si alguna academia tiene >3, evita mismo club en 1.ª ronda cuando sea posible).
+ * en 1.ª ronda cuando sea posible (si alguna academia tiene ≥2 atletas).
  */
 function assignSeeds(participantes, bracketSize) {
   const n = participantes.length
@@ -129,29 +159,43 @@ function assignSeeds(participantes, bracketSize) {
     const ac = academyId(p)
     if (ac) counts[ac] = (counts[ac] || 0) + 1
   }
-  const needsSeparation = Object.values(counts).some((c) => c > 3)
+  const needsSeparation = Object.values(counts).some((c) => c >= 2)
 
   const seeds = {}
   for (let i = 0; i < n; i++) seeds[i + 1] = pool[i]
 
-  if (needsSeparation) {
-    for (let attempt = 0; attempt < n * 30; attempt++) {
-      let conflict = false
-      for (let s = 1; s <= n; s++) {
-        const opp = firstRoundOpponentSeed(bracketSize, s)
-        if (!opp || opp > n) continue
-        const a = academyId(seeds[s])
-        const b = academyId(seeds[opp])
-        if (a && b && a === b) {
-          conflict = true
-          const swapWith = 1 + Math.floor(Math.random() * n)
-          if (swapWith !== s && swapWith !== opp) {
-            ;[seeds[s], seeds[swapWith]] = [seeds[swapWith], seeds[s]]
-          }
-        }
+  if (needsSeparation && n >= 2) {
+    let best = { ...seeds }
+    let bestConflicts = countSameAcademyR1Conflicts(best, n)
+    const maxAttempts = Math.max(n * 40, 40)
+
+    for (let attempt = 0; attempt < maxAttempts && bestConflicts > 0; attempt++) {
+      const conflictPairs = firstRoundFightSeedPairs(n).filter(([s1, s2]) => {
+        const a = academyId(seeds[s1])
+        const b = academyId(seeds[s2])
+        return a && b && a === b
+      })
+      if (!conflictPairs.length) {
+        best = { ...seeds }
+        bestConflicts = 0
+        break
       }
-      if (!conflict) break
+      const [s1, s2] = conflictPairs[Math.floor(Math.random() * conflictPairs.length)]
+      const move = Math.random() < 0.5 ? s1 : s2
+      const swapWith = 1 + Math.floor(Math.random() * n)
+      if (swapWith === move) continue
+      ;[seeds[move], seeds[swapWith]] = [seeds[swapWith], seeds[move]]
+      const conflicts = countSameAcademyR1Conflicts(seeds, n)
+      if (conflicts < bestConflicts) {
+        best = { ...seeds }
+        bestConflicts = conflicts
+      } else if (conflicts > bestConflicts) {
+        // revertir si empeora respecto al mejor (hill-climb suave)
+        ;[seeds[move], seeds[swapWith]] = [seeds[swapWith], seeds[move]]
+      }
     }
+
+    for (let s = 1; s <= n; s++) seeds[s] = best[s]
   }
 
   const arr = new Array(n + 1).fill(null)
@@ -956,6 +1000,7 @@ export {
   bracketSizeFor,
   getSeedOrder,
   firstRoundOpponentSeed,
+  firstRoundFightSeedPairs,
   assignSeeds,
   buildSlots,
   buildSlotsCnu6,

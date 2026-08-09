@@ -4,6 +4,8 @@ import {
   bracketSizeFor,
   getSeedOrder,
   firstRoundOpponentSeed,
+  firstRoundFightSeedPairs,
+  assignSeeds,
   buildSlots,
   buildSlotsCnu6,
   buildSlotsCnu7,
@@ -70,6 +72,66 @@ describe('firstRoundOpponentSeed', () => {
     for (let s = 1; s <= size; s++) {
       const opp = firstRoundOpponentSeed(size, s)
       expect(firstRoundOpponentSeed(size, opp)).toBe(s)
+    }
+  })
+})
+
+describe('firstRoundFightSeedPairs', () => {
+  it('llave de 4: 1v4 y 2v3', () => {
+    expect(firstRoundFightSeedPairs(4)).toEqual([[1, 4], [2, 3]])
+  })
+
+  it('llave de 5: solo play-in 4v5 (resto byes)', () => {
+    expect(firstRoundFightSeedPairs(5)).toEqual([[4, 5]])
+  })
+
+  it('CNU 6: 2v3 y 4v5', () => {
+    expect(firstRoundFightSeedPairs(6)).toEqual([[2, 3], [4, 5]])
+  })
+
+  it('CNU 7: 2v3, 4v5 y 6v7', () => {
+    expect(firstRoundFightSeedPairs(7)).toEqual([[2, 3], [4, 5], [6, 7]])
+  })
+
+  it('llave de 8: emparejamientos WT completos', () => {
+    expect(firstRoundFightSeedPairs(8)).toEqual([[1, 8], [4, 5], [2, 7], [3, 6]])
+  })
+})
+
+describe('assignSeeds — separación de academia en 1.ª ronda', () => {
+  function r1Conflicts(seeds, n) {
+    let c = 0
+    for (const [s1, s2] of firstRoundFightSeedPairs(n)) {
+      const a = seeds[s1]?.id_academia_campeonato
+      const b = seeds[s2]?.id_academia_campeonato
+      if (a && b && a === b) c++
+    }
+    return c
+  }
+
+  it('con 2 academias A,A,B,B en 4: evita mismo club en R1', () => {
+    const participantes = [
+      { id_linea: 1, id_academia_campeonato: 10 },
+      { id_linea: 2, id_academia_campeonato: 10 },
+      { id_linea: 3, id_academia_campeonato: 20 },
+      { id_linea: 4, id_academia_campeonato: 20 },
+    ]
+    for (let i = 0; i < 30; i++) {
+      const seeds = assignSeeds(participantes, 4)
+      expect(r1Conflicts(seeds, 4)).toBe(0)
+    }
+  })
+
+  it('con 3 de la misma academia en 4: queda exactamente 1 conflicto inevitable', () => {
+    const participantes = [
+      { id_linea: 1, id_academia_campeonato: 10 },
+      { id_linea: 2, id_academia_campeonato: 10 },
+      { id_linea: 3, id_academia_campeonato: 10 },
+      { id_linea: 4, id_academia_campeonato: 20 },
+    ]
+    for (let i = 0; i < 20; i++) {
+      const seeds = assignSeeds(participantes, 4)
+      expect(r1Conflicts(seeds, 4)).toBe(1)
     }
   })
 })
