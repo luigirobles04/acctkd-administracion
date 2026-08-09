@@ -758,28 +758,29 @@ export async function generarLlaveCategoriaUnico(sb, idCampeonato, idCategoria, 
 }
 
 /**
- * Valida inputs de consolidación (puro, testeable).
- * idsCategoriasOrigen: categorías con 1 competidor seleccionadas
- * idCategoriaDestino: categoría donde quedará la llave consolidada
+ * Valida inputs de consolidación / unión de solitarios (puro, testeable).
+ * - 2+ solos → destino entre ellos (flujo clásico), o
+ * - 1+ solos → destino externo (categoría que ya tiene inscritos)
  */
 export function validarConsolidacionOros({ idsCategoriasOrigen, idCategoriaDestino } = {}) {
   const origenes = [...new Set((idsCategoriasOrigen || []).map(Number).filter(Boolean))]
   const destino = Number(idCategoriaDestino)
-  if (origenes.length < 2) {
-    return { ok: false, error: 'Selecciona al menos 2 categorías con 1 competidor' }
+  if (!origenes.length) {
+    return { ok: false, error: 'Selecciona al menos 1 categoría con 1 competidor' }
   }
   if (!destino) {
     return { ok: false, error: 'Elige la categoría destino de la llave' }
   }
-  if (!origenes.includes(destino)) {
-    return { ok: false, error: 'La categoría destino debe estar entre las seleccionadas' }
+  const destinoEnOrigenes = origenes.includes(destino)
+  if (destinoEnOrigenes && origenes.length < 2) {
+    return { ok: false, error: 'Para consolidar solos entre sí selecciona al menos 2 categorías' }
   }
-  return { ok: true, origenes, destino }
+  return { ok: true, origenes, destino, destinoExterno: !destinoEnOrigenes }
 }
 
 /**
- * Consolida oros únicos: mueve los competidores solos de varias categorías
- * a una categoría destino (elegida entre ellas) y genera llave competitiva.
+ * Mueve competidores solos a una categoría destino y genera llave competitiva.
+ * Destino puede ser otro solo seleccionado, o una categoría que ya tenga inscritos.
  * Omite validación WT de peso a propósito (consolidación administrativa del evento).
  */
 export async function consolidarOrosUnicos(sb, idCampeonato, {
@@ -788,21 +789,24 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
 } = {}) {
   const v = validarConsolidacionOros({ idsCategoriasOrigen, idCategoriaDestino })
   if (!v.ok) throw new Error(v.error)
-  const { origenes, destino } = v
+  const { origenes, destino, destinoExterno } = v
 
+  const idsCats = destinoExterno ? [...origenes, destino] : origenes
   const { data: cats, error: errCats } = await sb
     .from('categoria_campeonato')
     .select('id_categoria, nombre, modalidad, id_campeonato')
     .eq('id_campeonato', idCampeonato)
     .eq('modalidad', 'kyorugi')
-    .in('id_categoria', origenes)
+    .in('id_categoria', idsCats)
   if (errCats) throw errCats
-  if ((cats || []).length !== origenes.length) {
-    throw new Error('Alguna categoría no pertenece a este campeonato')
-  }
   const nombrePorId = Object.fromEntries((cats || []).map((c) => [c.id_categoria, c.nombre]))
+  for (const idCat of origenes) {
+    if (!nombrePorId[idCat]) throw new Error(`Categoría origen ${idCat} no pertenece a este campeonato`)
+  }
+  if (!nombrePorId[destino]) throw new Error('La categoría destino no pertenece a este campeonato')
 
   const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+  const etiqueta = omitirPesaje ? 'con dorsal' : 'con pesaje OK'
   const movidos = []
 
   for (const idCat of origenes) {
@@ -813,9 +817,8 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
     if (error) throw error
     const aptos = lineas || []
     if (aptos.length !== 1) {
-      const etiqueta = omitirPesaje ? 'con dorsal' : 'con pesaje OK'
       throw new Error(
-        `"${nombrePorId[idCat] || idCat}" debe tener exactamente 1 competidor ${etiqueta} (hay ${aptos.length})`
+        `"${nombrePorId[idCat] || idCat}" debe tener exactamente 1 competidor ${etiqueta} (hay ${aptos.length})`,
       )
     }
     movidos.push({
@@ -825,6 +828,19 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
       desde: idCat,
       desdeNombre: nombrePorId[idCat],
     })
+  }
+
+  if (destinoExterno) {
+    const { data: lineasDest, error: errDest } = await queryLineasKyorugiLlave(sb, idCampeonato, {
+      idCategoria: destino,
+      omitirPesaje,
+    })
+    if (errDest) throw errDest
+    if (!(lineasDest || []).length) {
+      throw new Error(
+        `"${nombrePorId[destino]}" debe tener al menos 1 competidor ${etiqueta} para unir solitarios`,
+      )
+    }
   }
 
   // Mover a destino (las ya en destino quedan igual)
@@ -840,22 +856,21 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
     await sb.from('bitacora_inscripcion').insert({
       id_academia_campeonato: m.id_academia_campeonato,
       id_linea: m.id_linea,
-      accion: 'consolidar_categoria_llave',
+      accion: destinoExterno ? 'unir_solitario_categoria' : 'consolidar_categoria_llave',
       detalle: {
         desde: m.desde,
         desde_nombre: m.desdeNombre,
         hacia: destino,
         hacia_nombre: nombrePorId[destino],
+        destino_externo: Boolean(destinoExterno),
       },
       actor: 'admin',
     })
   }
 
-  // Limpiar llaves huérfanas de categorías origen (ya vacías o con oro único previo)
-  const origenesVacios = origenes.filter((id) => id !== destino)
-  if (origenesVacios.length) {
-    await sb.from('llave_kyorugi').delete().eq('id_campeonato', idCampeonato).in('id_categoria', origenesVacios)
-  }
+  // Limpiar llaves huérfanas de categorías origen vacías + llave previa del destino
+  const catsLlaveBorrar = [...new Set([...origenes.filter((id) => id !== destino), destino])]
+  await sb.from('llave_kyorugi').delete().eq('id_campeonato', idCampeonato).in('id_categoria', catsLlaveBorrar)
 
   const result = await generarLlaveCategoria(sb, idCampeonato, destino, { asignarCanchas: true })
 
@@ -863,7 +878,8 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
     ok: true,
     categoria_destino: nombrePorId[destino],
     id_categoria_destino: destino,
-    movidos: movidos.length,
+    movidos: movidos.filter((m) => m.desde !== destino).length,
+    destino_externo: Boolean(destinoExterno),
     participantes: result.participantes ?? movidos.length,
     dorsales: movidos.map((m) => m.dorsal).filter(Boolean),
     ...result,

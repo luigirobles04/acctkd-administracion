@@ -238,33 +238,54 @@ export default function CampeonatoLlavesPage() {
     }
   }
 
+  function esSoloSinLlave(c) {
+    if (!c) return false
+    const n = requierePesaje ? c.aptos : c.inscritos
+    return n === 1 && !c.tiene_llave
+  }
+
   function toggleSolo(idCat) {
     setSolosSel((prev) => {
       const next = prev.includes(idCat) ? prev.filter((x) => x !== idCat) : [...prev, idCat]
       setDestinoConsol((d) => {
         const cur = Number(d)
+        if (!next.length) return ''
         if (next.includes(cur)) return d
-        return next.length ? String(next[0]) : ''
+        const destCat = categorias.find((c) => c.id_categoria === cur)
+        const nAptos = requierePesaje ? (destCat?.aptos ?? 0) : (destCat?.inscritos ?? 0)
+        // Destino externo con ≥1 apto/inscrito sigue válido
+        if (destCat && !esSoloSinLlave(destCat) && nAptos >= 1) return d
+        // Con 2+ solos, default al primero seleccionado; con 1 solo, dejar vacío para forzar elegir destino con gente
+        if (next.length >= 2) return String(next[0])
+        return ''
       })
       return next
     })
   }
 
   async function consolidarOros() {
-    if (solosSel.length < 2) {
-      alert('Selecciona al menos 2 categorías con 1 competidor')
+    if (solosSel.length < 1) {
+      alert('Selecciona al menos 1 categoría con 1 competidor')
       return
     }
     const destId = Number(destinoConsol)
-    if (!destId || !solosSel.includes(destId)) {
-      alert('Elige la categoría destino (debe estar seleccionada)')
+    if (!destId) {
+      alert('Elige la categoría destino')
       return
     }
-    const destNombre = catsSolo.find((c) => c.id_categoria === destId)?.nombre || 'destino'
-    if (!confirm(
-      `¿Consolidar ${solosSel.length} competidores en "${destNombre}" y generar llave competitiva?\n\n` +
-      'Se moverán a esa categoría (aunque el peso original sea distinto) y se creará la llave con medallas oficiales.'
-    )) return
+    const destEnSel = solosSel.includes(destId)
+    if (destEnSel && solosSel.length < 2) {
+      alert('Para consolidar solos entre sí selecciona al menos 2, o elige una categoría con inscritos')
+      return
+    }
+    const destCat = categorias.find((c) => c.id_categoria === destId)
+    const destNombre = destCat?.nombre || 'destino'
+    const msg = destEnSel
+      ? `¿Consolidar ${solosSel.length} competidores en "${destNombre}" y generar llave competitiva?\n\n` +
+        'Se moverán a esa categoría (aunque el peso original sea distinto) y se creará la llave con medallas oficiales.'
+      : `¿Unir ${solosSel.length} solitario(s) a "${destNombre}" y regenerar la llave?\n\n` +
+        'Se moverán a esa categoría (aunque el peso original sea distinto). Si ya hay llave en el destino, se regenerará.'
+    if (!confirm(msg)) return
 
     setConsolidando(true)
     try {
@@ -321,6 +342,44 @@ export default function CampeonatoLlavesPage() {
   const catsConInscritos = categorias.filter((c) => c.inscritos >= 2)
   const catsGenerables = categorias.filter((c) => c.puede_generar)
   const catsSolo = categorias.filter((c) => (requierePesaje ? c.aptos === 1 : c.inscritos === 1) && !c.tiene_llave)
+
+  /** Destinos para unir solitarios: categorías con ≥1 apto/inscrito que no sean solos sin llave. */
+  const catsDestinoUnir = categorias.filter((c) => {
+    const n = requierePesaje ? c.aptos : c.inscritos
+    return n >= 1 && !esSoloSinLlave(c)
+  })
+
+  function nivelDesdeNombre(nombre = '') {
+    const n = String(nombre).toLowerCase()
+    if (n.includes('festival')) return 'festival'
+    if (n.includes('noveles') || n.includes('novato')) return 'noveles'
+    if (n.includes('avanzad')) return 'avanzados'
+    return ''
+  }
+
+  function scoreAfinidadDestino(ref, dest) {
+    let score = 0
+    if (ref?.genero && dest?.genero && ref.genero === dest.genero) score += 100
+    const nRef = nivelDesdeNombre(ref?.nombre)
+    const nDest = nivelDesdeNombre(dest?.nombre)
+    if (nRef && nDest && nRef === nDest) score += 50
+    return score
+  }
+
+  const destinosConsolOpciones = (() => {
+    const ref = catsSolo.find((c) => solosSel.includes(c.id_categoria)) || catsSolo[0]
+    const solosOpts = solosSel
+      .map((idCat) => catsSolo.find((x) => x.id_categoria === idCat))
+      .filter(Boolean)
+    const externos = [...catsDestinoUnir]
+      .filter((c) => !solosSel.includes(c.id_categoria))
+      .sort((a, b) => {
+        const d = scoreAfinidadDestino(ref, b) - scoreAfinidadDestino(ref, a)
+        if (d !== 0) return d
+        return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es')
+      })
+    return { solosOpts, externos, ref }
+  })()
 
   function registrarClickOps() {
     const n = opsClicks + 1
@@ -536,8 +595,8 @@ export default function CampeonatoLlavesPage() {
           <div className="ios-card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid #f59e0b' }}>
             <h3 style={{ margin: '0 0 8px' }}>Categorías con 1 competidor ({catsSolo.length})</h3>
             <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12 }}>
-              Marca 2 o más para consolidarlos en una categoría y generar llave real.
-              O da oro único a cada uno, o crea una exhibición abajo.
+              Marca 1 o más solitarios para unirlos a una categoría con inscritos (regenera la llave),
+              o 2+ solos entre sí. También puedes dar oro único o crear una exhibición abajo.
             </p>
             <div style={{ display: 'grid', gap: 8 }}>
               {catsSolo.map((c) => {
@@ -567,31 +626,49 @@ export default function CampeonatoLlavesPage() {
                 )
               })}
             </div>
-            {solosSel.length >= 2 && (
+            {solosSel.length >= 1 && (
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--separator)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <label style={{ fontSize: 12, flex: '1 1 220px' }}>
-                  Categoría destino (nombre de la llave)
+                <label style={{ fontSize: 12, flex: '1 1 260px' }}>
+                  Categoría destino
                   <select
                     className="ios-input"
                     value={destinoConsol}
                     onChange={(e) => setDestinoConsol(e.target.value)}
                     style={{ display: 'block', marginTop: 4 }}
                   >
-                    {solosSel.map((idCat) => {
-                      const c = catsSolo.find((x) => x.id_categoria === idCat)
-                      return (
-                        <option key={idCat} value={idCat}>{c?.nombre || idCat}</option>
-                      )
-                    })}
+                    <option value="">— Elegir destino —</option>
+                    {destinosConsolOpciones.solosOpts.length > 0 && (
+                      <optgroup label="Solos seleccionados (consolidar entre sí)">
+                        {destinosConsolOpciones.solosOpts.map((c) => (
+                          <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {destinosConsolOpciones.externos.length > 0 && (
+                      <optgroup label="Categorías con competidores (unir y regenerar)">
+                        {destinosConsolOpciones.externos.map((c) => {
+                          const n = requierePesaje ? c.aptos : c.inscritos
+                          return (
+                            <option key={c.id_categoria} value={c.id_categoria}>
+                              {c.nombre} ({n})
+                            </option>
+                          )
+                        })}
+                      </optgroup>
+                    )}
                   </select>
                 </label>
                 <button
                   type="button"
                   className="ios-btn ios-btn-primary"
-                  disabled={bloqueado || consolidando}
+                  disabled={bloqueado || consolidando || !destinoConsol}
                   onClick={consolidarOros}
                 >
-                  {consolidando ? 'Consolidando…' : `Consolidar y generar llave (${solosSel.length})`}
+                  {consolidando
+                    ? 'Procesando…'
+                    : solosSel.includes(Number(destinoConsol))
+                      ? `Consolidar y generar llave (${solosSel.length})`
+                      : `Unir a categoría y regenerar llave (${solosSel.length})`}
                 </button>
               </div>
             )}

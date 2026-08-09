@@ -54,6 +54,7 @@ export async function POST(request, { params }) {
       return NextResponse.json(result)
     }
 
+    // consolidar: 2+ solos entre sí, o 1+ solos → categoría destino con inscritos existentes
     if (body.accion === 'consolidar') {
       const result = await consolidarOrosUnicos(sb, idCampeonato, {
         idsCategoriasOrigen: body.idsCategorias,

@@ -186,19 +186,24 @@ describe('buildSlots (llave estándar con seeds)', () => {
 })
 
 describe('validarConsolidacionOros', () => {
-  it('exige al menos 2 categorías origen', () => {
-    expect(validarConsolidacionOros({ idsCategoriasOrigen: [1], idCategoriaDestino: 1 }).ok).toBe(false)
+  it('exige al menos 1 categoría origen y destino', () => {
     expect(validarConsolidacionOros({ idsCategoriasOrigen: [], idCategoriaDestino: 1 }).ok).toBe(false)
+    expect(validarConsolidacionOros({ idsCategoriasOrigen: [1], idCategoriaDestino: null }).ok).toBe(false)
   })
 
-  it('exige destino dentro de las seleccionadas', () => {
-    const r = validarConsolidacionOros({ idsCategoriasOrigen: [10, 20], idCategoriaDestino: 99 })
+  it('no permite un solo origen si el destino es ese mismo solo', () => {
+    const r = validarConsolidacionOros({ idsCategoriasOrigen: [1], idCategoriaDestino: 1 })
     expect(r.ok).toBe(false)
-    expect(r.error).toMatch(/destino/)
+    expect(r.error).toMatch(/al menos 2/)
   })
 
-  it('acepta consolidación válida y deduplica', () => {
+  it('acepta 1+ solos hacia destino externo', () => {
+    const r = validarConsolidacionOros({ idsCategoriasOrigen: [10], idCategoriaDestino: 99 })
+    expect(r).toEqual({ ok: true, origenes: [10], destino: 99, destinoExterno: true })
+  })
+
+  it('acepta consolidación entre solos y deduplica', () => {
     const r = validarConsolidacionOros({ idsCategoriasOrigen: [10, 20, 10], idCategoriaDestino: 20 })
-    expect(r).toEqual({ ok: true, origenes: [10, 20], destino: 20 })
+    expect(r).toEqual({ ok: true, origenes: [10, 20], destino: 20, destinoExterno: false })
   })
 })
