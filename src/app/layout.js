@@ -46,9 +46,7 @@ export const metadata = {
     follow: true,
     googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
   },
-  alternates: {
-    canonical: siteUrl,
-  },
+  // No canonical global: cada ruta pública define el suyo (si no, Google trata todo como la home).
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

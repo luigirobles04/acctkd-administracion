@@ -25,12 +25,11 @@ export default async function sitemap() {
     dynamic = (data || []).flatMap((c) => {
       const last = c.fecha_inicio ? new Date(c.fecha_inicio) : now
       const slug = c.slug
+      // Solo URLs finales (sin redirects). /inscripcion/* y /podios redirigen → no van al sitemap.
       return [
         { url: `${base}/campeonato/${slug}`, lastModified: last, changeFrequency: 'weekly', priority: 0.9 },
-        { url: `${base}/campeonato/${slug}/canchas`, lastModified: last, changeFrequency: 'daily', priority: 0.85 },
         { url: `${base}/campeonato/${slug}/resultados`, lastModified: last, changeFrequency: 'daily', priority: 0.88 },
-        { url: `${base}/campeonato/${slug}/resultados`, lastModified: last, changeFrequency: 'daily', priority: 0.8 },
-        { url: `${base}/inscripcion/${slug}`, lastModified: last, changeFrequency: 'weekly', priority: 0.75 },
+        { url: `${base}/campeonato/${slug}/canchas`, lastModified: last, changeFrequency: 'daily', priority: 0.7 },
       ]
     })
   } catch {
