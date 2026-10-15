@@ -5,6 +5,7 @@ import { createSessionToken } from '@/lib/auth-session'
 import {
   registrarAcademiaRepresentante,
   obtenerCampeonatoPorSlug,
+  filtrarCampeonatosRegistroAcademia,
 } from '@/lib/campeonato/inscripcion-server'
 import { readAndValidateLogoFile, uploadAcademiaLogo } from '@/lib/campeonato/academia-logo'
 
@@ -111,11 +112,13 @@ export async function GET() {
     const sb = getSupabaseAdmin()
     const { data } = await sb
       .from('campeonato')
-      .select('id_campeonato, nombre, slug, fecha_inicio, fecha_fin, ciudad, estado, fecha_cierre_inscripcion')
+      .select(
+        'id_campeonato, nombre, slug, fecha_inicio, fecha_fin, ciudad, estado, fecha_cierre_inscripcion, fecha_gracia_pago, publicado',
+      )
       .eq('publicado', true)
-      .eq('estado', 'inscripciones')
+      .in('estado', ['planificado', 'inscripciones', 'en_curso'])
       .order('fecha_inicio', { ascending: true })
-    return NextResponse.json({ campeonatos: data || [] })
+    return NextResponse.json({ campeonatos: filtrarCampeonatosRegistroAcademia(data) })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

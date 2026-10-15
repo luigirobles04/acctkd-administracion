@@ -12,14 +12,29 @@ export async function obtenerCampeonatoPorSlug(sb, slug) {
   return data
 }
 
+/** Estados en los que una academia nueva puede registrarse (aunque el admin marque «en curso» antes del día del evento). */
+export const ESTADOS_REGISTRO_ACADEMIA = new Set(['planificado', 'inscripciones', 'en_curso'])
+
 export function puedeInscribir(campeonato) {
   if (!campeonato) return { ok: false, reason: 'Campeonato no encontrado' }
-  if (campeonato.estado !== 'inscripciones') return { ok: false, reason: 'Inscripciones cerradas' }
+  if (campeonato.estado === 'finalizado' || campeonato.estado === 'cancelado') {
+    return { ok: false, reason: 'Inscripciones cerradas' }
+  }
+  if (!ESTADOS_REGISTRO_ACADEMIA.has(campeonato.estado)) {
+    return { ok: false, reason: 'Inscripciones cerradas' }
+  }
   const hoy = new Date().toISOString().slice(0, 10)
   if (campeonato.fecha_gracia_pago && hoy > campeonato.fecha_gracia_pago) {
     return { ok: false, reason: 'Plazo de inscripción finalizado' }
   }
-  return { ok: true, soloPago: campeonato.fecha_cierre_inscripcion && hoy > campeonato.fecha_cierre_inscripcion }
+  return {
+    ok: true,
+    soloPago: Boolean(campeonato.fecha_cierre_inscripcion && hoy > campeonato.fecha_cierre_inscripcion),
+  }
+}
+
+export function filtrarCampeonatosRegistroAcademia(campeonatos) {
+  return (campeonatos || []).filter((c) => c.slug && puedeInscribir(c).ok)
 }
 
 export function tipoTarifaActual(campeonato, fecha = new Date()) {

@@ -4,6 +4,7 @@ import { getSessionFromRequest } from '@/lib/auth-session'
 import {
   resolverRepresentante,
   unirAcademiaACampeonato,
+  filtrarCampeonatosRegistroAcademia,
 } from '@/lib/campeonato/inscripcion-server'
 
 export async function GET(request) {
@@ -27,15 +28,19 @@ export async function GET(request) {
 
     const { data: publicados } = await sb
       .from('campeonato')
-      .select('id_campeonato, nombre, slug, fecha_inicio, fecha_fin, ciudad, estado')
+      .select(
+        'id_campeonato, nombre, slug, fecha_inicio, fecha_fin, ciudad, estado, fecha_cierre_inscripcion, fecha_gracia_pago, publicado',
+      )
       .eq('publicado', true)
-      .eq('estado', 'inscripciones')
+      .in('estado', ['planificado', 'inscripciones', 'en_curso'])
       .order('fecha_inicio', { ascending: true })
 
     const slugsInscritos = new Set(
       (inscripciones || []).map((i) => i.campeonato?.slug).filter(Boolean)
     )
-    const disponibles = (publicados || []).filter((c) => !slugsInscritos.has(c.slug))
+    const disponibles = filtrarCampeonatosRegistroAcademia(publicados).filter(
+      (c) => !slugsInscritos.has(c.slug),
+    )
 
     const { data: academia } = await sb
       .from('academia')
