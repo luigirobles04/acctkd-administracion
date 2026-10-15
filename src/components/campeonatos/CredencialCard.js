@@ -34,7 +34,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const isFestcup2026 = isFestcup2026Credencial({ layout, templateUrl })
   const plantillaSrc = useMemo(() => {
     const src = credencialTemplateSrc(templateUrl)
-    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015f` : src
+    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015g` : src
   }, [templateUrl, isFestcup2026])
 
   useEffect(() => {
