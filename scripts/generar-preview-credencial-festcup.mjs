@@ -39,8 +39,9 @@ const samples = [
 
 const layout = {
   foto: { left: 50, top: 46.2, width: 39.2, height: 26.8 },
-  datos: { left: 50, top: 70.6, width: 92 },
-  academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28 },
+  nombre: { left: 50, top: 74.9, width: 90 },
+  categoria: { left: 50, top: 78.6, width: 90 },
+  academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
 }
 
 function plantillaPath(sample) {
@@ -59,7 +60,7 @@ function buildHtml(sample) {
   const foto = fileUrl(sample.foto)
   const logo = fileUrl(sample.academiaLogo)
   const cat = sample.categoria
-    ? `<p class="cred-datos-categoria-festcup">${sample.categoria}</p>`
+    ? `<p class="cred-festcup-categoria">${sample.categoria}</p>`
     : ''
 
   return `<!DOCTYPE html>
@@ -80,8 +81,9 @@ function buildHtml(sample) {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; z-index: 0;
   }
   .cred-academia-logo {
-    position: absolute; z-index: 1; height: auto; object-fit: contain;
-    filter: grayscale(20%); pointer-events: none;
+    position: absolute; z-index: 1; height: auto; object-fit: cover;
+    filter: grayscale(15%); pointer-events: none; overflow: hidden;
+    border-radius: ${layout.academiaLogo.borderRadius};
     left: ${layout.academiaLogo.left}%; top: ${layout.academiaLogo.top}%;
     width: ${layout.academiaLogo.width}%; opacity: ${layout.academiaLogo.opacity};
     transform: translate(-50%, -50%);
@@ -95,28 +97,23 @@ function buildHtml(sample) {
     background: #fff;
   }
   .cred-foto-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
-  .cred-datos-slot {
-    position: absolute; z-index: 4;
-    left: ${layout.datos.left}%; top: ${layout.datos.top}%;
-    width: ${layout.datos.width}%;
-    transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 0.8mm;
-    pointer-events: none;
+  .cred-festcup-nombre, .cred-festcup-categoria {
+    position: absolute; z-index: 4; margin: 0; pointer-events: none;
+    text-align: center; transform: translateX(-50%);
   }
-  .cred-datos-nombre {
-    text-align: center;
+  .cred-festcup-nombre {
+    left: ${layout.nombre.left}%; top: ${layout.nombre.top}%; width: ${layout.nombre.width}%;
     font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 2.45mm; font-weight: 900; letter-spacing: 0.02em;
-    line-height: 1.12; color: #0d0d0d; text-transform: uppercase;
-    word-break: break-word; max-width: 100%;
-    margin-top: 0.3mm;
+    font-size: 2.35mm; font-weight: 900; letter-spacing: 0.02em;
+    line-height: 1.1; color: #0d0d0d; text-transform: uppercase;
+    word-break: break-word;
   }
-  .cred-datos-categoria-festcup {
-    text-align: center;
+  .cred-festcup-categoria {
+    left: ${layout.categoria.left}%; top: ${layout.categoria.top}%; width: ${layout.categoria.width}%;
     font-family: 'Helvetica Neue', Arial, sans-serif;
-    font-size: 2mm; font-weight: 700; letter-spacing: 0.03em;
+    font-size: 1.85mm; font-weight: 700; letter-spacing: 0.03em;
     line-height: 1.2; color: #3d3d3d; text-transform: uppercase;
-    max-width: 100%; word-break: break-word;
+    word-break: break-word;
   }
 </style>
 </head>
@@ -127,10 +124,8 @@ function buildHtml(sample) {
     <div class="cred-foto-slot">
       <img class="cred-foto-img" src="${foto}" alt=""/>
     </div>
-    <div class="cred-datos-slot">
-      <p class="cred-datos-nombre">${sample.nombres}</p>
-      ${cat}
-    </div>
+    <p class="cred-festcup-nombre">${sample.nombres}</p>
+    ${cat}
   </div>
 </body>
 </html>`

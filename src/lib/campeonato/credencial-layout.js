@@ -7,8 +7,11 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 /** FestCup 2026 · plantillas limpias (rol en JPG) + foto, nombre, categoría y logo academia */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   foto: { type: 'rect', left: 50, top: 46.2, width: 39.2, height: 26.8 },
-  datos: { left: 50, top: 70.6, width: 92, height: 12 },
-  academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28 },
+  /** Debajo del rol impreso en la plantilla (DEPORTISTA / ENTRENADOR) */
+  nombre: { left: 50, top: 74.9, width: 90 },
+  categoria: { left: 50, top: 78.6, width: 90 },
+  datos: { left: 50, top: 74.9, width: 90, height: 10 },
+  academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
   rolOnTemplate: true,
   variant: 'festcup2026',
 }
@@ -54,6 +57,8 @@ export function normalizeCredencialLayout(raw, opts = {}) {
     foto: { ...base.foto, ...(raw.foto || {}) },
     rol: { ...(base.rol || {}), ...(raw.rol || {}) },
     datos: { ...base.datos, ...(raw.datos || {}) },
+    nombre: { ...(base.nombre || base.datos || {}), ...(raw.nombre || {}) },
+    categoria: { ...(base.categoria || {}), ...(raw.categoria || {}) },
     academiaLogo: { ...(base.academiaLogo || {}), ...(raw.academiaLogo || {}) },
     rolOnTemplate: raw.rolOnTemplate ?? base.rolOnTemplate ?? false,
   }
