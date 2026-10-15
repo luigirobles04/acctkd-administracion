@@ -236,15 +236,27 @@
   box-shadow: 0 0.2mm 0.6mm rgba(0, 0, 0, 0.08);
 }
 
-.credencial-frente--festcup2026 .cred-festcup-nombre,
-.credencial-frente--festcup2026 .cred-festcup-categoria {
+.credencial-frente--festcup2026 .cred-festcup-texto {
   position: absolute;
   z-index: 4;
   margin: 0;
   pointer-events: none;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5mm;
   box-sizing: border-box;
   padding: 0 1.2mm;
+  background: transparent;
+  text-align: center;
+}
+
+.credencial-frente--festcup2026 .cred-festcup-texto .cred-festcup-nombre,
+.credencial-frente--festcup2026 .cred-festcup-texto .cred-festcup-categoria {
+  position: static;
+  transform: none;
+  width: 100%;
+  margin: 0;
 }
 
 .credencial-frente--festcup2026 .cred-datos-categoria-festcup,
@@ -265,10 +277,6 @@
   hyphens: manual;
   text-shadow: none;
   -webkit-font-smoothing: antialiased;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .credencial-frente--festcup2026 .cred-datos-nombre,
@@ -423,7 +431,7 @@
 }
 
 
-.cred-datos-nombre {
+.cred-datos-slot .cred-datos-nombre {
   margin: 0;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 8.5px;
@@ -437,7 +445,7 @@
   word-break: break-word;
 }
 
-.cred-datos-categoria {
+.cred-datos-slot .cred-datos-categoria {
   margin: 1.2mm 0 0;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 6.5px;
@@ -447,7 +455,7 @@
   line-height: 1.1;
 }
 
-.cred-datos-extra {
+.cred-datos-slot .cred-datos-extra {
   margin: 1mm 0 0;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 5px;

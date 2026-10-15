@@ -21,22 +21,11 @@ export const FESTCUP_2026_TEMPLATE_ENTRENADOR = '/credenciales/festcup-2026-plan
 /** @deprecated usar plantilla deportista/entrenador */
 export const FESTCUP_2026_TEMPLATE_BASE = FESTCUP_2026_TEMPLATE_DEPORTISTA
 
-/** Texto compacto para la credencial (categorías largas del campeonato) */
+/** Categoría legible en credencial FestCup (una o dos líneas) */
 export function formatCategoriaCredencial(nombre) {
   const raw = `${nombre || ''}`.trim().replace(/\s+/g, ' ')
   if (!raw) return ''
-  const parts = raw.split('·').map((p) => p.trim()).filter(Boolean)
-  let compact = raw
-  if (parts.length > 2) {
-    compact = `${parts[0]} · ${parts[parts.length - 1]}`
-  } else if (parts.length === 2) {
-    compact = `${parts[0]} · ${parts[1]}`
-  }
-  compact = compact.replace(/\s*·\s*/g, ' · ')
-  if (compact.length > 42) {
-    compact = `${compact.slice(0, 40).trim()}…`
-  }
-  return compact.toUpperCase()
+  return raw.replace(/\s*·\s*/g, ' · ').toUpperCase()
 }
 
 export function credencialRolFestcup2026(modalidad) {
