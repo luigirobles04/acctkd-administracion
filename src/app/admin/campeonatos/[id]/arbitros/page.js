@@ -134,7 +134,7 @@ export default function CampeonatoArbitrosPage() {
   const backHref = festcupMode ? '/admin/festcup' : `/admin/campeonatos/${id}`
 
   return (
-    <AdminLayout title="Planilla de árbitros" subtitle={campeonato?.nombre}>
+    <AdminLayout title="Árbitros" subtitle={campeonato?.nombre}>
       <div className="camp-page">
         <Link href={backHref} className="camp-back">
           <span className="material-symbols-rounded">arrow_back</span>
@@ -197,21 +197,21 @@ export default function CampeonatoArbitrosPage() {
               </button>
             </div>
 
-            <div className="ios-card" style={{ padding: 0, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <div className="ios-card" style={{ padding: 4, overflow: 'hidden' }}>
+              <table className="admin-data-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left', background: 'var(--fill)' }}>
-                    <th style={{ padding: 10 }}>Nombre</th>
-                    <th style={{ padding: 10 }}>Función</th>
-                    <th style={{ padding: 10 }}>Código</th>
-                    <th style={{ padding: 10 }}>Contacto</th>
-                    <th style={{ padding: 10, width: 140 }}></th>
+                  <tr style={{ textAlign: 'left' }}>
+                    <th>Nombre</th>
+                    <th>Función</th>
+                    <th>Código</th>
+                    <th>Contacto</th>
+                    <th style={{ textAlign: 'right' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtrados.map((a) => (
-                    <tr key={a.id_arbitro} style={{ borderBottom: '1px solid var(--separator)' }}>
-                      <td style={{ padding: 10 }}>
+                    <tr key={a.id_arbitro}>
+                      <td>
                         <strong>{a.nombre_completo}</strong>
                         {a.documento ? <div className="ios-caption" style={{ color: 'var(--label3)' }}>DNI {a.documento}</div> : null}
                       </td>

@@ -711,8 +711,39 @@ button.app-quick-card {
 .icon-action-row {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  min-width: 148px;
+  justify-content: flex-end;
+}
+
+.admin-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.admin-data-table th {
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label3);
+  background: rgba(13, 13, 15, 0.03);
+  border-bottom: 1px solid var(--separator);
+  white-space: nowrap;
+}
+
+.admin-data-table td {
+  padding: 16px 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--separator);
+}
+
+.admin-data-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .icon-action-btn {

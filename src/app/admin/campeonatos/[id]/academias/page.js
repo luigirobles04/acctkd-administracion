@@ -239,18 +239,18 @@ export default function CampeonatoAcademiasPage() {
         {loading ? (
           <LoadingState mensaje="Cargando academias…" />
         ) : (
-          <div className="ios-card" style={{ overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <div className="ios-card" style={{ overflow: 'auto', padding: 4 }}>
+            <table className="admin-data-table">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--separator)', textAlign: 'left' }}>
-                  <th style={{ padding: 10 }}>Academia</th>
+                <tr style={{ textAlign: 'left' }}>
+                  <th>Academia</th>
                   <th>Representante</th>
                   <th>Ciudad</th>
                   <th>Estado</th>
                   <th>Lista / Pago</th>
                   <th>Líneas</th>
                   <th>Total</th>
-                  <th></th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,8 +259,8 @@ export default function CampeonatoAcademiasPage() {
                   const lineasCount = ac.lineas_count || 0
                   return (
                     <Fragment key={ac.id}>
-                    <tr style={{ borderBottom: '1px solid var(--separator)' }}>
-                      <td style={{ padding: 10 }}>
+                    <tr>
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {ac.academia?.logo_url ? (
                             // eslint-disable-next-line @next/next/no-img-element

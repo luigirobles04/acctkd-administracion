@@ -26,7 +26,7 @@ export function festcupHubQuickLinks() {
   return [
     { href: `${base}/pagos`, icon: 'payments', label: 'Pagos', desc: 'Comprobantes y dorsales', accent: '#34C759' },
     { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales', desc: 'Imprimir acreditaciones', accent: '#F59E0B' },
-    { href: `${base}/arbitros`, icon: 'gavel', label: 'Árbitros', desc: 'Planilla y credenciales', accent: '#DC2626' },
+    { href: `${base}/arbitros`, icon: 'gavel', label: 'Árbitros', desc: 'Lista e impresión', accent: '#DC2626' },
     { href: `${base}/llaves`, icon: 'account_tree', label: 'Llaves', desc: 'Generar e imprimir', accent: '#5856D6' },
   ]
 }
@@ -58,13 +58,6 @@ export function festcupHubSections() {
       ],
     },
     {
-      title: 'Staff',
-      accent: '#DC2626',
-      items: [
-        { href: `${base}/arbitros`, icon: 'gavel', label: 'Planilla árbitros', desc: 'Registro, listas y credenciales', highlight: true },
-      ],
-    },
-    {
       title: 'Evento en vivo',
       accent: '#0EA5E9',
       items: [
@@ -77,8 +70,8 @@ export function festcupHubSections() {
       title: 'Impresión',
       accent: '#F59E0B',
       items: [
-        { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales deportistas', desc: 'Imprimir acreditaciones', highlight: true },
-        { href: `${base}/arbitros`, icon: 'gavel', label: 'Cred. árbitros', desc: 'Desde planilla staff' },
+        { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales', desc: 'Deportistas y coaches', highlight: true },
+        { href: `${base}/arbitros`, icon: 'gavel', label: 'Árbitros', desc: 'Registro e impresión' },
         { href: `${base}/llaves/imprimir`, icon: 'print', label: 'Llaves PDF', desc: 'Formato área' },
       ],
     },
