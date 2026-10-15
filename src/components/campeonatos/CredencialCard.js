@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
+  credencialRolFestcup2026,
   credencialTemplateSrc,
   DEFAULT_CREDENCIAL_LAYOUT,
   normalizeCredencialLayout,
@@ -32,7 +33,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const plantillaSrc = useMemo(() => {
     const src = credencialTemplateSrc(templateUrl)
     return layoutProp?.variant === 'festcup2026' || layout.variant === 'festcup2026'
-      ? `${src}${src.includes('?') ? '&' : '?'}v=20261015`
+      ? `${src}${src.includes('?') ? '&' : '?'}v=20261015b`
       : src
   }, [templateUrl, layoutProp?.variant, layout.variant])
 
@@ -49,6 +50,15 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     borderRadius: layout.foto.type === 'circle' ? '50%' : '1px',
   }
 
+  const rolStyle = isFestcup2026
+    ? {
+        left: `${layout.rol?.left ?? 50}%`,
+        top: `${layout.rol?.top ?? 62.6}%`,
+        width: `${layout.rol?.width ?? 100}%`,
+        transform: 'translateX(-50%)',
+      }
+    : null
+
   const datosStyle = {
     left: `${layout.datos.left}%`,
     top: `${layout.datos.top}%`,
@@ -56,6 +66,8 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     height: `${layout.datos.height}%`,
     ...(isFestcup2026 ? { transform: 'translateX(-50%)' } : {}),
   }
+
+  const rolLabel = isFestcup2026 ? credencialRolFestcup2026(c.modalidad) : null
 
   return (
     <article className="credencial-sheet" data-academia={c.id_academia_campeonato}>
@@ -74,6 +86,12 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
             <div className="cred-foto-img cred-foto-img--empty">{iniciales(c.nombres)}</div>
           )}
         </div>
+
+        {isFestcup2026 && rolStyle ? (
+          <p className="cred-datos-rol" style={rolStyle}>
+            {rolLabel}
+          </p>
+        ) : null}
 
         <div className="cred-datos-slot" style={datosStyle}>
           <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>

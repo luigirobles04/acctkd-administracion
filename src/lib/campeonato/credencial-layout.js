@@ -4,20 +4,25 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
   datos: { left: 4, top: 56, width: 92, height: 22 },
 }
 
-/** FestCup 2026 · plantillas deportista / entrenador (foto rectangular) */
+/** FestCup 2026 · plantilla base en blanco + rol/nombre en HTML (como diseño oficial) */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
-  foto: { type: 'rect', left: 50, top: 50.65, width: 59, height: 22.8 },
-  datos: { left: 50, top: 70.8, width: 96, height: 12 },
+  foto: { type: 'rect', left: 50, top: 47.8, width: 38.5, height: 27.2 },
+  rol: { left: 50, top: 62.6, width: 100 },
+  datos: { left: 50, top: 69.2, width: 94, height: 11 },
   variant: 'festcup2026',
 }
 
-export const FESTCUP_2026_TEMPLATE_DEPORTISTA = '/credenciales/festcup-2026-deportista.jpg'
-export const FESTCUP_2026_TEMPLATE_ENTRENADOR = '/credenciales/festcup-2026-entrenador.png'
+export const FESTCUP_2026_TEMPLATE_BASE = '/credenciales/festcup-2026-base.jpg'
+
+export function credencialRolFestcup2026(modalidad) {
+  return modalidad === 'oficial' ? 'ENTRENADOR' : 'DEPORTISTA'
+}
 
 export function credencialTemplateForLinea(modalidad, { deportistaUrl, entrenadorUrl } = {}) {
-  const dep = credencialTemplateSrc(deportistaUrl || FESTCUP_2026_TEMPLATE_DEPORTISTA)
-  const ent = credencialTemplateSrc(entrenadorUrl || FESTCUP_2026_TEMPLATE_ENTRENADOR)
-  return modalidad === 'oficial' ? ent : dep
+  void modalidad
+  const url = `${deportistaUrl || entrenadorUrl || ''}`
+  if (!url || url.includes('festcup-2026')) return FESTCUP_2026_TEMPLATE_BASE
+  return credencialTemplateSrc(deportistaUrl || entrenadorUrl)
 }
 
 export function normalizeCredencialLayout(raw) {
@@ -26,6 +31,7 @@ export function normalizeCredencialLayout(raw) {
   return {
     variant: raw.variant || base.variant,
     foto: { ...base.foto, ...(raw.foto || {}) },
+    rol: { ...(base.rol || {}), ...(raw.rol || {}) },
     datos: { ...base.datos, ...(raw.datos || {}) },
   }
 }

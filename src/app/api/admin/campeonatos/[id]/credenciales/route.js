@@ -125,7 +125,8 @@ export async function GET(_request, { params }) {
     const credencialLayout =
       campeonato?.credencial_layout?.variant === 'festcup2026'
         ? campeonato.credencial_layout
-        : campeonato?.template_competidor_url?.includes('festcup-2026')
+        : campeonato?.template_competidor_url?.includes('festcup-2026') ||
+            campeonato?.template_coach_url?.includes('festcup-2026')
           ? FESTCUP_2026_CREDENCIAL_LAYOUT
           : campeonato?.credencial_layout
 
