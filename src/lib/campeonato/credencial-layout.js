@@ -7,7 +7,7 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 /** FestCup 2026 · plantillas limpias (rol en JPG) + foto, nombre, categoría y logo academia */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   foto: { type: 'rect', left: 50, top: 46.2, width: 39.2, height: 26.8 },
-  datos: { left: 50, top: 67.4, width: 92, height: 14 },
+  datos: { left: 50, top: 70.6, width: 92, height: 12 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28 },
   rolOnTemplate: true,
   variant: 'festcup2026',
