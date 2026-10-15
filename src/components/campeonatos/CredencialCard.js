@@ -29,7 +29,12 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     () => normalizeCredencialLayout(layoutProp || DEFAULT_CREDENCIAL_LAYOUT),
     [layoutProp]
   )
-  const plantillaSrc = credencialTemplateSrc(templateUrl)
+  const plantillaSrc = useMemo(() => {
+    const src = credencialTemplateSrc(templateUrl)
+    return layoutProp?.variant === 'festcup2026' || layout.variant === 'festcup2026'
+      ? `${src}${src.includes('?') ? '&' : '?'}v=20261015`
+      : src
+  }, [templateUrl, layoutProp?.variant, layout.variant])
 
   useEffect(() => {
     setFotoOk(Boolean(c.foto_url))
@@ -49,7 +54,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     top: `${layout.datos.top}%`,
     width: `${layout.datos.width}%`,
     height: `${layout.datos.height}%`,
-    ...(isFestcup2026 ? { transform: 'translate(-50%, -50%)' } : {}),
+    ...(isFestcup2026 ? { transform: 'translateX(-50%)' } : {}),
   }
 
   return (
@@ -81,7 +86,6 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
               </p>
             </>
           )}
-          {isFestcup2026 && c.dorsal ? <p className="cred-datos-extra cred-datos-extra--festcup">{c.dorsal}</p> : null}
         </div>
       </div>
     </article>

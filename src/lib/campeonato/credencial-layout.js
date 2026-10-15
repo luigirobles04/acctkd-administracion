@@ -6,8 +6,8 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 
 /** FestCup 2026 · plantillas deportista / entrenador (foto rectangular) */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
-  foto: { type: 'rect', left: 50, top: 50.6, width: 44, height: 22.5 },
-  datos: { left: 50, top: 70.2, width: 92, height: 7 },
+  foto: { type: 'rect', left: 50, top: 50.65, width: 59, height: 22.8 },
+  datos: { left: 50, top: 70.8, width: 96, height: 12 },
   variant: 'festcup2026',
 }
 
