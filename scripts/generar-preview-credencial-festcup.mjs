@@ -38,7 +38,7 @@ const samples = [
 ]
 
 const layout = {
-  foto: { left: 50, top: 50.5, width: 36.4, height: 22.6 },
+  foto: { left: 50, top: 50.55, width: 37.2, height: 24 },
   nombre: { left: 50, top: 79.6, width: 88 },
   categoria: { left: 50, top: 82.8, width: 88 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
