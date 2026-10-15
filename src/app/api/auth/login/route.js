@@ -15,7 +15,7 @@ export async function POST(request) {
 
     let query = sb
       .from('usuario')
-      .select('id_usuario, username, password_hash, id_rol, activo, email, nombre_completo, dni, id_academia, rol(nombre)')
+      .select('id_usuario, username, password_hash, id_rol, activo, email, nombre_completo, dni, id_academia, id_campeonato, rol(nombre)')
       .eq('activo', true)
 
     const dniClean = id.replace(/\D/g, '')
@@ -49,6 +49,7 @@ export async function POST(request) {
       nombre: usuario.nombre_completo || usuario.username,
       id_rol: usuario.id_rol,
       id_academia: usuario.id_academia || null,
+      id_campeonato: usuario.id_campeonato ?? null,
       rol: rolNombre,
     }
 

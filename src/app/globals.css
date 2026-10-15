@@ -80,6 +80,16 @@ body {
   border-radius: var(--r-xl);
   border: 0.5px solid rgba(255,255,255,0.7);
   box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+a.ios-card:hover,
+button.ios-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+a.ios-card:active,
+button.ios-card:active {
+  transform: scale(0.99);
 }
 
 .ios-card-flat {

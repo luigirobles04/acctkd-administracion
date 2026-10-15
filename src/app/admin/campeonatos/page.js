@@ -2,8 +2,11 @@
 import { adminFetch } from '@/lib/admin-client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
+import { getCurrentUser } from '@/lib/services/auth.service'
+import { isFestcupEventAdmin } from '@/lib/festcup-event-admin'
 import LoadingState from '@/components/ui/LoadingState'
 import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
@@ -39,12 +42,18 @@ function conteo(rel) {
 }
 
 export default function CampeonatosPage() {
+  const router = useRouter()
   const [campeonatos, setCampeonatos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(FORM_INICIAL)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (isFestcupEventAdmin(user)) router.replace('/admin/festcup')
+  }, [router])
 
   async function cargar() {
     setLoading(true)

@@ -5,20 +5,38 @@ import Sidebar, { TABS } from './Sidebar'
 import SupabaseConfigBanner from './SupabaseConfigBanner'
 import PreviewDeploymentRedirect from './PreviewDeploymentRedirect'
 import { getCurrentUser, isAdminPanel, isAdminCampeonato } from '@/lib/services/auth.service'
+import { festcupAllowedPath, isFestcupEventAdmin } from '@/lib/festcup-event-admin'
+import FestcupAdminLayout from './FestcupAdminLayout'
 
 export default function AdminLayout({ children, title, subtitle, actions }) {
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [festcupMode, setFestcupMode] = useState(() =>
+    typeof window !== 'undefined' && isFestcupEventAdmin(getCurrentUser())
+  )
 
   useEffect(() => {
     const user = getCurrentUser()
     if (!user || !isAdminPanel(user)) { router.replace('/login'); return }
-    // El admin de campeonato solo tiene acceso al módulo de campeonatos.
+    if (isFestcupEventAdmin(user)) {
+      setFestcupMode(true)
+      if (!festcupAllowedPath(pathname)) router.replace('/admin/festcup')
+      return
+    }
+    setFestcupMode(false)
     if (isAdminCampeonato(user) && !pathname.startsWith('/admin/campeonatos')) {
       router.replace('/admin/campeonatos')
     }
   }, [router, pathname])
+
+  if (festcupMode) {
+    return (
+      <FestcupAdminLayout title={title} subtitle={subtitle} actions={actions}>
+        {children}
+      </FestcupAdminLayout>
+    )
+  }
 
   return (
     <div className="app-shell">

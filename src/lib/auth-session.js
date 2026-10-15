@@ -19,6 +19,7 @@ export function createSessionToken(user) {
     id_usuario: user.id_usuario,
     rol: user.rol,
     id_academia: user.id_academia || null,
+    id_campeonato: user.id_campeonato ?? null,
     exp,
   }
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')

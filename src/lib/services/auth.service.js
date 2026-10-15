@@ -88,6 +88,9 @@ export function isAdminPanel(user) {
 }
 
 export function landingPorRol(user) {
+  if (user?.id_campeonato) return '/admin/festcup'
+  const u = `${user?.username || ''}`.toUpperCase()
+  if (u === 'FESTCUP26' || u === 'ADMIN.FESTCUP') return '/admin/festcup'
   if (isAdmin(user)) return '/admin/dashboard'
   if (isAdminCampeonato(user)) return '/admin/campeonatos'
   if (isArbitroMesa(user)) return '/arbitro'

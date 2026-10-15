@@ -91,6 +91,13 @@ export async function middleware(request) {
 
     const scopeSesion = scope === 'ops_or_full' ? 'full' : scope
     if (!rolPermitido(session.rol, scopeSesion)) return forbidden()
+
+    const campMatch = pathname.match(/^\/api\/admin\/campeonatos\/(\d+)/)
+    if (campMatch && session.id_campeonato != null) {
+      if (Number(campMatch[1]) !== Number(session.id_campeonato)) {
+        return forbidden('Solo puedes administrar tu campeonato asignado')
+      }
+    }
   }
 
   return NextResponse.next()
