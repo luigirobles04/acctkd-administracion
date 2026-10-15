@@ -243,25 +243,32 @@
   margin: 0;
   pointer-events: none;
   text-align: center;
-  max-width: 90%;
+  box-sizing: border-box;
+  padding: 0 1.2mm;
 }
 
 .credencial-frente--festcup2026 .cred-datos-categoria-festcup,
 .credencial-frente--festcup2026 .cred-festcup-categoria {
   margin: 0;
-  max-width: 100%;
   text-align: center;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  font-size: 1.85mm;
-  font-weight: 700;
+  font-family: Arial, 'Helvetica Neue', sans-serif;
+  font-size: 1.55mm;
+  font-weight: 600;
   font-style: normal;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-  color: #3d3d3d;
-  text-transform: uppercase;
-  word-break: break-word;
+  letter-spacing: 0;
+  line-height: 1.28;
+  color: #2a2a2a;
+  text-transform: none;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: manual;
   text-shadow: none;
   -webkit-font-smoothing: antialiased;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .credencial-frente--festcup2026 .cred-datos-nombre,

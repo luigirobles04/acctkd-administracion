@@ -8,8 +8,8 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   foto: { type: 'rect', left: 50, top: 50.55, width: 37.2, height: 24 },
   /** Debajo del rol impreso en la plantilla (DEPORTISTA / ENTRENADOR) */
-  nombre: { left: 50, top: 79.6, width: 88 },
-  categoria: { left: 50, top: 82.8, width: 88 },
+  nombre: { left: 50, top: 79.5, width: 86 },
+  categoria: { left: 50, top: 81.35, width: 86 },
   datos: { left: 50, top: 74.9, width: 90, height: 10 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
   rolOnTemplate: true,
@@ -20,6 +20,24 @@ export const FESTCUP_2026_TEMPLATE_DEPORTISTA = '/credenciales/festcup-2026-plan
 export const FESTCUP_2026_TEMPLATE_ENTRENADOR = '/credenciales/festcup-2026-plantilla-entrenador.jpg'
 /** @deprecated usar plantilla deportista/entrenador */
 export const FESTCUP_2026_TEMPLATE_BASE = FESTCUP_2026_TEMPLATE_DEPORTISTA
+
+/** Texto compacto para la credencial (categorías largas del campeonato) */
+export function formatCategoriaCredencial(nombre) {
+  const raw = `${nombre || ''}`.trim().replace(/\s+/g, ' ')
+  if (!raw) return ''
+  const parts = raw.split('·').map((p) => p.trim()).filter(Boolean)
+  let compact = raw
+  if (parts.length > 2) {
+    compact = `${parts[0]} · ${parts[parts.length - 1]}`
+  } else if (parts.length === 2) {
+    compact = `${parts[0]} · ${parts[1]}`
+  }
+  compact = compact.replace(/\s*·\s*/g, ' · ')
+  if (compact.length > 42) {
+    compact = `${compact.slice(0, 40).trim()}…`
+  }
+  return compact.toUpperCase()
+}
 
 export function credencialRolFestcup2026(modalidad) {
   const m = `${modalidad || ''}`.toLowerCase()

@@ -16,7 +16,7 @@ const SAMPLE_FESTCUP = {
   id_linea: 0,
   id_academia_campeonato: 0,
   nombres: 'ROCÍO ESTHER QUINTANILLA JUÁREZ',
-  categoria: 'POOMSAE INFANTIL A',
+  categoria: 'Pre Cadete · Noveles M -42kg',
   dorsal: 'ZAR-001',
   codigo_academia: 'ZAR',
   academia: 'CENTRO DE ENTRENAMIENTO TAEKWONDO ZARUMILLA',

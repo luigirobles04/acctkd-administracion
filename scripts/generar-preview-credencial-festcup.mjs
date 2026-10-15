@@ -23,7 +23,7 @@ const samples = [
     slug: 'deportista',
     modalidad: 'kyorugi_individual',
     nombres: 'CHRISTOPHER CABRERA NOLE',
-    categoria: 'JUNIOR M -68 KG',
+    categoria: 'Pre Cadete · Noveles M -42kg',
     foto: join(publicDir, 'credenciales/sample-foto-preview.jpg'),
     academiaLogo: join(publicDir, 'credenciales/sample-logo-zarumilla.jpg'),
   },
@@ -39,8 +39,8 @@ const samples = [
 
 const layout = {
   foto: { left: 50, top: 50.55, width: 37.2, height: 24 },
-  nombre: { left: 50, top: 79.6, width: 88 },
-  categoria: { left: 50, top: 82.8, width: 88 },
+  nombre: { left: 50, top: 79.5, width: 86 },
+  categoria: { left: 50, top: 81.35, width: 86 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
 }
 

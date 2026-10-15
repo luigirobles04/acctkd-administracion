@@ -5,6 +5,7 @@ import {
   credencialRolFestcup2026,
   credencialTemplateSrc,
   DEFAULT_CREDENCIAL_LAYOUT,
+  formatCategoriaCredencial,
   isFestcup2026Credencial,
   normalizeCredencialLayout,
 } from '@/lib/campeonato/credencial-layout'
@@ -20,7 +21,7 @@ function iniciales(nombre) {
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('')
 }
 
-function formatCategoria(nombre) {
+function formatCategoriaLegacy(nombre) {
   return (nombre || '').toUpperCase().replace(/\s+/g, ' ')
 }
 
@@ -34,7 +35,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const isFestcup2026 = isFestcup2026Credencial({ layout, templateUrl })
   const plantillaSrc = useMemo(() => {
     const src = credencialTemplateSrc(templateUrl)
-    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015k` : src
+    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015l` : src
   }, [templateUrl, isFestcup2026])
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     : null
   const rolLabel =
     isFestcup2026 && !rolOnTemplate ? credencialRolFestcup2026(c.modalidad) : null
-  const categoriaLabel = isFestcup2026 ? formatCategoria(c.categoria) : ''
+  const categoriaLabel = isFestcup2026 ? formatCategoriaCredencial(c.categoria) : ''
 
   return (
     <article className="credencial-sheet" data-academia={c.id_academia_campeonato}>
@@ -146,7 +147,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
             ) : (
               <>
                 <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>
-                <p className="cred-datos-categoria">{formatCategoria(c.categoria)}</p>
+                <p className="cred-datos-categoria">{formatCategoriaLegacy(c.categoria)}</p>
                 <p className="cred-datos-extra">
                   {c.dorsal}
                   {c.academia ? ` · ${c.codigo_academia ? `${c.codigo_academia}. ` : ''}${c.academia}` : ''}
