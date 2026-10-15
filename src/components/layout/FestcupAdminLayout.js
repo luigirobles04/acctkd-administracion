@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -26,7 +26,13 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
   const router = useRouter()
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const u = getCurrentUser()
+    return u && isFestcupEventAdmin(u) ? u : null
+  })
+  const [routePulse, setRoutePulse] = useState(false)
+  const prevPath = useRef(pathname)
 
   useEffect(() => {
     const u = getCurrentUser()
@@ -40,6 +46,18 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
     }
     setUser(u)
   }, [router, pathname])
+
+  useEffect(() => {
+    if (prevPath.current === pathname) return
+    prevPath.current = pathname
+    setRoutePulse(true)
+    const t = window.setTimeout(() => setRoutePulse(false), 400)
+    return () => window.clearTimeout(t)
+  }, [pathname])
+
+  function closeMenuAndNav() {
+    setMenuOpen(false)
+  }
 
   const sections = useMemo(() => festcupHubSections(), [])
   const waHref = waPhone
@@ -73,7 +91,7 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
           <Link
             href="/admin/festcup"
             className={`festcup-nav-link ${pathname === '/admin/festcup' ? 'is-active' : ''}`}
-            onClick={() => setMenuOpen(false)}
+            onClick={closeMenuAndNav}
           >
             <span className="material-symbols-rounded">home</span>
             Centro de control
@@ -89,8 +107,8 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
                   href={item.href}
                   target={item.external ? '_blank' : undefined}
                   rel={item.external ? 'noreferrer' : undefined}
-                  className={`festcup-nav-link ${isActive(item.href) ? 'is-active' : ''} ${item.highlight ? 'is-highlight' : ''}`}
-                  onClick={() => setMenuOpen(false)}
+                  className={`festcup-nav-link ${isActive(item.href) ? 'is-active' : ''} ${item.highlight && !isActive(item.href) ? 'is-highlight' : ''}`}
+                  onClick={closeMenuAndNav}
                 >
                   <span className="material-symbols-rounded">{item.icon}</span>
                   {item.label}
@@ -122,6 +140,7 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
       </aside>
 
       <div className="festcup-main">
+        <div className={`festcup-route-bar ${routePulse ? 'is-active' : ''}`} aria-hidden />
         <header className="festcup-topbar">
           <button
             type="button"
@@ -146,7 +165,11 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
           </div>
           {actions}
         </header>
-        <main className="festcup-content anim-fade-in">{children}</main>
+        <main className="festcup-content">
+          <div key={pathname} className="festcup-page">
+            {children}
+          </div>
+        </main>
       </div>
 
       <nav className="festcup-mobile-nav" aria-label="Accesos rápidos">
@@ -155,6 +178,7 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
             key={tab.href}
             href={tab.href}
             className={isActive(tab.href) ? 'is-active' : ''}
+            onClick={closeMenuAndNav}
           >
             <span className="material-symbols-rounded">{tab.icon}</span>
             {tab.label}

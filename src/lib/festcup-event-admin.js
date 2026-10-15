@@ -21,6 +21,17 @@ export function festcupAllowedPath(pathname) {
   return pathname === base || pathname.startsWith(`${base}/`)
 }
 
+/** Accesos prioritarios en el hub (el menú lateral tiene el resto). */
+export function festcupHubQuickLinks() {
+  const base = festcupEventBasePath()
+  return [
+    { href: `${base}/pagos`, icon: 'payments', label: 'Pagos', desc: 'Comprobantes y dorsales', accent: '#34C759' },
+    { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales', desc: 'Imprimir acreditaciones', accent: '#F59E0B' },
+    { href: '/arbitro', icon: 'sports_martial_arts', label: 'Mesa árbitros', desc: 'Kyorugi y poomsae', accent: '#DC2626' },
+    { href: `${base}/llaves`, icon: 'account_tree', label: 'Llaves', desc: 'Generar e imprimir', accent: '#5856D6' },
+  ]
+}
+
 /** Enlaces del hub FestCup (Material Symbols) */
 export function festcupHubSections() {
   const base = festcupEventBasePath()

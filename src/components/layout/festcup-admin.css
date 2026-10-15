@@ -95,8 +95,13 @@
 }
 
 .festcup-nav-link.is-highlight {
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  background: rgba(245, 158, 11, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.festcup-nav-link.is-active.is-highlight,
+.festcup-nav-link.is-active {
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.35);
 }
 
 .festcup-main {
@@ -137,6 +142,51 @@
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.festcup-route-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 5;
+  background: linear-gradient(90deg, #dc2626, #f59e0b);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  transition: transform 0.35s ease-out, opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.festcup-route-bar.is-active {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.festcup-page {
+  animation: festcup-page-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes festcup-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .festcup-page {
+    animation: none;
+  }
+  .festcup-route-bar {
+    display: none;
+  }
 }
 
 .festcup-hub-hero {
@@ -207,6 +257,131 @@
 .festcup-action-card.is-highlight {
   border-color: rgba(245, 158, 11, 0.45);
   background: rgba(245, 158, 11, 0.06);
+}
+
+.festcup-action-card--compact p {
+  font-size: 11px;
+}
+
+.festcup-muted-label {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.festcup-hub-title {
+  margin: 8px 0 0;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.festcup-muted-body {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.festcup-stat-warn {
+  color: #fbbf24;
+}
+
+.festcup-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.festcup-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.festcup-quick-section {
+  margin-top: 8px;
+}
+
+.festcup-quick-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.festcup-quick-hint .material-symbols-rounded {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.45);
+  flex-shrink: 0;
+}
+
+.festcup-quick-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.festcup-inline-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.festcup-inline-hint .material-symbols-rounded {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.festcup-segment {
+  display: flex;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.festcup-segment-item {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.festcup-segment-item:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.festcup-segment-item.active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1d1d1f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .festcup-action-card-head {
@@ -340,4 +515,46 @@
 .festcup-content .credenciales-root,
 .festcup-content .credenciales-academia {
   color: var(--label);
+}
+
+.festcup-content .camp-back {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.festcup-content .camp-back:hover {
+  color: #fff;
+}
+
+.festcup-content .ios-segment {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 3px;
+}
+
+.festcup-content .ios-segment-item {
+  flex: 1;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.festcup-content .ios-segment-item.active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1d1d1f;
+}
+
+.festcup-content .app-section-title {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.festcup-content .camp-spinner {
+  border-color: rgba(255, 255, 255, 0.18);
+  border-top-color: #fff;
+}
+
+.festcup-content [role='status'] span:last-child {
+  color: rgba(255, 255, 255, 0.55) !important;
 }

@@ -8,7 +8,7 @@ import LoadingState from '@/components/ui/LoadingState'
 import {
   FESTCUP_EVENT_ID,
   festcupEventBasePath,
-  festcupHubSections,
+  festcupHubQuickLinks,
 } from '@/lib/festcup-event-admin'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { whatsappUrl } from '@/lib/campeonato/constants'
@@ -45,7 +45,7 @@ export default function FestcupHubPage() {
   }, [cargar])
 
   const waPhone = camp?.whatsapp_staff_telefonos?.[0] || camp?.telefono_organizador || ''
-  const sections = festcupHubSections()
+  const quick = festcupHubQuickLinks()
 
   return (
     <FestcupAdminLayout
@@ -67,9 +67,9 @@ export default function FestcupHubPage() {
       }
     >
       {loading ? (
-        <LoadingState mensaje="Cargando evento…" />
+        <LoadingState mensaje="Cargando evento…" light />
       ) : error ? (
-        <div className="festcup-hub-hero anim-fade-up">
+        <div className="festcup-hub-hero">
           <p style={{ color: '#fca5a5' }}>{error}</p>
           <button type="button" className="ios-btn ios-btn-primary" onClick={cargar}>
             Reintentar
@@ -77,21 +77,17 @@ export default function FestcupHubPage() {
         </div>
       ) : (
         <>
-          <section className="festcup-hub-hero anim-fade-up">
+          <section className="festcup-hub-hero">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <p className="festcup-muted-label">
                   {camp?.ciudad || 'Trujillo'} · {camp?.estado?.replace(/_/g, ' ')}
                 </p>
-                <h2 style={{ margin: '8px 0 0', fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em' }}>
-                  {camp?.nombre}
-                </h2>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
-                  {camp?.lugar || 'Sede del evento'}
-                </p>
+                <h2 className="festcup-hub-title">{camp?.nombre}</h2>
+                <p className="festcup-muted-body">{camp?.lugar || 'Sede del evento'}</p>
               </div>
-              <Link href={festcupEventBasePath()} className="ios-btn ios-btn-secondary" style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}>
-                Ver detalle completo
+              <Link href={festcupEventBasePath()} className="festcup-btn-ghost">
+                Resumen del evento
               </Link>
             </div>
             {stats ? (
@@ -109,41 +105,34 @@ export default function FestcupHubPage() {
                   <span>Categorías</span>
                 </div>
                 <div className="festcup-stat">
-                  <strong style={{ color: '#fbbf24' }}>{stats.pendientes_pago ?? 0}</strong>
+                  <strong className="festcup-stat-warn">{stats.pendientes_pago ?? 0}</strong>
                   <span>Pend. pago</span>
                 </div>
               </div>
             ) : null}
           </section>
 
-          {sections.map((sec, i) => (
-            <section key={sec.title} className="anim-fade-up" style={{ animationDelay: `${i * 0.04}s`, marginBottom: 28 }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: sec.accent, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                {sec.title}
-              </h3>
-              <div className="festcup-card-grid">
-                {sec.items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    target={item.external ? '_blank' : undefined}
-                    rel={item.external ? 'noreferrer' : undefined}
-                    className={`festcup-action-card ${item.highlight ? 'is-highlight' : ''}`}
-                  >
-                    <div className="festcup-action-card-head">
-                      <div className="festcup-action-card-icon" style={{ color: sec.accent }}>
-                        <span className="material-symbols-rounded" style={{ fontVariationSettings: "'FILL' 1" }}>
-                          {item.icon}
-                        </span>
-                      </div>
-                      <h3>{item.label}</h3>
+          <section className="festcup-quick-section">
+            <p className="festcup-quick-hint">
+              <span className="material-symbols-rounded">menu_open</span>
+              Usa el menú lateral para todas las herramientas. Aquí van los accesos más usados:
+            </p>
+            <div className="festcup-card-grid festcup-quick-grid">
+              {quick.map((item) => (
+                <Link key={item.href} href={item.href} className="festcup-action-card festcup-action-card--compact">
+                  <div className="festcup-action-card-head">
+                    <div className="festcup-action-card-icon" style={{ color: item.accent }}>
+                      <span className="material-symbols-rounded" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {item.icon}
+                      </span>
                     </div>
-                    <p>{item.desc}</p>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
+                    <h3>{item.label}</h3>
+                  </div>
+                  <p>{item.desc}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
         </>
       )}
     </FestcupAdminLayout>

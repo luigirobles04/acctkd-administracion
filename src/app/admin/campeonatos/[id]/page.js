@@ -15,6 +15,7 @@ import AcademiaExpansible from '@/components/campeonatos/AcademiaExpansible'
 import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
 import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { readJsonResponse } from '@/lib/public-app-url'
+import { useFestcupAdmin } from '@/lib/use-festcup-admin'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -136,6 +137,7 @@ export default function CampeonatoDetallePage() {
   const { id } = useParams()
   const router = useRouter()
   const idCampeonato = Number(id)
+  const festcupMode = useFestcupAdmin()
 
   const [tab, setTab] = useState('resumen')
   const [campeonato, setCampeonato] = useState(null)
@@ -388,7 +390,7 @@ export default function CampeonatoDetallePage() {
         <div style={{ padding: 16, margin: 24, borderRadius: 12, background: 'rgba(255,59,48,0.12)', color: '#C0000A' }}>{error || 'No encontrado'}</div>
         <div style={{ display: 'flex', gap: 10, marginLeft: 24 }}>
           <button type="button" className="ios-btn ios-btn-primary" onClick={cargar}>Reintentar</button>
-          <Link href="/admin/campeonatos" className="ios-btn ios-btn-secondary">Volver</Link>
+          <Link href={festcupMode ? '/admin/festcup' : '/admin/campeonatos'} className="ios-btn ios-btn-secondary">Volver</Link>
         </div>
       </AdminLayout>
     )
@@ -401,9 +403,9 @@ export default function CampeonatoDetallePage() {
   return (
     <AdminLayout title={campeonato.nombre} subtitle={`${formatFecha(campeonato.fecha_inicio)} — ${formatFecha(campeonato.fecha_fin)}`}>
       <div className="camp-page">
-        <Link href="/admin/campeonatos" className="camp-back">
+        <Link href={festcupMode ? '/admin/festcup' : '/admin/campeonatos'} className="camp-back">
           <span className="material-symbols-rounded">arrow_back</span>
-          Campeonatos
+          {festcupMode ? 'Centro de control' : 'Campeonatos'}
         </Link>
 
         {necesitaActivacion && (
@@ -433,9 +435,14 @@ export default function CampeonatoDetallePage() {
           </div>
         </div>
 
-        <div className="ios-segment anim-fade-up" style={{ marginBottom: 20 }}>
+        <div className={`${festcupMode ? 'festcup-segment' : 'ios-segment anim-fade-up'}`} style={{ marginBottom: 20, width: festcupMode ? '100%' : undefined }}>
           {TABS.map((t) => (
-            <button key={t.id} type="button" className={`ios-segment-item ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+            <button
+              key={t.id}
+              type="button"
+              className={`${festcupMode ? 'festcup-segment-item' : 'ios-segment-item'} ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
               {t.label}
             </button>
           ))}
@@ -474,36 +481,44 @@ export default function CampeonatoDetallePage() {
               </div>
             )}
 
-            <section className="camp-section">
-              <p className="app-section-title">
-                <span className="material-symbols-rounded">tune</span>
-                Gestión del evento
+            {!festcupMode && (
+              <section className="camp-section">
+                <p className="app-section-title">
+                  <span className="material-symbols-rounded">tune</span>
+                  Gestión del evento
+                </p>
+                <div className="app-quick-grid">
+                  {GESTION_LINKS.map((g) => (
+                    <Link key={g.href} href={`/admin/campeonatos/${id}/${g.href}`} className={`app-quick-card ${g.primary ? 'app-quick-card--primary' : ''}`}>
+                      <div className="app-quick-card-icon" style={{ background: `${g.color}18` }}>
+                        <span className="material-symbols-rounded" style={{ color: g.color, fontVariationSettings: "'FILL' 1" }}>{g.icon}</span>
+                      </div>
+                      <span className="app-quick-card-label">{g.label}</span>
+                    </Link>
+                  ))}
+                  {campeonato.slug && (
+                    <a href={`/campeonato/${campeonato.slug}/canchas`} target="_blank" rel="noreferrer" className="app-quick-card">
+                      <div className="app-quick-card-icon" style={{ background: 'rgba(225,6,0,0.1)' }}>
+                        <span className="material-symbols-rounded" style={{ color: 'var(--red)', fontVariationSettings: "'FILL' 1" }}>tv</span>
+                      </div>
+                      <span className="app-quick-card-label">Pantallas TV</span>
+                    </a>
+                  )}
+                  <button type="button" className="app-quick-card app-quick-card--danger" onClick={eliminarCampeonato}>
+                    <div className="app-quick-card-icon" style={{ background: 'rgba(255,59,48,0.1)' }}>
+                      <span className="material-symbols-rounded" style={{ color: 'var(--red)' }}>delete</span>
+                    </div>
+                    <span className="app-quick-card-label">Eliminar campeonato</span>
+                  </button>
+                </div>
+              </section>
+            )}
+            {festcupMode && (
+              <p className="festcup-inline-hint">
+                <span className="material-symbols-rounded">info</span>
+                Abre academias, pagos, credenciales y más desde el menú lateral.
               </p>
-              <div className="app-quick-grid">
-                {GESTION_LINKS.map((g) => (
-                  <Link key={g.href} href={`/admin/campeonatos/${id}/${g.href}`} className={`app-quick-card ${g.primary ? 'app-quick-card--primary' : ''}`}>
-                    <div className="app-quick-card-icon" style={{ background: `${g.color}18` }}>
-                      <span className="material-symbols-rounded" style={{ color: g.color, fontVariationSettings: "'FILL' 1" }}>{g.icon}</span>
-                    </div>
-                    <span className="app-quick-card-label">{g.label}</span>
-                  </Link>
-                ))}
-                {campeonato.slug && (
-                  <a href={`/campeonato/${campeonato.slug}/canchas`} target="_blank" rel="noreferrer" className="app-quick-card">
-                    <div className="app-quick-card-icon" style={{ background: 'rgba(225,6,0,0.1)' }}>
-                      <span className="material-symbols-rounded" style={{ color: 'var(--red)', fontVariationSettings: "'FILL' 1" }}>tv</span>
-                    </div>
-                    <span className="app-quick-card-label">Pantallas TV</span>
-                  </a>
-                )}
-                <button type="button" className="app-quick-card app-quick-card--danger" onClick={eliminarCampeonato}>
-                  <div className="app-quick-card-icon" style={{ background: 'rgba(255,59,48,0.1)' }}>
-                    <span className="material-symbols-rounded" style={{ color: 'var(--red)' }}>delete</span>
-                  </div>
-                  <span className="app-quick-card-label">Eliminar campeonato</span>
-                </button>
-              </div>
-            </section>
+            )}
           </>
         )}
 
