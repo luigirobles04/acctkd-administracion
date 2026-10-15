@@ -189,8 +189,12 @@
 }
 
 .credencial-frente--festcup2026 .cred-foto-img {
+  object-fit: contain;
+  object-position: center center;
+}
+
+.credencial-frente--festcup2026 .cred-foto-img--empty {
   object-fit: cover;
-  object-position: center top;
 }
 
 .credencial-frente--festcup2026 .cred-datos-slot--festcup {

@@ -96,7 +96,7 @@ function buildHtml(sample) {
     overflow: hidden;
     background: #fff;
   }
-  .cred-foto-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+  .cred-foto-img { width: 100%; height: 100%; object-fit: contain; object-position: center center; display: block; background: #fff; }
   .cred-festcup-nombre, .cred-festcup-categoria {
     position: absolute; z-index: 4; margin: 0; pointer-events: none;
     text-align: center; transform: translateX(-50%);
