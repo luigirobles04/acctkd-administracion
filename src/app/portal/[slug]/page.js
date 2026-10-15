@@ -937,7 +937,7 @@ export default function PortalCampeonatoPage() {
                               categorias={catsKyorugi}
                               value={modalidadesSel[key]?.idCategoria || ''}
                               onChange={(v) => updateModalidad(key, { idCategoria: v })}
-                              emptyMessage="No hay categorías válidas. Revisa edad, sexo o peso. Principiantes (10º–7º kup) usan Festival."
+                              emptyMessage="No hay categorías válidas. Revisa edad, sexo y peso. Si eres 10º–7º kup también puedes usar Festival Kyorugi (planilla)."
                             />
                           </PortalField>
                         </>

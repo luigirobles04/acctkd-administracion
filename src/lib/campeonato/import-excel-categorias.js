@@ -393,8 +393,7 @@ export function resolverCategoriaKyorugi(categorias, { categoriaTexto, pesoRaw, 
     advertencias.push('Sin grado/nivel — asumido Noveles; verifica cinturón')
   } else if (!nivel && grado) {
     const g = parseGrado(grado)
-    if (g?.tipo === 'kup' && g.nivel >= 7) nivel = 'Festival'
-    else if (g?.tipo === 'kup' && g.nivel >= 3) nivel = 'Noveles'
+    if (g?.tipo === 'kup' && g.nivel >= 3) nivel = 'Noveles'
     else nivel = 'Avanzados'
   }
 

@@ -2,12 +2,13 @@ import { TARIFAS_FDPTKD_DEFAULT } from '@/lib/campeonato/constants'
 import { slugify } from '@/lib/campeonato/constants'
 
 /** Versión del catálogo FestCup — incrementar al cambiar categorías */
-export const CATALOG_VERSION = 7
+export const CATALOG_VERSION = 8
 
 /** Kyorugi · niveles por cinturón (FestCup 2026) */
 const KYORUGI_NIVELES = [
   { nivel: 'Festival', grado_rango: 'kup:7-10' },
-  { nivel: 'Noveles', grado_rango: 'kup:3-6' },
+  /** 10º–7º kup pueden usar Festival (planilla) o Kyorugi Noveles (combate con peso). */
+  { nivel: 'Noveles', grado_rango: 'kup:3-10' },
   { nivel: 'Avanzados', grado_rango: 'kup:1-2' },
 ]
 

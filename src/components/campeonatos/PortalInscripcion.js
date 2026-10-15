@@ -102,7 +102,7 @@ export function PortalModalityCard({ active, icon, title, desc, priceLabel, onTo
 }
 
 export const MODALIDADES_PORTAL = [
-  { key: 'kyorugi_individual', label: 'Kyorugi', desc: 'Combate individual (Noveles / Avanzados)', icon: 'sports_mma' },
+  { key: 'kyorugi_individual', label: 'Kyorugi', desc: 'Combate con peso (Noveles y Avanzados; 10º–7º kup incluidos)', icon: 'sports_mma' },
   {
     key: 'festival',
     label: 'Festival Kyorugi',
