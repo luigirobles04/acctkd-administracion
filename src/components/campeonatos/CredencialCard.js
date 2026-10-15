@@ -34,7 +34,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const isFestcup2026 = isFestcup2026Credencial({ layout, templateUrl })
   const plantillaSrc = useMemo(() => {
     const src = credencialTemplateSrc(templateUrl)
-    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015c` : src
+    return isFestcup2026 ? `${src}${src.includes('?') ? '&' : '?'}v=20261015d` : src
   }, [templateUrl, isFestcup2026])
 
   useEffect(() => {
@@ -66,7 +66,9 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
       }
     : null
 
-  const rolLabel = isFestcup2026 ? credencialRolFestcup2026(c.modalidad) : null
+  const rolOnTemplate = isFestcup2026 && layout.rolOnTemplate
+  const rolLabel =
+    isFestcup2026 && !rolOnTemplate ? credencialRolFestcup2026(c.modalidad) : null
   const categoriaLabel = isFestcup2026 ? formatCategoria(c.categoria) : ''
 
   return (
@@ -102,7 +104,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
         >
           {isFestcup2026 ? (
             <>
-              <p className="cred-datos-rol">{rolLabel}</p>
+              {rolLabel ? <p className="cred-datos-rol">{rolLabel}</p> : null}
               <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>
               {categoriaLabel ? (
                 <p className="cred-datos-categoria-festcup">{categoriaLabel}</p>

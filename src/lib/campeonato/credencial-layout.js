@@ -4,16 +4,19 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
   datos: { left: 4, top: 56, width: 92, height: 22 },
 }
 
-/** FestCup 2026 · plantilla base en blanco + rol/nombre en HTML (como diseño oficial) */
+/** FestCup 2026 · plantillas limpias (rol en JPG) + foto, nombre, categoría y logo academia */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
-  foto: { type: 'rect', left: 50, top: 47.8, width: 38.5, height: 27.2 },
-  rol: { left: 50, top: 62.6, width: 100 },
-  datos: { left: 50, top: 61.5, width: 94, height: 18 },
-  academiaLogo: { left: 78, top: 36, width: 11, opacity: 0.32 },
+  foto: { type: 'rect', left: 50, top: 46.2, width: 39.2, height: 26.8 },
+  datos: { left: 50, top: 67.4, width: 92, height: 14 },
+  academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28 },
+  rolOnTemplate: true,
   variant: 'festcup2026',
 }
 
-export const FESTCUP_2026_TEMPLATE_BASE = '/credenciales/festcup-2026-base.jpg'
+export const FESTCUP_2026_TEMPLATE_DEPORTISTA = '/credenciales/festcup-2026-plantilla-deportista.jpg'
+export const FESTCUP_2026_TEMPLATE_ENTRENADOR = '/credenciales/festcup-2026-plantilla-entrenador.jpg'
+/** @deprecated usar plantilla deportista/entrenador */
+export const FESTCUP_2026_TEMPLATE_BASE = FESTCUP_2026_TEMPLATE_DEPORTISTA
 
 export function credencialRolFestcup2026(modalidad) {
   const m = `${modalidad || ''}`.toLowerCase()
@@ -28,10 +31,14 @@ export function isFestcup2026Credencial({ layout, templateUrl } = {}) {
 }
 
 export function credencialTemplateForLinea(modalidad, { deportistaUrl, entrenadorUrl } = {}) {
-  void modalidad
-  const url = `${deportistaUrl || entrenadorUrl || ''}`
-  if (!url || url.includes('festcup-2026')) return FESTCUP_2026_TEMPLATE_BASE
-  return credencialTemplateSrc(deportistaUrl || entrenadorUrl)
+  const m = `${modalidad || ''}`.toLowerCase()
+  const coach = m === 'oficial' || m.includes('entrenador') || m.includes('coach')
+  const festcup =
+    `${deportistaUrl || ''}`.includes('festcup-2026') || `${entrenadorUrl || ''}`.includes('festcup-2026')
+  if (festcup || (!deportistaUrl && !entrenadorUrl)) {
+    return coach ? FESTCUP_2026_TEMPLATE_ENTRENADOR : FESTCUP_2026_TEMPLATE_DEPORTISTA
+  }
+  return credencialTemplateSrc(coach ? entrenadorUrl || deportistaUrl : deportistaUrl || entrenadorUrl)
 }
 
 export function normalizeCredencialLayout(raw, opts = {}) {
@@ -48,6 +55,7 @@ export function normalizeCredencialLayout(raw, opts = {}) {
     rol: { ...(base.rol || {}), ...(raw.rol || {}) },
     datos: { ...base.datos, ...(raw.datos || {}) },
     academiaLogo: { ...(base.academiaLogo || {}), ...(raw.academiaLogo || {}) },
+    rolOnTemplate: raw.rolOnTemplate ?? base.rolOnTemplate ?? false,
   }
 }
 
