@@ -513,6 +513,23 @@ export async function registrarPagoTotalAcademia(sb, idAcademiaCampeonato) {
   return { ok: true, monto: totalFalta, lineas: pendientes.length, montos }
 }
 
+/** Líneas con dorsal pero sin estado aprobado (p. ej. datos antiguos). */
+export async function sincronizarAprobacionDorsalesAcademia(sb, idAcademiaCampeonato) {
+  const { data: lineas } = await sb
+    .from('linea_inscripcion')
+    .select('id_linea')
+    .eq('id_academia_campeonato', idAcademiaCampeonato)
+    .neq('estado', 'anulado')
+    .neq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+
+  const now = new Date().toISOString()
+  for (const l of lineas || []) {
+    await sb.from('linea_inscripcion').update({ estado: 'aprobado', updated_at: now }).eq('id_linea', l.id_linea)
+  }
+  return (lineas || []).length
+}
+
 export async function asignarDorsalesPendientes(sb, idAcademiaCampeonato) {
   const { data: lineas } = await sb
     .from('linea_inscripcion')
@@ -525,6 +542,7 @@ export async function asignarDorsalesPendientes(sb, idAcademiaCampeonato) {
   for (const l of lineas || []) {
     asignados.push(await asignarDorsalLinea(sb, l.id_linea))
   }
+  await sincronizarAprobacionDorsalesAcademia(sb, idAcademiaCampeonato)
   return asignados
 }
 

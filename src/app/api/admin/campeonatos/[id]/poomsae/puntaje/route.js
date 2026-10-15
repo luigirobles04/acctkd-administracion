@@ -40,7 +40,8 @@ export async function POST(request, { params }) {
         .select('id_linea, poomsae_puntaje, poomsae_estado')
         .eq('id_campeonato', idCampeonato)
         .eq('id_categoria', idCategoria)
-        .eq('estado', 'aprobado')
+        .neq('estado', 'anulado')
+        .not('dorsal_numero', 'is', null)
       if (error) throw error
 
       const medallas = ['oro', 'plata', 'bronce']

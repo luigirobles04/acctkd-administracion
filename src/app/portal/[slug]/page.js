@@ -860,7 +860,7 @@ export default function PortalCampeonatoPage() {
                   {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup elige su forma (Pal Jang) según edad'}
                 </p>
               )}
-              <PortalField label="Foto carnet (credencial)">
+              <PortalField label="Foto carnet (credencial)" hint="JPG/PNG, mín. 400 px. No hace falta fondo blanco.">
                 <div className="portal-photo-box">
                   {fotoSrc(perfil.foto_url) && <img src={fotoSrc(perfil.foto_url)} alt="" className="portal-photo-preview" />}
                   <input

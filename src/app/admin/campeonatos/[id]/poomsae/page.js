@@ -8,6 +8,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import LoadingState, { LoadingSpinner } from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { descargarPoomsaeExcel, descargarPoomsaePdf, descargarPoomsaeCategoriaPdf } from '@/lib/campeonato/export-poomsae'
+import { categoriasPoomsaeValidas } from '@/lib/campeonato/validar-categoria'
 
 export default function CampeonatoPoomsaePage() {
   const { id } = useParams()
@@ -20,6 +21,10 @@ export default function CampeonatoPoomsaePage() {
   const [buscar, setBuscar] = useState('')
   const [sorteando, setSorteando] = useState(false)
   const [sorteoMsg, setSorteoMsg] = useState('')
+  const [categoriasDisponibles, setCategoriasDisponibles] = useState([])
+  const [editParticipante, setEditParticipante] = useState(null)
+  const [editCatId, setEditCatId] = useState('')
+  const [accionBusy, setAccionBusy] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -29,6 +34,7 @@ export default function CampeonatoPoomsaePage() {
       if (!res.ok) throw new Error(json.error || 'Error al cargar poomsae')
       setCampeonato(json.campeonato)
       setCategorias(json.categorias || [])
+      setCategoriasDisponibles(json.categoriasDisponibles || [])
       setResumen(json.resumen || null)
     } catch (e) {
       alert(e.message)
@@ -96,6 +102,67 @@ export default function CampeonatoPoomsaePage() {
     }
   }
 
+  const anioCampeonato = campeonato?.fecha_inicio
+    ? new Date(campeonato.fecha_inicio).getFullYear()
+    : new Date().getFullYear()
+
+  function categoriasValidasPara(p) {
+    if (!p?.perfil) return categoriasDisponibles
+    try {
+      return categoriasPoomsaeValidas(categoriasDisponibles, p.perfil, anioCampeonato)
+    } catch {
+      return categoriasDisponibles
+    }
+  }
+
+  function abrirCambiarCategoria(p) {
+    setEditParticipante(p)
+    setEditCatId(p.id_categoria ? String(p.id_categoria) : '')
+  }
+
+  async function guardarCategoriaParticipante(e) {
+    e.preventDefault()
+    if (!editParticipante || !editCatId) return
+    setAccionBusy(editParticipante.id_linea)
+    try {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idLinea: editParticipante.id_linea,
+          idCategoria: editCatId,
+        }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      setEditParticipante(null)
+      await cargar()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setAccionBusy(null)
+    }
+  }
+
+  async function eliminarParticipante(p) {
+    if (!confirm(`¿Eliminar a ${p.nombres} (${p.dorsal}) del campeonato? Se anula la inscripción y se quita del sorteo/puntaje poomsae.`)) return
+    setAccionBusy(p.id_linea)
+    try {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLinea: p.id_linea, accion: 'anular_linea' }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      await cargar()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setAccionBusy(null)
+    }
+  }
+
   function exportar(tipo) {
     const cats = categorias.filter((c) => c.inscritos > 0)
     if (!cats.length) { alert('No hay participantes para exportar.'); return }
@@ -120,18 +187,18 @@ export default function CampeonatoPoomsaePage() {
           </div>
         </div>
 
-        {resumen?.excluidosPago > 0 && (
+        {resumen?.pendientesPago > 0 && (
           <div className="ios-card no-print" style={{ padding: 14, marginBottom: 16, background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.35)' }}>
             <p className="ios-headline" style={{ marginBottom: 6, fontSize: 14 }}>
-              {resumen.excluidosPago} inscripción(es) poomsae no aparecen aquí
+              {resumen.pendientesPago} competidor(es) con pago pendiente (resaltados en la tabla)
             </p>
             <p className="ios-caption" style={{ color: 'var(--label2)', lineHeight: 1.45, marginBottom: 8 }}>
-              Solo se listan líneas con estado <strong>aprobado</strong> (pago validado y dorsal confirmado). Pendientes de pago o sin aprobar quedan fuera del sorteo.
+              Aparecen en el sorteo y en mesa de puntuación con dorsal asignado. El pago se valida aparte en Pagos.
             </p>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--label2)' }}>
-              {(resumen.excluidos || []).slice(0, 8).map((x) => (
+              {(resumen.pendientesPagoLista || []).slice(0, 12).map((x) => (
                 <li key={x.id_linea}>
-                  {x.nombres || 'Sin nombre'} · dorsal {x.dorsal} · <em>{x.estado?.replace(/_/g, ' ')}</em>
+                  {x.nombres || 'Sin nombre'} · dorsal {x.dorsal}
                 </li>
               ))}
             </ul>
@@ -208,7 +275,7 @@ export default function CampeonatoPoomsaePage() {
         {loading ? (
           <LoadingState mensaje="Cargando poomsae…" />
         ) : !catsFiltradas.length ? (
-          <p style={{ color: '#64748b' }}>No hay inscripciones poomsae aprobadas en este campeonato.</p>
+          <p style={{ color: '#64748b' }}>No hay inscripciones poomsae con dorsal en este campeonato.</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 20, alignItems: 'start' }}>
             <aside className="ios-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -297,16 +364,54 @@ export default function CampeonatoPoomsaePage() {
                         <th style={{ padding: '8px 10px' }}>Competidor</th>
                         <th style={{ padding: '8px 10px' }}>Academia</th>
                         <th style={{ padding: '8px 10px' }}>Modalidad</th>
+                        <th style={{ padding: '8px 10px', width: 160 }} className="no-print">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {catActiva.participantes.map((p, i) => (
-                        <tr key={p.id_linea} style={{ background: i % 2 ? '#f8fafc' : '#fff', borderBottom: '1px solid #e2e8f0' }}>
+                        <tr
+                          key={p.id_linea}
+                          style={{
+                            background: p.faltaPago
+                              ? 'rgba(255,149,0,0.18)'
+                              : i % 2
+                                ? '#f8fafc'
+                                : '#fff',
+                            borderBottom: '1px solid #e2e8f0',
+                          }}
+                        >
                           <td style={{ padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>{p.orden}</td>
                           <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{p.dorsal || '—'}</td>
-                          <td style={{ padding: '8px 10px', fontWeight: 500 }}>{p.nombres}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: 500 }}>
+                            {p.nombres}
+                            {p.faltaPago && (
+                              <span className="badge badge-yellow" style={{ marginLeft: 8, fontSize: 10 }}>Pago pendiente</span>
+                            )}
+                          </td>
                           <td style={{ padding: '8px 10px', color: '#475569' }}>{p.academia}</td>
                           <td style={{ padding: '8px 10px', fontSize: 12, color: '#64748b' }}>{p.modalidad}</td>
+                          <td className="no-print" style={{ padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              <button
+                                type="button"
+                                className="ios-btn ios-btn-ghost"
+                                style={{ fontSize: 11, padding: '4px 8px' }}
+                                disabled={accionBusy === p.id_linea}
+                                onClick={() => abrirCambiarCategoria(p)}
+                              >
+                                Categoría
+                              </button>
+                              <button
+                                type="button"
+                                className="ios-btn ios-btn-ghost"
+                                style={{ fontSize: 11, padding: '4px 8px', color: 'var(--red)' }}
+                                disabled={accionBusy === p.id_linea}
+                                onClick={() => eliminarParticipante(p)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -316,6 +421,42 @@ export default function CampeonatoPoomsaePage() {
                 <p>Selecciona una categoría.</p>
               )}
             </section>
+          </div>
+        )}
+
+        {editParticipante && (
+          <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <form
+              className="ios-card"
+              style={{ width: '100%', maxWidth: 420, padding: 20 }}
+              onSubmit={guardarCategoriaParticipante}
+            >
+              <h3 className="ios-headline" style={{ marginBottom: 8 }}>Cambiar categoría</h3>
+              <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 14 }}>
+                {editParticipante.nombres} · {editParticipante.dorsal}. Se reinicia sorteo y puntaje de esta línea.
+              </p>
+              <select
+                className="ios-input"
+                required
+                value={editCatId}
+                onChange={(e) => setEditCatId(e.target.value)}
+              >
+                <option value="">Elegir categoría…</option>
+                {categoriasValidasPara(editParticipante).map((c) => (
+                  <option key={c.id_categoria} value={c.id_categoria}>
+                    {c.nombre} · {c.division} {c.genero}
+                  </option>
+                ))}
+              </select>
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditParticipante(null)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="ios-btn ios-btn-primary" disabled={accionBusy === editParticipante.id_linea}>
+                  Guardar
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

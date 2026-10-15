@@ -5,7 +5,8 @@ import {
   categoriasValidas,
   modalidadRequiereCategoriaPoomsae,
 } from '@/lib/campeonato/validar-categoria'
-import { asignarDorsalLinea } from '@/lib/campeonato/inscripcion-server'
+import { asignarDorsalLinea, recalcularMontosAcademia } from '@/lib/campeonato/inscripcion-server'
+import { clearPoomsaeLiveByLinea } from '@/lib/campeonato/poomsae-live'
 
 export async function PATCH(request, { params }) {
   try {
@@ -48,6 +49,40 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ linea: updated })
     }
 
+    if (accion === 'anular_linea') {
+      await sb.from('asignacion_pago').delete().eq('id_linea', idLinea)
+      try {
+        await clearPoomsaeLiveByLinea(sb, idCampeonato, idLinea)
+      } catch {
+        /* overlay opcional */
+      }
+      const now = new Date().toISOString()
+      const { error: errU } = await sb
+        .from('linea_inscripcion')
+        .update({
+          estado: 'anulado',
+          dorsal_prefijo: null,
+          dorsal_numero: null,
+          dorsal_display: null,
+          orden_poomsae: null,
+          poomsae_puntaje: null,
+          poomsae_estado: 'pendiente',
+          poomsae_cancha: null,
+          updated_at: now,
+        })
+        .eq('id_linea', idLinea)
+      if (errU) throw errU
+      await sb.from('bitacora_inscripcion').insert({
+        id_academia_campeonato: linea.id_academia_campeonato,
+        id_linea: idLinea,
+        accion: 'linea_anulada_admin',
+        detalle: { modalidad: linea.modalidad, dorsal: linea.dorsal_display },
+        actor: 'admin',
+      })
+      await recalcularMontosAcademia(sb, linea.id_academia_campeonato)
+      return NextResponse.json({ ok: true })
+    }
+
     const patch = { updated_at: new Date().toISOString() }
     const perfil = linea.miembros?.[0]?.perfil
     const anio = new Date(linea.academia_campeonato?.campeonato?.fecha_inicio || Date.now()).getFullYear()
@@ -77,6 +112,12 @@ export async function PATCH(request, { params }) {
         }
       }
       patch.id_categoria = catId
+      if (catId && Number(linea.id_categoria) !== catId && linea.modalidad?.startsWith('poomsae_')) {
+        patch.orden_poomsae = null
+        patch.poomsae_puntaje = null
+        patch.poomsae_estado = 'pendiente'
+        patch.poomsae_cancha = null
+      }
     }
 
     if (pesoDeclarado != null) {

@@ -49,7 +49,20 @@ export async function GET(_request, { params }) {
       sb,
       idCampeonato,
     )
-    return NextResponse.json({ campeonato: camp, categorias, resumen, soporteSorteo, soporteCalificacion })
+    const { data: categoriasDisponibles } = await sb
+      .from('categoria_campeonato')
+      .select('id_categoria, nombre, division, genero, orden')
+      .eq('id_campeonato', idCampeonato)
+      .eq('modalidad', 'poomsae')
+      .order('orden', { ascending: true })
+    return NextResponse.json({
+      campeonato: camp,
+      categorias,
+      categoriasDisponibles: categoriasDisponibles || [],
+      resumen,
+      soporteSorteo,
+      soporteCalificacion,
+    })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -88,7 +101,9 @@ export async function POST(request, { params }) {
       .select('id_linea, id_categoria')
       .eq('id_campeonato', idCampeonato)
       .in('modalidad', MODALIDADES_POOMSAE)
-      .eq('estado', 'aprobado')
+      .neq('estado', 'anulado')
+      .neq('estado', 'borrador')
+      .not('dorsal_numero', 'is', null)
       .not('id_categoria', 'is', null)
 
     if (!body.todas) {
