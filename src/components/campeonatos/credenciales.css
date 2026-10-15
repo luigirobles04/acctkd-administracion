@@ -176,6 +176,32 @@
   background: #fff;
 }
 
+.credencial-frente--festcup2026 .cred-foto-slot {
+  aspect-ratio: auto;
+  box-shadow: none;
+}
+
+.credencial-frente--festcup2026 .cred-datos-slot {
+  background: transparent;
+  padding: 0;
+}
+
+.credencial-frente--festcup2026 .cred-datos-nombre {
+  margin: 0;
+  font-size: 2.65mm;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  color: #0a0a0a;
+}
+
+.credencial-frente--festcup2026 .cred-datos-extra--festcup {
+  margin: 0.8mm 0 0;
+  font-size: 2mm;
+  font-weight: 700;
+  color: #444;
+}
+
 /* Zona datos participante — posición vía inline style */
 .cred-datos-slot {
   position: absolute;

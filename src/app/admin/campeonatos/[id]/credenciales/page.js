@@ -199,7 +199,7 @@ export default function CredencialesPage() {
                     <CredencialCard
                       key={c.id_linea}
                       competidor={c}
-                      templateUrl={templateUrl}
+                      templateUrl={c.template_url || templateUrl}
                       layout={credencialLayout}
                     />
                   ))}

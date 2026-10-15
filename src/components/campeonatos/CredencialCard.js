@@ -35,11 +35,13 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     setFotoOk(Boolean(c.foto_url))
   }, [c.foto_url])
 
+  const isFestcup2026 = layout.variant === 'festcup2026'
   const fotoStyle = {
     left: `${layout.foto.left}%`,
     top: `${layout.foto.top}%`,
     width: `${layout.foto.width}%`,
-    borderRadius: layout.foto.type === 'circle' ? '50%' : '2px',
+    ...(layout.foto.height ? { height: `${layout.foto.height}%`, aspectRatio: 'auto' } : {}),
+    borderRadius: layout.foto.type === 'circle' ? '50%' : '1px',
   }
 
   const datosStyle = {
@@ -47,11 +49,12 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     top: `${layout.datos.top}%`,
     width: `${layout.datos.width}%`,
     height: `${layout.datos.height}%`,
+    ...(isFestcup2026 ? { transform: 'translate(-50%, -50%)' } : {}),
   }
 
   return (
     <article className="credencial-sheet" data-academia={c.id_academia_campeonato}>
-      <div className="credencial-frente">
+      <div className={`credencial-frente${isFestcup2026 ? ' credencial-frente--festcup2026' : ''}`}>
         <img src={plantillaSrc} alt="" className="cred-plantilla-bg" />
 
         <div className="cred-foto-slot" style={fotoStyle}>
@@ -69,11 +72,16 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
 
         <div className="cred-datos-slot" style={datosStyle}>
           <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>
-          <p className="cred-datos-categoria">{formatCategoria(c.categoria)}</p>
-          <p className="cred-datos-extra">
-            {c.dorsal}
-            {c.academia ? ` · ${c.codigo_academia ? `${c.codigo_academia}. ` : ''}${c.academia}` : ''}
-          </p>
+          {!isFestcup2026 && (
+            <>
+              <p className="cred-datos-categoria">{formatCategoria(c.categoria)}</p>
+              <p className="cred-datos-extra">
+                {c.dorsal}
+                {c.academia ? ` · ${c.codigo_academia ? `${c.codigo_academia}. ` : ''}${c.academia}` : ''}
+              </p>
+            </>
+          )}
+          {isFestcup2026 && c.dorsal ? <p className="cred-datos-extra cred-datos-extra--festcup">{c.dorsal}</p> : null}
         </div>
       </div>
     </article>

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { fetchAllSupabaseRows, getSupabaseAdmin } from '@/lib/supabase-server'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
-import { credencialTemplateSrc } from '@/lib/campeonato/credencial-layout'
+import {
+  credencialTemplateForLinea,
+  credencialTemplateSrc,
+  FESTCUP_2026_CREDENCIAL_LAYOUT,
+} from '@/lib/campeonato/credencial-layout'
 
 const LINEA_SELECT = `
   id_linea, dorsal_display, dorsal_numero, modalidad, id_academia_campeonato,
@@ -43,7 +47,9 @@ export async function GET(_request, { params }) {
     const [{ data: campeonato, error: errCamp }, lineas, llaves] = await Promise.all([
       sb
         .from('campeonato')
-        .select('id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio, template_competidor_url, credencial_layout')
+        .select(
+          'id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio, template_competidor_url, template_coach_url, credencial_layout',
+        )
         .eq('id_campeonato', idCampeonato)
         .single(),
       fetchAllSupabaseRows(sb, (client) =>
@@ -68,6 +74,9 @@ export async function GET(_request, { params }) {
 
     const canchaPorLinea = mapCanchaPorLinea(llaves)
 
+    const deportistaTpl = credencialTemplateSrc(campeonato?.template_competidor_url)
+    const entrenadorTpl = credencialTemplateSrc(campeonato?.template_coach_url)
+
     const competidores = (lineas || []).map((l) => {
       const p = l.miembros?.[0]?.perfil
       const ac = l.academia_campeonato?.academia
@@ -84,6 +93,10 @@ export async function GET(_request, { params }) {
         categoria: l.categoria?.nombre || '',
         academia: ac?.nombre || '',
         modalidad: l.modalidad,
+        template_url: credencialTemplateForLinea(l.modalidad, {
+          deportistaUrl: campeonato?.template_competidor_url,
+          entrenadorUrl: campeonato?.template_coach_url,
+        }),
         cancha: canchaPorLinea[l.id_linea] || null,
         qr_data: l.dorsal_display || String(l.dorsal_numero || l.id_linea),
       }
@@ -108,11 +121,22 @@ export async function GET(_request, { params }) {
       a.nombre.localeCompare(b.nombre, 'es')
     )
 
-    const templateUrl = credencialTemplateSrc(campeonato?.template_competidor_url)
+    const templateUrl = deportistaTpl
+    const credencialLayout =
+      campeonato?.credencial_layout?.variant === 'festcup2026'
+        ? campeonato.credencial_layout
+        : campeonato?.template_competidor_url?.includes('festcup-2026')
+          ? FESTCUP_2026_CREDENCIAL_LAYOUT
+          : campeonato?.credencial_layout
 
     return NextResponse.json({
       campeonato: campeonato
-        ? { ...campeonato, template_url: templateUrl }
+        ? {
+            ...campeonato,
+            template_url: templateUrl,
+            template_coach_url_resolved: entrenadorTpl,
+            credencial_layout: credencialLayout,
+          }
         : campeonato,
       competidores,
       academias,
