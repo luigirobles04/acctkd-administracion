@@ -120,6 +120,27 @@ export default function CampeonatoPoomsaePage() {
           </div>
         </div>
 
+        {resumen?.excluidosPago > 0 && (
+          <div className="ios-card no-print" style={{ padding: 14, marginBottom: 16, background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.35)' }}>
+            <p className="ios-headline" style={{ marginBottom: 6, fontSize: 14 }}>
+              {resumen.excluidosPago} inscripción(es) poomsae no aparecen aquí
+            </p>
+            <p className="ios-caption" style={{ color: 'var(--label2)', lineHeight: 1.45, marginBottom: 8 }}>
+              Solo se listan líneas con estado <strong>aprobado</strong> (pago validado y dorsal confirmado). Pendientes de pago o sin aprobar quedan fuera del sorteo.
+            </p>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--label2)' }}>
+              {(resumen.excluidos || []).slice(0, 8).map((x) => (
+                <li key={x.id_linea}>
+                  {x.nombres || 'Sin nombre'} · dorsal {x.dorsal} · <em>{x.estado?.replace(/_/g, ' ')}</em>
+                </li>
+              ))}
+            </ul>
+            <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-secondary" style={{ marginTop: 12, fontSize: 12 }}>
+              Ir a pagos
+            </Link>
+          </div>
+        )}
+
         <div className="no-print" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="search"

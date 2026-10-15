@@ -67,7 +67,7 @@ export default function FestcupHubPage() {
       }
     >
       {loading ? (
-        <LoadingState mensaje="Cargando evento…" light />
+        <LoadingState mensaje="Cargando evento…" />
       ) : error ? (
         <div className="festcup-hub-hero">
           <p style={{ color: '#fca5a5' }}>{error}</p>

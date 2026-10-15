@@ -140,10 +140,31 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
   categoriasOut.sort(compareCategoriasPorPoomsae)
 
   const conInscritos = categoriasOut.filter((c) => c.inscritos > 0)
+
+  const { data: lineasExcluidas } = await sb
+    .from('linea_inscripcion')
+    .select(
+      `id_linea, modalidad, estado, dorsal_display,
+      miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))`,
+    )
+    .eq('id_campeonato', idCampeonato)
+    .in('modalidad', MODALIDADES_POOMSAE)
+    .neq('estado', 'aprobado')
+    .neq('estado', 'anulado')
+
+  const excluidos = (lineasExcluidas || []).map((l) => ({
+    id_linea: l.id_linea,
+    dorsal: l.dorsal_display || '—',
+    estado: l.estado,
+    nombres: nombreCompetidor(l),
+  }))
+
   const resumen = {
     totalCategorias: categoriasOut.length,
     conInscritos: conInscritos.length,
     totalParticipantes: conInscritos.reduce((s, c) => s + c.inscritos, 0),
+    excluidosPago: excluidos.length,
+    excluidos,
     soporteSorteo,
     soporteCalificacion,
   }

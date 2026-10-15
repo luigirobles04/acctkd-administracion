@@ -1,8 +1,9 @@
+/* Panel FestCup — tema claro (legibilidad tipo iOS admin) */
 .festcup-shell {
   min-height: 100dvh;
   display: flex;
-  background: #0a0a0c;
-  color: #f5f5f7;
+  background: var(--bg, #f2f2f7);
+  color: var(--label, #1d1d1f);
 }
 
 .festcup-shell-bg {
@@ -10,25 +11,26 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220, 38, 38, 0.35), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(88, 86, 214, 0.12), transparent),
-    linear-gradient(180deg, #0f0f12 0%, #0a0a0c 100%);
+    radial-gradient(ellipse 70% 45% at 50% -15%, rgba(225, 6, 0, 0.08), transparent),
+    radial-gradient(ellipse 50% 35% at 100% 20%, rgba(0, 122, 255, 0.06), transparent),
+    linear-gradient(180deg, #fafafa 0%, var(--bg, #f2f2f7) 100%);
 }
 
 .festcup-sidebar {
   width: 280px;
   flex-shrink: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(18, 18, 22, 0.92);
+  border-right: 1px solid rgba(13, 13, 15, 0.08);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
   z-index: 20;
+  box-shadow: 2px 0 24px rgba(13, 13, 15, 0.04);
 }
 
 .festcup-sidebar-brand {
   padding: 20px 18px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(13, 13, 15, 0.06);
 }
 
 .festcup-sidebar-brand h2 {
@@ -36,13 +38,13 @@
   font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #fff;
+  color: var(--label);
 }
 
 .festcup-sidebar-brand p {
   margin: 4px 0 0;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--label3, #8e8e93);
 }
 
 .festcup-nav {
@@ -60,7 +62,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--label3, #8e8e93);
   padding: 0 10px 8px;
 }
 
@@ -71,7 +73,7 @@
   padding: 10px 12px;
   margin-bottom: 4px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--label2, #3c3c43);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
@@ -79,29 +81,29 @@
 }
 
 .festcup-nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 15, 0.05);
   transform: translateX(2px);
 }
 
 .festcup-nav-link.is-active {
-  background: linear-gradient(90deg, rgba(220, 38, 38, 0.35), rgba(220, 38, 38, 0.08));
-  color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.35);
+  background: linear-gradient(90deg, rgba(225, 6, 0, 0.12), rgba(225, 6, 0, 0.04));
+  color: var(--red-dark, #9c0000);
+  box-shadow: inset 0 0 0 1px rgba(225, 6, 0, 0.22);
 }
 
 .festcup-nav-link .material-symbols-rounded {
   font-size: 20px;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .festcup-nav-link.is-highlight {
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
-  background: rgba(245, 158, 11, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .festcup-nav-link.is-active.is-highlight,
 .festcup-nav-link.is-active {
-  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(225, 6, 0, 0.22);
 }
 
 .festcup-main {
@@ -118,8 +120,8 @@
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 10, 12, 0.75);
+  border-bottom: 1px solid rgba(13, 13, 15, 0.08);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
 }
 
@@ -130,12 +132,13 @@
   letter-spacing: -0.03em;
   flex: 1;
   min-width: 0;
+  color: var(--label);
 }
 
 .festcup-topbar p {
   margin: 2px 0 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--label3);
 }
 
 .festcup-content {
@@ -152,7 +155,7 @@
   right: 0;
   height: 2px;
   z-index: 5;
-  background: linear-gradient(90deg, #dc2626, #f59e0b);
+  background: linear-gradient(90deg, var(--red, #e10600), #f59e0b);
   transform: scaleX(0);
   transform-origin: left;
   opacity: 0;
@@ -193,9 +196,9 @@
   border-radius: 20px;
   padding: 24px;
   margin-bottom: 24px;
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.25) 0%, rgba(15, 15, 18, 0.9) 55%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, #fff 55%);
+  border: 1px solid rgba(13, 13, 15, 0.08);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(13, 13, 15, 0.08));
 }
 
 .festcup-stat-grid {
@@ -208,26 +211,27 @@
 .festcup-stat {
   padding: 14px;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.08);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .festcup-stat:hover {
   transform: translateY(-2px);
-  border-color: rgba(220, 38, 38, 0.4);
+  border-color: rgba(225, 6, 0, 0.25);
 }
 
 .festcup-stat strong {
   display: block;
   font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: var(--label);
 }
 
 .festcup-stat span {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--label3);
 }
 
 .festcup-card-grid {
@@ -242,21 +246,21 @@
   border-radius: 16px;
   text-decoration: none;
   color: inherit;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.08);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.2s, border-color 0.2s;
 }
 
 .festcup-action-card:hover {
   transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  border-color: rgba(225, 6, 0, 0.2);
+  box-shadow: var(--shadow-md);
 }
 
 .festcup-action-card.is-highlight {
-  border-color: rgba(245, 158, 11, 0.45);
-  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.55);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), #fff);
 }
 
 .festcup-action-card--compact p {
@@ -266,7 +270,7 @@
 .festcup-muted-label {
   margin: 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--label3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -276,17 +280,17 @@
   font-size: 26px;
   font-weight: 900;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--label);
 }
 
 .festcup-muted-body {
   margin: 8px 0 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--label2);
 }
 
 .festcup-stat-warn {
-  color: #fbbf24;
+  color: #d97706;
 }
 
 .festcup-btn-ghost {
@@ -297,14 +301,15 @@
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--label);
+  background: #fff;
+  border: 1px solid rgba(13, 13, 15, 0.12);
+  box-shadow: var(--shadow-sm);
   transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .festcup-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: #fafafa;
   transform: translateY(-1px);
 }
 
@@ -319,12 +324,12 @@
   margin: 0 0 14px;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--label2);
 }
 
 .festcup-quick-hint .material-symbols-rounded {
   font-size: 20px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--label3);
   flex-shrink: 0;
 }
 
@@ -340,24 +345,23 @@
   padding: 14px 16px;
   border-radius: 14px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--label2);
+  background: rgba(0, 122, 255, 0.06);
+  border: 1px solid rgba(0, 122, 255, 0.15);
 }
 
 .festcup-inline-hint .material-symbols-rounded {
   font-size: 20px;
-  color: rgba(255, 255, 255, 0.45);
+  color: #007aff;
 }
 
 .festcup-segment {
   display: flex;
   width: 100%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(118, 118, 128, 0.12);
   border-radius: 12px;
   padding: 3px;
   gap: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .festcup-segment-item {
@@ -368,20 +372,20 @@
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--label3);
   background: transparent;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .festcup-segment-item:hover {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--label);
 }
 
 .festcup-segment-item.active {
-  background: rgba(255, 255, 255, 0.95);
-  color: #1d1d1f;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: #fff;
+  color: var(--label);
+  box-shadow: var(--shadow-sm);
 }
 
 .festcup-action-card-head {
@@ -398,21 +402,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 15, 0.05);
 }
 
 .festcup-action-card h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--label);
 }
 
 .festcup-action-card p {
   margin: 0;
   font-size: 12px;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--label3);
 }
 
 .festcup-wa-btn {
@@ -442,11 +446,12 @@
   right: 0;
   z-index: 30;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  background: rgba(12, 12, 16, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 1px solid rgba(13, 13, 15, 0.08);
   backdrop-filter: blur(16px);
   gap: 6px;
   justify-content: space-around;
+  box-shadow: 0 -4px 20px rgba(13, 13, 15, 0.06);
 }
 
 .festcup-mobile-nav a {
@@ -457,7 +462,7 @@
   gap: 2px;
   padding: 6px 4px;
   border-radius: 10px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--label3);
   text-decoration: none;
   font-size: 9px;
   font-weight: 600;
@@ -465,8 +470,8 @@
 }
 
 .festcup-mobile-nav a.is-active {
-  color: #ff6b6b;
-  background: rgba(220, 38, 38, 0.12);
+  color: var(--red);
+  background: rgba(225, 6, 0, 0.08);
 }
 
 .festcup-mobile-nav .material-symbols-rounded {
@@ -491,6 +496,7 @@
     bottom: 0;
     transform: translateX(-100%);
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 8px 0 32px rgba(13, 13, 15, 0.12);
   }
 
   .festcup-sidebar.is-open {
@@ -506,9 +512,9 @@
   }
 }
 
-/* Páginas hijas que siguen usando ios-card sobre shell oscuro */
+/* Páginas hijas (ios-card ya encaja en claro) */
 .festcup-content .ios-card {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card, rgba(255, 255, 255, 0.96));
   color: var(--label);
 }
 
@@ -518,43 +524,5 @@
 }
 
 .festcup-content .camp-back {
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.festcup-content .camp-back:hover {
-  color: #fff;
-}
-
-.festcup-content .ios-segment {
-  display: flex;
-  width: 100%;
-  max-width: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 3px;
-}
-
-.festcup-content .ios-segment-item {
-  flex: 1;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.58);
-}
-
-.festcup-content .ios-segment-item.active {
-  background: rgba(255, 255, 255, 0.95);
-  color: #1d1d1f;
-}
-
-.festcup-content .app-section-title {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.festcup-content .camp-spinner {
-  border-color: rgba(255, 255, 255, 0.18);
-  border-top-color: #fff;
-}
-
-.festcup-content [role='status'] span:last-child {
-  color: rgba(255, 255, 255, 0.55) !important;
+  color: var(--red);
 }

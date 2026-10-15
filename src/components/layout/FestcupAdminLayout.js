@@ -73,7 +73,7 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
     return (
       <div className="festcup-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <div className="festcup-shell-bg" aria-hidden />
-        <p className="anim-fade-in" style={{ color: 'rgba(255,255,255,0.6)' }}>Cargando FestCup…</p>
+        <p className="anim-fade-in" style={{ color: 'var(--label3)' }}>Cargando FestCup…</p>
       </div>
     )
   }
@@ -150,9 +150,9 @@ export default function FestcupAdminLayout({ children, title, subtitle, actions,
               width: 40,
               height: 40,
               borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
+              border: '1px solid rgba(13,13,15,0.12)',
+              background: '#fff',
+              color: 'var(--label)',
               cursor: 'pointer',
             }}
             aria-label="Menú"
