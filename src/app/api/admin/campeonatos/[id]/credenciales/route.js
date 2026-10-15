@@ -51,7 +51,7 @@ export async function GET(_request, { params }) {
           .from('linea_inscripcion')
           .select(LINEA_SELECT)
           .eq('id_campeonato', idCampeonato)
-          .eq('estado', 'aprobado')
+          .in('estado', ['aprobado', 'pendiente_pago', 'pagado'])
           .not('dorsal_numero', 'is', null)
           .order('dorsal_numero', { ascending: true })
       ),
