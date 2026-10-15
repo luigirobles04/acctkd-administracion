@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { puedeInscribir } from '@/lib/campeonato/inscripcion-server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,9 @@ export async function GET() {
     const sb = getSupabaseAdmin()
     const { data, error } = await sb
       .from('campeonato')
-      .select('id_campeonato, nombre, slug, ciudad, lugar, fecha_inicio, fecha_fin, estado, foto_url, descripcion, publicado')
+      .select(
+        'id_campeonato, nombre, slug, ciudad, lugar, fecha_inicio, fecha_fin, estado, foto_url, descripcion, publicado, fecha_cierre_inscripcion, fecha_gracia_pago',
+      )
       .order('fecha_inicio', { ascending: false })
       .limit(24)
 
@@ -29,7 +32,7 @@ export async function GET() {
         estado: c.estado,
         foto_url: c.foto_url,
         descripcion: c.descripcion,
-        inscripciones_abiertas: c.estado === 'inscripciones',
+        inscripciones_abiertas: Boolean(c.publicado !== false && puedeInscribir(c).ok),
       }))
 
     return NextResponse.json(
