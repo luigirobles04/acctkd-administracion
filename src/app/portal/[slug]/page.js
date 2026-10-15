@@ -362,48 +362,61 @@ export default function PortalCampeonatoPage() {
     setColaInscripcion((prev) => prev.filter((x) => x.id !== id))
   }
 
+  function itemColaDesdeFormularioActual() {
+    return {
+      id: `current-${Date.now()}`,
+      perfil: { ...perfil },
+      modalidadesSel: JSON.parse(JSON.stringify(modalidadesSel)),
+      fotoFile: perfil._fotoFile || null,
+    }
+  }
+
+  async function inscribirItemsCola(items) {
+    for (const item of items) {
+      let fotoUrl = item.perfil.foto_url || ''
+      if (item.fotoFile) {
+        const fd = new FormData()
+        fd.append('file', item.fotoFile, item.fotoFile.name || 'foto.jpg')
+        const res = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error)
+        fotoUrl = json.url
+      }
+      const payload = { ...item.perfil, foto_url: fotoUrl }
+      delete payload._fotoFile
+      const resP = await portalFetch(`/api/portal/campeonato/${slug}/perfil`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      const jsonP = await resP.json()
+      if (!resP.ok) throw new Error(jsonP.error)
+      const p = jsonP.perfil
+      const keys = Object.keys(item.modalidadesSel)
+      const lineas = keys.map((key) => ({
+        modalidad: key,
+        idCategoria: item.modalidadesSel[key]?.idCategoria ? Number(item.modalidadesSel[key].idCategoria) : null,
+        pesoDeclarado:
+          key === 'kyorugi_individual' || key === 'festival'
+            ? Number(item.modalidadesSel[key].peso)
+            : null,
+        tipoOficial: key === 'oficial' ? item.modalidadesSel[key].tipoOficial : null,
+      }))
+      const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
+        method: 'POST',
+        body: JSON.stringify({ accion: 'crear_lineas', idPerfil: p.id_perfil, lineas }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+    }
+  }
+
   async function confirmarColaInscripcion() {
     if (!colaInscripcion.length) return
     setSubmitting(true)
     setError(null)
     try {
-      for (const item of colaInscripcion) {
-        let fotoUrl = item.perfil.foto_url || ''
-        if (item.fotoFile) {
-          const fd = new FormData()
-          fd.append('file', item.fotoFile, item.fotoFile.name || 'foto.jpg')
-          const res = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
-          const json = await res.json()
-          if (!res.ok) throw new Error(json.error)
-          fotoUrl = json.url
-        }
-        const payload = { ...item.perfil, foto_url: fotoUrl }
-        delete payload._fotoFile
-        const resP = await portalFetch(`/api/portal/campeonato/${slug}/perfil`, {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
-        const jsonP = await resP.json()
-        if (!resP.ok) throw new Error(jsonP.error)
-        const p = jsonP.perfil
-        const keys = Object.keys(item.modalidadesSel)
-        const lineas = keys.map((key) => ({
-          modalidad: key,
-          idCategoria: item.modalidadesSel[key]?.idCategoria ? Number(item.modalidadesSel[key].idCategoria) : null,
-          pesoDeclarado:
-            key === 'kyorugi_individual' || key === 'festival'
-              ? Number(item.modalidadesSel[key].peso)
-              : null,
-          tipoOficial: key === 'oficial' ? item.modalidadesSel[key].tipoOficial : null,
-        }))
-        const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
-          method: 'POST',
-          body: JSON.stringify({ accion: 'crear_lineas', idPerfil: p.id_perfil, lineas }),
-        })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error)
-      }
       const total = colaInscripcion.length
+      await inscribirItemsCola(colaInscripcion)
       setColaInscripcion([])
       iniciarOtroAlumno()
       setTab('plantel')
@@ -420,29 +433,17 @@ export default function PortalCampeonatoPage() {
     setSubmitting(true)
     setError(null)
     try {
-      let fotoUrl = perfil.foto_url || ''
-      if (perfil._fotoFile) {
-        fotoUrl = await subirFoto()
-      }
-      const p = await guardarPerfil(fotoUrl)
-      const lineas = modalidadesActivas.map((key) => ({
-        modalidad: key,
-        idCategoria: modalidadesSel[key]?.idCategoria ? Number(modalidadesSel[key].idCategoria) : null,
-        pesoDeclarado:
-          key === 'kyorugi_individual' || key === 'festival' ? Number(modalidadesSel[key].peso) : null,
-        tipoOficial: key === 'oficial' ? modalidadesSel[key].tipoOficial : null,
-      }))
-
-      const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
-        method: 'POST',
-        body: JSON.stringify({ accion: 'crear_lineas', idPerfil: p.id_perfil, lineas }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-
+      const itemActual = itemColaDesdeFormularioActual()
+      const todos = [...colaInscripcion, itemActual]
+      const total = todos.length
+      await inscribirItemsCola(todos)
+      setColaInscripcion([])
       iniciarOtroAlumno()
       setTab('plantel')
       await cargar()
+      if (total > 1) {
+        alert(`${total} competidor(es) inscrito(s). Revisa el plantel y envía la lista cuando estés listo.`)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -1045,7 +1046,9 @@ export default function PortalCampeonatoPage() {
                 <button type="button" className="ios-btn ios-btn-primary portal-btn-spinner" disabled={submitting} onClick={confirmarInscripcion}>
                   {submitting
                     ? <><LoadingSpinner size={16} light /> Inscribiendo…</>
-                    : colaInscripcion.length ? 'Inscribir este también' : `Inscribir ${modalidadesActivas.length} modalidad(es)`}
+                    : colaInscripcion.length
+                      ? `Inscribir todos (${colaInscripcion.length + 1})`
+                      : `Inscribir ${modalidadesActivas.length} modalidad(es)`}
                 </button>
               </div>
             </>
