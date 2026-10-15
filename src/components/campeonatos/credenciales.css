@@ -193,26 +193,55 @@
   object-position: center top;
 }
 
-.credencial-frente--festcup2026 .cred-datos-rol {
-  position: absolute;
-  z-index: 3;
-  margin: 0;
-  text-align: center;
-  font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 5.2mm;
-  font-weight: 900;
-  font-style: italic;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  color: #8f1d2f;
-  text-transform: uppercase;
-}
-
-.credencial-frente--festcup2026 .cred-datos-slot {
+.credencial-frente--festcup2026 .cred-datos-slot--festcup {
+  z-index: 4;
+  height: auto;
+  min-height: 0;
   background: transparent;
   padding: 0;
   align-items: center;
   justify-content: flex-start;
+  gap: 0.8mm;
+  pointer-events: none;
+}
+
+.credencial-frente--festcup2026 .cred-datos-rol {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 5mm;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  color: #8f1d2f;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.02mm rgba(143, 29, 47, 0.35);
+}
+
+.credencial-frente--festcup2026 .cred-academia-logo {
+  position: absolute;
+  z-index: 1;
+  height: auto;
+  object-fit: contain;
+  filter: grayscale(20%);
+  pointer-events: none;
+}
+
+.credencial-frente--festcup2026 .cred-datos-categoria-festcup {
+  margin: 0.2mm 0 0;
+  max-width: 100%;
+  text-align: center;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 2mm;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  color: #3d3d3d;
+  text-transform: uppercase;
+  word-break: break-word;
 }
 
 .credencial-frente--festcup2026 .cred-datos-nombre {

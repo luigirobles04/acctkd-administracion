@@ -8,14 +8,23 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   foto: { type: 'rect', left: 50, top: 47.8, width: 38.5, height: 27.2 },
   rol: { left: 50, top: 62.6, width: 100 },
-  datos: { left: 50, top: 69.2, width: 94, height: 11 },
+  datos: { left: 50, top: 61.5, width: 94, height: 18 },
+  academiaLogo: { left: 78, top: 36, width: 11, opacity: 0.32 },
   variant: 'festcup2026',
 }
 
 export const FESTCUP_2026_TEMPLATE_BASE = '/credenciales/festcup-2026-base.jpg'
 
 export function credencialRolFestcup2026(modalidad) {
-  return modalidad === 'oficial' ? 'ENTRENADOR' : 'DEPORTISTA'
+  const m = `${modalidad || ''}`.toLowerCase()
+  if (m === 'oficial' || m.includes('entrenador') || m.includes('coach')) return 'ENTRENADOR'
+  return 'DEPORTISTA'
+}
+
+export function isFestcup2026Credencial({ layout, templateUrl } = {}) {
+  if (layout?.variant === 'festcup2026') return true
+  const tpl = `${templateUrl || ''}`
+  return tpl.includes('festcup-2026')
 }
 
 export function credencialTemplateForLinea(modalidad, { deportistaUrl, entrenadorUrl } = {}) {
@@ -25,14 +34,20 @@ export function credencialTemplateForLinea(modalidad, { deportistaUrl, entrenado
   return credencialTemplateSrc(deportistaUrl || entrenadorUrl)
 }
 
-export function normalizeCredencialLayout(raw) {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULT_CREDENCIAL_LAYOUT }
-  const base = raw.variant === 'festcup2026' ? FESTCUP_2026_CREDENCIAL_LAYOUT : DEFAULT_CREDENCIAL_LAYOUT
+export function normalizeCredencialLayout(raw, opts = {}) {
+  const templateUrl = opts.templateUrl || ''
+  const festcupTpl = templateUrl.includes('festcup-2026')
+  if (!raw || typeof raw !== 'object') {
+    return festcupTpl ? { ...FESTCUP_2026_CREDENCIAL_LAYOUT } : { ...DEFAULT_CREDENCIAL_LAYOUT }
+  }
+  const isFestcup = raw.variant === 'festcup2026' || festcupTpl
+  const base = isFestcup ? FESTCUP_2026_CREDENCIAL_LAYOUT : DEFAULT_CREDENCIAL_LAYOUT
   return {
-    variant: raw.variant || base.variant,
+    variant: isFestcup ? 'festcup2026' : raw.variant,
     foto: { ...base.foto, ...(raw.foto || {}) },
     rol: { ...(base.rol || {}), ...(raw.rol || {}) },
     datos: { ...base.datos, ...(raw.datos || {}) },
+    academiaLogo: { ...(base.academiaLogo || {}), ...(raw.academiaLogo || {}) },
   }
 }
 

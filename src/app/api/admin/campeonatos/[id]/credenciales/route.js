@@ -12,7 +12,7 @@ const LINEA_SELECT = `
   categoria:categoria_campeonato(nombre),
   academia_campeonato(
     id,
-    academia(id_academia, nombre, codigo_prefijo)
+    academia(id_academia, nombre, codigo_prefijo, logo_url)
   ),
   miembros:linea_inscripcion_miembro(
     perfil:competidor_perfil(id_perfil, nombres, apellidos, foto_url, documento_numero)
@@ -92,6 +92,7 @@ export async function GET(_request, { params }) {
         documento: p?.documento_numero || '',
         categoria: l.categoria?.nombre || '',
         academia: ac?.nombre || '',
+        academia_logo_url: fotoCompetidorProxyUrl(ac?.logo_url) || null,
         modalidad: l.modalidad,
         template_url: credencialTemplateForLinea(l.modalidad, {
           deportistaUrl: campeonato?.template_competidor_url,

@@ -3,7 +3,13 @@ import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useRef, useState } from 'react'
 import CredencialCard from '@/components/campeonatos/CredencialCard'
-import { DEFAULT_CREDENCIAL_LAYOUT, normalizeCredencialLayout, credencialTemplateSrc } from '@/lib/campeonato/credencial-layout'
+import {
+  DEFAULT_CREDENCIAL_LAYOUT,
+  FESTCUP_2026_CREDENCIAL_LAYOUT,
+  normalizeCredencialLayout,
+  credencialTemplateSrc,
+  isFestcup2026Credencial,
+} from '@/lib/campeonato/credencial-layout'
 
 const SAMPLE = {
   id_linea: 0,
@@ -13,6 +19,8 @@ const SAMPLE = {
   dorsal: 'CHA-001',
   codigo_academia: 'CHA',
   academia: 'ACADEMIA EJEMPLO',
+  modalidad: 'kyorugi_individual',
+  academia_logo_url: '/branding/academia-logo-sm.png',
   foto_url: null,
 }
 
@@ -90,7 +98,9 @@ export default function CredencialTemplateEditor({
   onSaved,
 }) {
   const [open, setOpen] = useState(false)
-  const [layout, setLayout] = useState(() => normalizeCredencialLayout(initialLayout))
+  const [layout, setLayout] = useState(() =>
+    normalizeCredencialLayout(initialLayout, { templateUrl: templateUrl || '' })
+  )
   const [previewSrc, setPreviewSrc] = useState(templateUrl || '/credenciales/plantilla-frente.png')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -141,7 +151,12 @@ export default function CredencialTemplateEditor({
   }
 
   function resetLayout() {
-    setLayout({ ...DEFAULT_CREDENCIAL_LAYOUT })
+    const tpl = previewSrc || templateUrl || ''
+    setLayout(
+      isFestcup2026Credencial({ layout, templateUrl: tpl })
+        ? { ...FESTCUP_2026_CREDENCIAL_LAYOUT }
+        : { ...DEFAULT_CREDENCIAL_LAYOUT }
+    )
   }
 
   if (!open) {

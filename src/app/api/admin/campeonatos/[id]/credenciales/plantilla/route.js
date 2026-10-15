@@ -13,9 +13,15 @@ export async function PATCH(request, { params }) {
     if (!idCampeonato) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
     const body = await request.json()
-    const layout = normalizeCredencialLayout(body.credencial_layout)
-
     const sb = getSupabaseAdmin()
+    const { data: campRow } = await sb
+      .from('campeonato')
+      .select('template_competidor_url, template_coach_url')
+      .eq('id_campeonato', idCampeonato)
+      .single()
+    const templateUrl = campRow?.template_competidor_url || campRow?.template_coach_url || ''
+    const layout = normalizeCredencialLayout(body.credencial_layout, { templateUrl })
+
     const { data, error } = await sb
       .from('campeonato')
       .update({ credencial_layout: layout })
