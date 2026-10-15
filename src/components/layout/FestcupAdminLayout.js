@@ -19,7 +19,7 @@ const MOBILE_TABS = [
   { href: `${festcupEventBasePath()}/academias`, icon: 'school', label: 'Academias' },
   { href: `${festcupEventBasePath()}/pagos`, icon: 'payments', label: 'Pagos' },
   { href: `${festcupEventBasePath()}/credenciales`, icon: 'badge', label: 'Cred.' },
-  { href: '/arbitro', icon: 'sports_martial_arts', label: 'Árbitro' },
+  { href: `${festcupEventBasePath()}/arbitros`, icon: 'gavel', label: 'Árbitros' },
 ]
 
 export default function FestcupAdminLayout({ children, title, subtitle, actions, waPhone }) {

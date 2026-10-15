@@ -10,6 +10,7 @@ import Paginacion from '@/components/ui/Paginacion'
 import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { obtenerCampeonato } from '@/lib/services/campeonato.service'
 import { whatsappUrl } from '@/lib/campeonato/constants'
+import IconAction from '@/components/ui/IconAction'
 import {
   descargarFichaNominalExcel,
   descargarFichaNominalPdf,
@@ -291,36 +292,48 @@ export default function CampeonatoAcademiasPage() {
                       </td>
                       <td>S/ {Number(ac.monto_total || 0).toFixed(0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        {ac.estado_aprobacion !== 'rechazada' && lineasCount > 0 && (
-                          <>
-                            <button
-                              type="button"
-                              className="ios-btn ios-btn-secondary"
-                              style={{ fontSize: 11, padding: '4px 8px', marginRight: 4 }}
-                              disabled={Boolean(exportando)}
-                              onClick={() => exportarFicha('xlsx', ac.id)}
-                            >
-                              {exportando === `xlsx-${ac.id}` ? '…' : 'Excel'}
-                            </button>
-                            <button
-                              type="button"
-                              className="ios-btn ios-btn-secondary"
-                              style={{ fontSize: 11, padding: '4px 8px', marginRight: 6 }}
-                              disabled={Boolean(exportando)}
-                              onClick={() => exportarFicha('pdf', ac.id)}
-                            >
-                              {exportando === `pdf-${ac.id}` ? '…' : 'PDF'}
-                            </button>
-                          </>
-                        )}
-                        {ac.estado_aprobacion !== 'rechazada' && (
-                          <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} disabled={procesando === ac.id} onClick={() => rechazar(ac.id)}>
-                            Rechazar
-                          </button>
-                        )}
-                        {ac.academia?.telefono && (
-                          <a href={whatsappUrl(ac.academia.telefono, `Hola ${ac.academia.nombre}, tu inscripción en ${campeonato?.nombre} fue ${ac.estado_aprobacion}.`)} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#25D366' }}>WA</a>
-                        )}
+                        <div className="icon-action-row">
+                          {ac.estado_aprobacion !== 'rechazada' && lineasCount > 0 && (
+                            <>
+                              <IconAction
+                                icon="table_chart"
+                                title="Ficha Excel"
+                                variant="soft"
+                                disabled={Boolean(exportando)}
+                                onClick={() => exportarFicha('xlsx', ac.id)}
+                              />
+                              <IconAction
+                                icon="picture_as_pdf"
+                                title="Ficha PDF"
+                                variant="soft"
+                                disabled={Boolean(exportando)}
+                                onClick={() => exportarFicha('pdf', ac.id)}
+                              />
+                            </>
+                          )}
+                          {ac.estado_aprobacion !== 'rechazada' && (
+                            <IconAction
+                              icon="block"
+                              title="Rechazar academia"
+                              variant="danger"
+                              disabled={procesando === ac.id}
+                              onClick={() => rechazar(ac.id)}
+                            />
+                          )}
+                          {ac.academia?.telefono && (
+                            <IconAction
+                              icon="chat"
+                              title="WhatsApp representante"
+                              variant="wa"
+                              href={whatsappUrl(
+                                ac.academia.telefono,
+                                `Hola ${ac.academia.nombre}, tu inscripción en ${campeonato?.nombre} — estado: ${ac.estado_aprobacion}.`,
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                            />
+                          )}
+                        </div>
                       </td>
                     </tr>
                     {expandida === ac.id && (

@@ -16,7 +16,6 @@ export function festcupEventBasePath() {
 export function festcupAllowedPath(pathname) {
   if (!pathname) return false
   if (pathname === '/admin/festcup' || pathname.startsWith('/admin/festcup/')) return true
-  if (pathname === '/arbitro' || pathname.startsWith('/arbitro/')) return true
   const base = festcupEventBasePath()
   return pathname === base || pathname.startsWith(`${base}/`)
 }
@@ -27,7 +26,7 @@ export function festcupHubQuickLinks() {
   return [
     { href: `${base}/pagos`, icon: 'payments', label: 'Pagos', desc: 'Comprobantes y dorsales', accent: '#34C759' },
     { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales', desc: 'Imprimir acreditaciones', accent: '#F59E0B' },
-    { href: '/arbitro', icon: 'sports_martial_arts', label: 'Mesa árbitros', desc: 'Kyorugi y poomsae', accent: '#DC2626' },
+    { href: `${base}/arbitros`, icon: 'gavel', label: 'Árbitros', desc: 'Planilla y credenciales', accent: '#DC2626' },
     { href: `${base}/llaves`, icon: 'account_tree', label: 'Llaves', desc: 'Generar e imprimir', accent: '#5856D6' },
   ]
 }
@@ -59,10 +58,16 @@ export function festcupHubSections() {
       ],
     },
     {
-      title: 'Evento en vivo',
+      title: 'Staff',
       accent: '#DC2626',
       items: [
-        { href: '/arbitro', icon: 'sports_martial_arts', label: 'Mesa árbitros', desc: 'Marcador y poomsae' },
+        { href: `${base}/arbitros`, icon: 'gavel', label: 'Planilla árbitros', desc: 'Registro, listas y credenciales', highlight: true },
+      ],
+    },
+    {
+      title: 'Evento en vivo',
+      accent: '#0EA5E9',
+      items: [
         { href: `${pub}/canchas`, icon: 'tv', label: 'Canchas público', desc: 'Pantallas', external: true },
         { href: `${pub}/llamados`, icon: 'campaign', label: 'Llamados', desc: 'Cola en vivo', external: true },
         { href: `${pub}/resultados`, icon: 'leaderboard', label: 'Resultados', desc: 'Web pública', external: true },
@@ -72,7 +77,8 @@ export function festcupHubSections() {
       title: 'Impresión',
       accent: '#F59E0B',
       items: [
-        { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales', desc: 'Imprimir acreditaciones', highlight: true },
+        { href: `${base}/credenciales`, icon: 'badge', label: 'Credenciales deportistas', desc: 'Imprimir acreditaciones', highlight: true },
+        { href: `${base}/arbitros`, icon: 'gavel', label: 'Cred. árbitros', desc: 'Desde planilla staff' },
         { href: `${base}/llaves/imprimir`, icon: 'print', label: 'Llaves PDF', desc: 'Formato área' },
       ],
     },

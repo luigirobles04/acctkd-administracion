@@ -706,3 +706,68 @@ button.app-quick-card {
     radial-gradient(400px 300px at 100% 100%, rgba(106, 0, 0, 0.15), transparent 55%);
   pointer-events: none;
 }
+
+/* ── Acciones con icono (tablas admin) ───────────────────────────── */
+.icon-action-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.icon-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(13, 13, 15, 0.1);
+  background: #fff;
+  color: var(--label2, #3c3c43);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(13, 13, 15, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.icon-action-btn .material-symbols-rounded {
+  font-size: 20px;
+}
+
+.icon-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(13, 13, 15, 0.1);
+  border-color: rgba(225, 6, 0, 0.25);
+}
+
+.icon-action-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.icon-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-action-btn--soft {
+  background: rgba(13, 13, 15, 0.04);
+}
+
+.icon-action-btn--wa {
+  background: #25d366;
+  border-color: #1da851;
+  color: #fff;
+}
+
+.icon-action-btn--wa:hover:not(:disabled) {
+  border-color: #25d366;
+  filter: brightness(1.03);
+}
+
+.icon-action-btn--danger {
+  color: var(--red, #e10600);
+  background: rgba(225, 6, 0, 0.06);
+  border-color: rgba(225, 6, 0, 0.18);
+}
