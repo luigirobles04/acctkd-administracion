@@ -6,12 +6,26 @@ import CredencialCard from '@/components/campeonatos/CredencialCard'
 import {
   DEFAULT_CREDENCIAL_LAYOUT,
   FESTCUP_2026_CREDENCIAL_LAYOUT,
+  FESTCUP_2026_TEMPLATE_DEPORTISTA,
   normalizeCredencialLayout,
   credencialTemplateSrc,
   isFestcup2026Credencial,
 } from '@/lib/campeonato/credencial-layout'
 
-const SAMPLE = {
+const SAMPLE_FESTCUP = {
+  id_linea: 0,
+  id_academia_campeonato: 0,
+  nombres: 'ROCÍO ESTHER QUINTANILLA JUÁREZ',
+  categoria: 'POOMSAE INFANTIL A',
+  dorsal: 'ZAR-001',
+  codigo_academia: 'ZAR',
+  academia: 'CENTRO DE ENTRENAMIENTO TAEKWONDO ZARUMILLA',
+  modalidad: 'poomsae_individual',
+  academia_logo_url: '/credenciales/sample-logo-zarumilla.jpg',
+  foto_url: '/credenciales/sample-foto-preview.jpg',
+}
+
+const SAMPLE_LEGACY = {
   id_linea: 0,
   id_academia_campeonato: 0,
   nombres: 'NOMBRE APELLIDO',
@@ -20,7 +34,7 @@ const SAMPLE = {
   codigo_academia: 'CHA',
   academia: 'ACADEMIA EJEMPLO',
   modalidad: 'kyorugi_individual',
-  academia_logo_url: '/branding/academia-logo-sm.png',
+  academia_logo_url: null,
   foto_url: null,
 }
 
@@ -101,7 +115,13 @@ export default function CredencialTemplateEditor({
   const [layout, setLayout] = useState(() =>
     normalizeCredencialLayout(initialLayout, { templateUrl: templateUrl || '' })
   )
-  const [previewSrc, setPreviewSrc] = useState(templateUrl || '/credenciales/plantilla-frente.png')
+  const defaultPreview =
+    templateUrl && isFestcup2026Credencial({ layout: initialLayout, templateUrl })
+      ? credencialTemplateSrc(templateUrl) || FESTCUP_2026_TEMPLATE_DEPORTISTA
+      : templateUrl || '/credenciales/plantilla-frente.png'
+  const [previewSrc, setPreviewSrc] = useState(defaultPreview)
+  const isFestcup = isFestcup2026Credencial({ layout, templateUrl: previewSrc || templateUrl })
+  const sampleCompetidor = isFestcup ? SAMPLE_FESTCUP : SAMPLE_LEGACY
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const previewRef = useRef(null)
@@ -122,7 +142,11 @@ export default function CredencialTemplateEditor({
       if (!res.ok) throw new Error(json.error)
       const url = credencialTemplateSrc(json.campeonato?.template_competidor_url) || json.publicUrl || previewSrc
       setPreviewSrc(url)
-      setLayout(normalizeCredencialLayout(json.campeonato?.credencial_layout))
+      setLayout(
+        normalizeCredencialLayout(json.campeonato?.credencial_layout, {
+          templateUrl: json.campeonato?.template_competidor_url || '',
+        })
+      )
       onSaved?.(json.campeonato, url)
     } catch (e) {
       alert(e.message)
@@ -177,7 +201,9 @@ export default function CredencialTemplateEditor({
       </div>
 
       <p className="cred-editor-hint">
-        Sube tu PNG/JPG (54×86 mm recomendado). Arrastra las zonas punteadas para ubicar la foto (círculo) y los datos del participante.
+        {isFestcup
+          ? 'FestCup 2026: plantilla oficial con DEPORTISTA/ENTRENADOR en el JPG. Arrastra foto, nombre y categoría. Vista previa con datos de ejemplo.'
+          : 'Sube tu PNG/JPG (54×86 mm). Arrastra las zonas punteadas para ubicar la foto y los datos del participante.'}
       </p>
 
       <div className="cred-editor-grid">
@@ -191,22 +217,71 @@ export default function CredencialTemplateEditor({
               previewRef={previewRef}
               onDrag={(patch) => setLayout((l) => ({ ...l, foto: { ...l.foto, ...patch } }))}
             />
-            <ZoneOverlay
-              zone={{ ...layout.datos, type: 'rect', left: layout.datos.left + layout.datos.width / 2, top: layout.datos.top + layout.datos.height / 2, width: layout.datos.width, height: layout.datos.height }}
-              label="DATOS"
-              color="#f59e0b"
-              previewRef={previewRef}
-              onDrag={(patch) =>
-                setLayout((l) => ({
-                  ...l,
-                  datos: {
-                    ...l.datos,
-                    left: patch.left - l.datos.width / 2,
-                    top: patch.top - l.datos.height / 2,
-                  },
-                }))
-              }
-            />
+            {isFestcup && layout.rolOnTemplate ? (
+              <>
+                <ZoneOverlay
+                  zone={{
+                    type: 'rect',
+                    left: layout.nombre?.left ?? layout.datos.left,
+                    top: layout.nombre?.top ?? layout.datos.top,
+                    width: 12,
+                    height: 4,
+                  }}
+                  label="NOMBRE"
+                  color="#f59e0b"
+                  previewRef={previewRef}
+                  onDrag={(patch) =>
+                    setLayout((l) => ({
+                      ...l,
+                      nombre: { ...(l.nombre || l.datos), left: patch.left, top: patch.top },
+                      datos: { ...l.datos, left: patch.left, top: patch.top },
+                    }))
+                  }
+                />
+                <ZoneOverlay
+                  zone={{
+                    type: 'rect',
+                    left: layout.categoria?.left ?? layout.datos.left,
+                    top: layout.categoria?.top ?? (layout.nombre?.top ?? layout.datos.top) + 4,
+                    width: 12,
+                    height: 3,
+                  }}
+                  label="CAT."
+                  color="#10b981"
+                  previewRef={previewRef}
+                  onDrag={(patch) =>
+                    setLayout((l) => ({
+                      ...l,
+                      categoria: { ...(l.categoria || {}), left: patch.left, top: patch.top },
+                    }))
+                  }
+                />
+              </>
+            ) : (
+              <ZoneOverlay
+                zone={{
+                  ...layout.datos,
+                  type: 'rect',
+                  left: layout.datos.left + layout.datos.width / 2,
+                  top: layout.datos.top + layout.datos.height / 2,
+                  width: layout.datos.width,
+                  height: layout.datos.height,
+                }}
+                label="DATOS"
+                color="#f59e0b"
+                previewRef={previewRef}
+                onDrag={(patch) =>
+                  setLayout((l) => ({
+                    ...l,
+                    datos: {
+                      ...l.datos,
+                      left: patch.left - l.datos.width / 2,
+                      top: patch.top - l.datos.height / 2,
+                    },
+                  }))
+                }
+              />
+            )}
           </div>
 
           <div className="cred-editor-controls">
@@ -242,7 +317,7 @@ export default function CredencialTemplateEditor({
         <div className="cred-editor-sample">
           <p className="cred-editor-sample-label">Vista previa credencial</p>
           <CredencialCard
-            competidor={SAMPLE}
+            competidor={sampleCompetidor}
             templateUrl={previewSrc}
             layout={layout}
           />
