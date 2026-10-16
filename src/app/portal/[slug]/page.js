@@ -421,7 +421,7 @@ export default function PortalCampeonatoPage() {
       iniciarOtroAlumno()
       setTab('plantel')
       await cargar()
-      alert(`${total} competidor(es) inscrito(s). Revisa el plantel y envía la lista cuando estés listo.`)
+      alert(`${total} competidor(es) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -442,7 +442,7 @@ export default function PortalCampeonatoPage() {
       setTab('plantel')
       await cargar()
       if (total > 1) {
-        alert(`${total} competidor(es) inscrito(s). Revisa el plantel y envía la lista cuando estés listo.`)
+        alert(`${total} competidor(es) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
       }
     } catch (e) {
       setError(e.message)
@@ -1277,7 +1277,7 @@ export default function PortalCampeonatoPage() {
 
       {puedeEnviar && (
         <button type="button" className="ios-btn ios-btn-primary portal-btn-block" onClick={enviarLista}>
-          {ac.estado_lista === 'enviada' ? 'Reenviar lista (asigna dorsales nuevos)' : 'Enviar lista y obtener dorsales'}
+          {ac.estado_lista === 'enviada' ? 'Confirmar lista (dorsales nuevos)' : 'Confirmar lista enviada'}
         </button>
       )}
 

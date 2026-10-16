@@ -9,6 +9,7 @@ import {
   precioModalidad,
   puedeEnviarLista,
   asignarDorsalesPendientes,
+  asignarDorsalLinea,
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
@@ -58,7 +59,8 @@ async function insertarLineaInscripcion(sb, ac, body) {
     await sb.from('linea_inscripcion_miembro').insert({ id_linea: linea.id_linea, id_perfil: idPerfil })
   }
 
-  return linea
+  // Dorsal + aprobado al inscribir; el pago se valida aparte (comprobantes / admin).
+  return asignarDorsalLinea(sb, linea.id_linea)
 }
 
 export async function GET(request, { params }) {
