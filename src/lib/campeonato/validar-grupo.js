@@ -1,5 +1,9 @@
 import { MODALIDADES, edadWT } from '@/lib/campeonato/constants'
-import { parseGrado, modalidadRequiereCategoriaPoomsae } from '@/lib/campeonato/validar-categoria'
+import {
+  parseGrado,
+  calzaGradoPoomsae,
+  modalidadRequiereCategoriaPoomsae,
+} from '@/lib/campeonato/validar-categoria'
 
 const GRUPO_MODALIDADES = new Set([
   'poomsae_pareja_reconocida',
@@ -9,27 +13,6 @@ const GRUPO_MODALIDADES = new Set([
 
 export function esModalidadGrupo(modalidad) {
   return GRUPO_MODALIDADES.has(modalidad)
-}
-
-function parseKupRango(rango) {
-  if (!rango?.startsWith('kup:')) return null
-  const part = rango.slice(4)
-  const [a, b] = part.split('-').map(Number)
-  if (Number.isNaN(a)) return null
-  return { min: a, max: b ?? a }
-}
-
-function calzaGradoPoomsae(cat, grado) {
-  const rango = cat.grado_rango
-  if (rango === 'ranking') {
-    if (grado?.tipo === 'kup') return grado.nivel === 1
-    return grado?.tipo === 'dan' || grado?.tipo === 'poom'
-  }
-  const kupRango = parseKupRango(rango)
-  if (!kupRango) return true
-  if (grado?.tipo === 'dan' || grado?.tipo === 'poom') return false
-  if (grado?.tipo !== 'kup') return false
-  return grado.nivel >= kupRango.min && grado.nivel <= kupRango.max
 }
 
 function perfilCalzaPoomsae(cat, perfil, anio, { ignorarGenero = false } = {}) {

@@ -73,7 +73,7 @@ export function parseGradoRango(rango) {
   return null
 }
 
-function calzaGradoPoomsae(cat, grado) {
+export function calzaGradoPoomsae(cat, grado) {
   const rango = cat.grado_rango
   if (rango?.startsWith('dan:')) {
     const nivel = Number(rango.slice(4))
