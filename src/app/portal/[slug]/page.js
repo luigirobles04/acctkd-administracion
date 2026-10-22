@@ -495,11 +495,12 @@ export default function PortalCampeonatoPage() {
       alert(val.error)
       return
     }
+    const uploadFile = val.uploadFile || file
     setSubiendoFotoId(p.id_perfil)
     setError(null)
     try {
       const fd = new FormData()
-      fd.append('file', file, file.name || 'foto.jpg')
+      fd.append('file', uploadFile, uploadFile.name || 'foto.jpg')
       const resFoto = await portalFetch(`/api/portal/campeonato/${slug}/foto`, { method: 'POST', body: fd })
       const jsonFoto = await resFoto.json()
       if (!resFoto.ok) throw new Error(jsonFoto.error)
@@ -860,19 +861,19 @@ export default function PortalCampeonatoPage() {
                   {gradoInfo?.tipo === 'kup' && gradoInfo.nivel === 1 && ' · 1er kup elige su forma (Pal Jang) según edad'}
                 </p>
               )}
-              <PortalField label="Foto carnet (credencial)" hint="JPG/PNG, mín. 400 px. No hace falta fondo blanco.">
+              <PortalField label="Foto carnet (credencial)" hint="Cualquier foto del celular o archivo de imagen. No hace falta fondo blanco.">
                 <div className="portal-photo-box">
                   {fotoSrc(perfil.foto_url) && <img src={fotoSrc(perfil.foto_url)} alt="" className="portal-photo-preview" />}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png"
+                    accept="image/*"
                     className="portal-photo-upload"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
                       if (!file) return
                       const val = await validarFotoCarnet(file)
                       if (!val.ok) { alert(val.error); return }
-                      setPerfil((p) => ({ ...p, foto_url: val.preview, _fotoFile: file }))
+                      setPerfil((p) => ({ ...p, foto_url: val.preview, _fotoFile: val.uploadFile || file }))
                     }}
                   />
                 </div>
@@ -1115,7 +1116,7 @@ export default function PortalCampeonatoPage() {
           <div className="portal-card">
             <h3 className="portal-section-title">Competidores registrados · {(data.perfiles || []).length}</h3>
             <p className="portal-section-lead">
-              Sube la foto carnet de cada deportista para la credencial (JPG/PNG). También puedes hacerlo al editar datos.
+              Sube la foto carnet de cada deportista para la credencial (desde el celular está bien). También puedes hacerlo al editar datos.
             </p>
             {(data.perfiles || []).length === 0 ? (
               <p className="portal-empty">Sin competidores registrados.</p>
@@ -1152,7 +1153,7 @@ export default function PortalCampeonatoPage() {
                                   {subiendo ? 'Subiendo…' : src ? 'Cambiar' : 'Subir foto'}
                                   <input
                                     type="file"
-                                    accept="image/jpeg,image/png"
+                                    accept="image/*"
                                     disabled={subiendo}
                                     onChange={(e) => {
                                       const file = e.target.files?.[0]
