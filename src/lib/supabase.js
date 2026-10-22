@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { fetchWithRetry } from '@/lib/supabase-fetch-retry'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey =
@@ -13,7 +14,7 @@ export function isSupabaseConfigured() {
 }
 
 export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchWithRetry } })
   : null
 
 /** Cliente anon; lanza mensaje usable en UI si faltan env vars */

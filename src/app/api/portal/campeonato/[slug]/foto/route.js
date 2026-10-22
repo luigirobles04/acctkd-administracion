@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { resolverPortalCampeonato } from '@/lib/campeonato/portal-server'
 import { puedeInscribir } from '@/lib/campeonato/inscripcion-server'
 import { readUploadFile } from '@/lib/campeonato/upload-file'
+import { mensajeErrorApi, withSupabaseRetry } from '@/lib/supabase-fetch-retry'
 
 export async function POST(request, { params }) {
   try {
@@ -28,14 +29,16 @@ export async function POST(request, { params }) {
     const ext = filename.split('.').pop()?.toLowerCase() || 'jpg'
     const fileName = `${ac.id_academia}/${Date.now()}.${ext}`
 
-    const { error } = await sb.storage
-      .from('competidores-fotos')
-      .upload(fileName, buffer, { contentType: contentType || 'image/jpeg', upsert: false })
+    const { error } = await withSupabaseRetry(() =>
+      sb.storage
+        .from('competidores-fotos')
+        .upload(fileName, buffer, { contentType: contentType || 'image/jpeg', upsert: false })
+    )
     if (error) throw error
 
     const { data: { publicUrl } } = sb.storage.from('competidores-fotos').getPublicUrl(fileName)
     return NextResponse.json({ url: fileName, publicUrl })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ error: mensajeErrorApi(e) }, { status: 503 })
   }
 }

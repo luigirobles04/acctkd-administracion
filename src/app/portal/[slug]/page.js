@@ -589,9 +589,17 @@ export default function PortalCampeonatoPage() {
       <PortalLayout titulo="Error">
         <div className="portal-card">
           <p className="portal-error">{error}</p>
-          <button type="button" className="ios-btn ios-btn-secondary portal-btn-block" onClick={() => router.push('/portal')}>
-            ← Mis campeonatos
-          </button>
+          <p className="portal-field-hint" style={{ marginTop: 8 }}>
+            Si ves un aviso de intermitencias, es una caída temporal de Supabase (no se borran academias ni inscripciones). Espera un momento y reintenta.
+          </p>
+          <div className="portal-actions" style={{ marginTop: 16 }}>
+            <button type="button" className="ios-btn ios-btn-primary" onClick={() => cargar()}>
+              Reintentar
+            </button>
+            <button type="button" className="ios-btn ios-btn-secondary" onClick={() => router.push('/portal')}>
+              ← Mis campeonatos
+            </button>
+          </div>
         </div>
       </PortalLayout>
     )

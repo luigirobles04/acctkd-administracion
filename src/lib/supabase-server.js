@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { fetchWithRetry } from '@/lib/supabase-fetch-retry'
 
 /** Cliente Supabase con service role (solo servidor / API routes) */
 export function getSupabaseAdmin() {
@@ -14,6 +15,7 @@ export function getSupabaseAdmin() {
 
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithRetry },
   })
 }
 
@@ -28,7 +30,14 @@ export async function fetchAllSupabaseRows(sb, buildQuery, pageSize = SUPABASE_P
   const all = []
   let from = 0
   while (true) {
-    const { data, error } = await buildQuery(sb).range(from, from + pageSize - 1)
+    let data
+    let error
+    for (let attempt = 0; attempt < 4; attempt++) {
+      ;({ data, error } = await buildQuery(sb).range(from, from + pageSize - 1))
+      if (!error) break
+      if (attempt === 3) break
+      await new Promise((r) => setTimeout(r, 350 * (attempt + 1)))
+    }
     if (error) throw error
     if (!data?.length) break
     all.push(...data)
