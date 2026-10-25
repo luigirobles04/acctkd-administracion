@@ -9,7 +9,7 @@ export const LINEA_SELECT_ADMIN = `
   peso_declarado, peso_oficial, dorsal_display, dorsal_numero, precio_aplicado, created_at,
   categoria:categoria_campeonato(nombre),
   academia_campeonato(academia:academia(nombre)),
-  miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero))
+  miembros:linea_inscripcion_miembro(id_perfil, perfil:competidor_perfil(id_perfil, nombres, apellidos, sexo, fecha_nacimiento, grado, documento_tipo, documento_numero, foto_url))
 `
 
 export const LINEA_SELECT_ADMIN_PAGOS = `${LINEA_SELECT_ADMIN}, pagos:asignacion_pago(monto)`

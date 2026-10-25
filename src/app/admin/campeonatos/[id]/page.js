@@ -3,7 +3,7 @@ import { adminFetch } from '@/lib/admin-client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
 import LoadingState, { ErrorState } from '@/components/ui/LoadingState'
 import Paginacion from '@/components/ui/Paginacion'
@@ -16,6 +16,7 @@ import FiltroLineasAcademia from '@/components/campeonatos/FiltroLineasAcademia'
 import { useLineasAcademia } from '@/components/campeonatos/useLineasAcademia'
 import { readJsonResponse } from '@/lib/public-app-url'
 import { useFestcupAdmin } from '@/lib/use-festcup-admin'
+import AdminParticipantesPanel from '@/components/campeonatos/AdminParticipantesPanel'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -136,10 +137,14 @@ function DetalleInscripcionesAcademia({ idCampeonato, acId, reloadKey, onEditarP
 export default function CampeonatoDetallePage() {
   const { id } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const idCampeonato = Number(id)
   const festcupMode = useFestcupAdmin()
 
-  const [tab, setTab] = useState('resumen')
+  const [tab, setTab] = useState(() => {
+    const t = searchParams?.get('tab')
+    return t === 'inscripciones' || t === 'participantes' ? 'inscripciones' : 'resumen'
+  })
   const [campeonato, setCampeonato] = useState(null)
   const [categorias, setCategorias] = useState([])
   const [categoriasCount, setCategoriasCount] = useState(0)
@@ -350,6 +355,26 @@ export default function CampeonatoDetallePage() {
     return cats.filter((c) => c.division === division)
   }
 
+  async function anularLineaAdmin(l) {
+    const dorsal = l.dorsal_display ? ` (${l.dorsal_display})` : ''
+    if (!confirm(`¿Anular inscripción de ${nombreParticipanteLinea(l)}${dorsal}? Se actualiza festival, poomsae, pagos y credenciales.`)) return
+    try {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/linea`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLinea: l.id_linea, accion: 'anular_linea' }),
+      })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error)
+      setEditLinea(null)
+      setEditPerfil(null)
+      setReloadKeyIns((k) => k + 1)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
   async function guardarLineaAdmin(e) {
     e.preventDefault()
     if (!editLinea) return
@@ -443,7 +468,7 @@ export default function CampeonatoDetallePage() {
               className={`${festcupMode ? 'festcup-segment-item' : 'ios-segment-item'} ${tab === t.id ? 'active' : ''}`}
               onClick={() => setTab(t.id)}
             >
-              {t.label}
+              {festcupMode && t.id === 'inscripciones' ? 'Participantes' : t.label}
             </button>
           ))}
         </div>
@@ -570,44 +595,22 @@ export default function CampeonatoDetallePage() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Link href={`/admin/campeonatos/${id}/academias`} className="ios-btn ios-btn-secondary">Academias</Link>
                   <Link href={`/admin/campeonatos/${id}/pagos`} className="ios-btn ios-btn-primary">Pagos</Link>
+                  <Link href={`/admin/campeonatos/${id}/festival`} className="ios-btn ios-btn-secondary">Festival</Link>
                   <Link href={`/admin/campeonatos/${id}/llaves`} className="ios-btn ios-btn-secondary">Llaves Kyorugi</Link>
-                  <Link href={`/admin/campeonatos/${id}/poomsae`} className="ios-btn ios-btn-secondary">Orden Poomsae</Link>
-                  <Link href={`/admin/campeonatos/${id}/podios`} className="ios-btn ios-btn-secondary">Podios</Link>
+                  <Link href={`/admin/campeonatos/${id}/poomsae`} className="ios-btn ios-btn-secondary">Poomsae</Link>
                   <Link href={`/admin/campeonatos/${id}/credenciales`} className="ios-btn ios-btn-secondary">Credenciales</Link>
                 </div>
               </div>
 
-              <div className="ios-card" style={{ padding: 16 }}>
-                <input
-                  type="search"
-                  className="ios-input"
-                  placeholder="Buscar en todo el campeonato: dorsal, nombre o academia (mín. 2 letras)…"
-                  value={buscarGlobal}
-                  onChange={(e) => setBuscarGlobal(e.target.value)}
-                  style={{ width: '100%' }}
-                />
-                {busqueda.q && (
-                  <div style={{ marginTop: 12 }}>
-                    {busqueda.loading ? (
-                      <LoadingState mensaje="Buscando…" padding={16} />
-                    ) : busqueda.error ? (
-                      <ErrorState mensaje={busqueda.error} />
-                    ) : (
-                      <>
-                        <p className="ios-caption" style={{ color: 'var(--label3)', marginBottom: 8 }}>
-                          {busqueda.lineas.length} resultado(s) para “{busqueda.q}”
-                        </p>
-                        <TablaLineasInscripcion
-                          lineas={busqueda.lineas}
-                          onEditarPerfil={abrirEditarPerfil}
-                          onEditarLinea={abrirEditarLinea}
-                          mostrarAcademia
-                        />
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+              <AdminParticipantesPanel
+                idCampeonato={idCampeonato}
+                reloadKey={reloadKeyIns}
+                onEditarPerfil={abrirEditarPerfil}
+                onEditarLinea={abrirEditarLinea}
+                onAnularLinea={anularLineaAdmin}
+              />
+
+              <p className="ios-caption" style={{ color: 'var(--label3)', margin: '0 4px' }}>Vista por academia (opcional)</p>
 
               {!busqueda.q && gruposInscripcion.map((g) => (
                 <AcademiaExpansible
@@ -724,7 +727,7 @@ export default function CampeonatoDetallePage() {
                       )}
                     </>
                   )}
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       type="submit"
                       className="ios-btn ios-btn-primary"
@@ -733,6 +736,20 @@ export default function CampeonatoDetallePage() {
                       Guardar
                     </button>
                     <button type="button" className="ios-btn ios-btn-secondary" onClick={() => setEditLinea(null)}>Cancelar</button>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn-ghost"
+                      style={{ color: 'var(--red)' }}
+                      onClick={() =>
+                        anularLineaAdmin({
+                          id_linea: editLinea.id_linea,
+                          dorsal_display: null,
+                          miembros: [{ perfil: editLinea.perfil }],
+                        })
+                      }
+                    >
+                      Anular inscripción
+                    </button>
                   </div>
                 </div>
               </form>
