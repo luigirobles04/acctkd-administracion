@@ -123,6 +123,9 @@ export default function PortalCampeonatoPage() {
   const [subiendoFotoId, setSubiendoFotoId] = useState(null)
   const [buscandoDoc, setBuscandoDoc] = useState(false)
   const [avisoBusqueda, setAvisoBusqueda] = useState(null)
+  const [editLineaPortal, setEditLineaPortal] = useState(null)
+  const [editLineaForm, setEditLineaForm] = useState({ idCategoria: '', peso: '' })
+  const [guardandoLineaPortal, setGuardandoLineaPortal] = useState(false)
 
   const cargar = useCallback(async () => {
     if (!slug) return
@@ -179,6 +182,26 @@ export default function PortalCampeonatoPage() {
       return []
     }
   }, [data?.categorias, perfil, anio])
+
+  const perfilLineaEdit = editLineaPortal?.miembros?.[0]?.perfil
+  const catsEditKyorugi = useMemo(() => {
+    if (!perfilLineaEdit) return []
+    return categoriasValidas(
+      (data?.categorias || []).filter((c) => c.modalidad === 'kyorugi'),
+      perfilLineaEdit,
+      anio,
+      editLineaForm.peso
+    )
+  }, [data?.categorias, perfilLineaEdit, anio, editLineaForm.peso])
+
+  const catsEditPoomsae = useMemo(() => {
+    if (!perfilLineaEdit) return []
+    return categoriasPoomsaeValidas(
+      (data?.categorias || []).filter((c) => c.modalidad === 'poomsae'),
+      perfilLineaEdit,
+      anio
+    )
+  }, [data?.categorias, perfilLineaEdit, anio])
 
   function toggleModalidad(key) {
     const mod = MODALIDADES_PORTAL.find((m) => m.key === key)
@@ -469,8 +492,11 @@ export default function PortalCampeonatoPage() {
     cargar()
   }
 
-  async function anularLinea(idLinea) {
-    if (!confirm('¿Anular esta inscripción?')) return
+  async function anularLinea(idLinea, dorsal) {
+    const msg = dorsal
+      ? `¿Anular esta inscripción (dorsal ${dorsal})? Se quitará del campeonato y se actualizará el monto a pagar.`
+      : '¿Anular esta inscripción?'
+    if (!confirm(msg)) return
     const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
       method: 'POST',
       body: JSON.stringify({ accion: 'anular_linea', idLinea }),
@@ -478,6 +504,45 @@ export default function PortalCampeonatoPage() {
     const json = await res.json()
     if (!res.ok) alert(json.error)
     else cargar()
+  }
+
+  function abrirEditarLinea(l) {
+    setEditLineaPortal(l)
+    setEditLineaForm({
+      idCategoria: l.id_categoria ? String(l.id_categoria) : '',
+      peso: l.peso_declarado != null && l.peso_declarado !== '' ? String(l.peso_declarado) : '',
+    })
+  }
+
+  async function guardarEditarLinea() {
+    if (!editLineaPortal) return
+    setGuardandoLineaPortal(true)
+    try {
+      const payload = {
+        accion: 'actualizar_linea',
+        idLinea: editLineaPortal.id_linea,
+      }
+      if (editLineaPortal.modalidad === 'festival') {
+        payload.pesoDeclarado = editLineaForm.peso
+      } else if (editLineaPortal.modalidad === 'kyorugi_individual') {
+        payload.idCategoria = editLineaForm.idCategoria
+        payload.pesoDeclarado = editLineaForm.peso
+      } else if (modalidadRequiereCategoriaPoomsae(editLineaPortal.modalidad)) {
+        payload.idCategoria = editLineaForm.idCategoria
+      }
+      const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setEditLineaPortal(null)
+      await cargar()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setGuardandoLineaPortal(false)
+    }
   }
 
   function editarCompetidor(p) {
@@ -528,10 +593,25 @@ export default function PortalCampeonatoPage() {
   }
 
   async function eliminarCompetidor(idPerfil) {
-    if (!confirm('¿Eliminar este competidor del plantel?')) return
+    const activas = (data?.lineas || []).filter(
+      (l) => l.estado !== 'anulado' && l.miembros?.some((m) => m.id_perfil === idPerfil)
+    )
+    let anularInscripcionesPrimero = false
+    if (activas.length) {
+      if (
+        !confirm(
+          `Este competidor tiene ${activas.length} inscripción(es) activa(s) (poomsae, festival, kyorugi, etc.).\n\n¿Anular todas y eliminar del plantel?`
+        )
+      ) {
+        return
+      }
+      anularInscripcionesPrimero = true
+    } else if (!confirm('¿Eliminar este competidor del plantel?')) {
+      return
+    }
     const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
       method: 'POST',
-      body: JSON.stringify({ accion: 'eliminar_perfil', idPerfil }),
+      body: JSON.stringify({ accion: 'eliminar_perfil', idPerfil, anularInscripcionesPrimero }),
     })
     const json = await res.json()
     if (!res.ok) alert(json.error)
@@ -620,6 +700,7 @@ export default function PortalCampeonatoPage() {
   const rechazada = ac.estado_aprobacion === 'rechazada'
   const puedeEnviar = ac.aceptacion_bases_at && !rechazada
   const allCats = data.categorias || []
+  const puedeGestionarPlantel = Boolean(data.inscripcion?.ok) && ac.aceptacion_bases_at && !rechazada
   const faltaLogo = !data.academia?.logo_url
 
   if (faltaLogo) {
@@ -1068,6 +1149,9 @@ export default function PortalCampeonatoPage() {
       {tab === 'plantel' && (
         <>
           <div className="portal-card">
+            <p className="portal-section-lead" style={{ marginTop: 0 }}>
+              Puedes <strong>editar</strong> categoría (poomsae/kyorugi) o peso (festival) y <strong>anular</strong> cualquier inscripción, incluso con dorsal.
+            </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <h3 className="portal-section-title" style={{ margin: 0 }}>Plantel · {data.lineas?.length || 0} inscripciones</h3>
               {ac.aceptacion_bases_at && !rechazada && !data.inscripcion?.soloPago && (
@@ -1107,9 +1191,30 @@ export default function PortalCampeonatoPage() {
                           <td style={{ padding: '8px 6px' }}>{l.categoria?.nombre || '—'}</td>
                           <td style={{ padding: '8px 6px' }}>{l.peso_declarado ? `${l.peso_declarado} kg` : '—'}</td>
                           <td style={{ padding: '8px 6px' }}>S/ {l.precio_aplicado} <span style={{ fontSize: 11, color: 'var(--label3)' }}>({est.label})</span></td>
-                          <td style={{ padding: '8px 6px' }}>
-                            {!l.dorsal_display && (
-                              <button type="button" onClick={() => anularLinea(l.id_linea)} className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }}>Anular</button>
+                          <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
+                            {puedeGestionarPlantel && l.estado !== 'anulado' && (
+                              <>
+                                {(l.modalidad === 'festival'
+                                  || l.modalidad === 'kyorugi_individual'
+                                  || l.modalidad === 'poomsae_individual') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirEditarLinea(l)}
+                                    className="ios-btn ios-btn-secondary"
+                                    style={{ fontSize: 11, marginRight: 4 }}
+                                  >
+                                    Editar
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => anularLinea(l.id_linea, l.dorsal_display)}
+                                  className="ios-btn ios-btn-ghost"
+                                  style={{ fontSize: 11, color: 'var(--red)' }}
+                                >
+                                  Anular
+                                </button>
+                              </>
                             )}
                           </td>
                         </tr>
@@ -1120,6 +1225,71 @@ export default function PortalCampeonatoPage() {
               </div>
             )}
           </div>
+
+          {editLineaPortal && (
+            <div className="portal-card" style={{ border: '2px solid var(--red)' }}>
+              <h3 className="portal-section-title" style={{ marginTop: 0 }}>
+                Editar inscripción · {modalidadLabel(editLineaPortal.modalidad)}
+              </h3>
+              <p className="portal-section-lead">
+                {editLineaPortal.miembros?.map((m) => `${m.perfil?.nombres} ${m.perfil?.apellidos}`).join(' · ')}
+                {editLineaPortal.dorsal_display ? ` · Dorsal ${editLineaPortal.dorsal_display}` : ''}
+              </p>
+              {editLineaPortal.modalidad === 'festival' && (
+                <PortalField label="Peso (kg) — planilla festival">
+                  <input
+                    className="ios-input"
+                    type="number"
+                    min="1"
+                    step="0.1"
+                    value={editLineaForm.peso}
+                    onChange={(e) => setEditLineaForm({ ...editLineaForm, peso: e.target.value })}
+                  />
+                </PortalField>
+              )}
+              {editLineaPortal.modalidad === 'kyorugi_individual' && (
+                <>
+                  <PortalField label="Peso declarado (kg)">
+                    <input
+                      className="ios-input"
+                      type="number"
+                      min="1"
+                      step="0.1"
+                      value={editLineaForm.peso}
+                      onChange={(e) => setEditLineaForm({ ...editLineaForm, peso: e.target.value })}
+                    />
+                  </PortalField>
+                  <PortalField label="Categoría kyorugi">
+                    <PortalCategoriaPicker
+                      categorias={catsEditKyorugi}
+                      value={editLineaForm.idCategoria}
+                      onChange={(v) => setEditLineaForm({ ...editLineaForm, idCategoria: v })}
+                      emptyMessage="No hay categoría para este peso, edad y grado."
+                    />
+                  </PortalField>
+                </>
+              )}
+              {editLineaPortal.modalidad === 'poomsae_individual' && (
+                <PortalField label="División poomsae">
+                  <PortalCategoriaPicker
+                    categorias={catsEditPoomsae}
+                    value={editLineaForm.idCategoria}
+                    onChange={(v) => setEditLineaForm({ ...editLineaForm, idCategoria: v })}
+                    emptyMessage="No hay división válida para edad, sexo y grado."
+                    grouped
+                  />
+                </PortalField>
+              )}
+              <div className="portal-actions">
+                <button type="button" className="ios-btn ios-btn-secondary" disabled={guardandoLineaPortal} onClick={() => setEditLineaPortal(null)}>
+                  Cancelar
+                </button>
+                <button type="button" className="ios-btn ios-btn-primary" disabled={guardandoLineaPortal} onClick={guardarEditarLinea}>
+                  {guardandoLineaPortal ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="portal-card">
             <h3 className="portal-section-title">Competidores registrados · {(data.perfiles || []).length}</h3>

@@ -12,6 +12,7 @@ import {
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { rejectIfLegacyInscripcionDisabled } from '@/lib/campeonato/legacy-inscripcion'
+import { anularLineaPortal } from '@/lib/campeonato/portal-linea'
 
 export async function GET(_request, { params }) {
   const disabled = rejectIfLegacyInscripcionDisabled()
@@ -129,21 +130,8 @@ export async function POST(request, { params }) {
     }
 
     if (accion === 'anular_linea') {
-      if (check.soloPago && body.soloPago !== true) {
-        /* anular permitido en gracia */
-      }
       const { idLinea } = body
-      const { data: linea } = await sb.from('linea_inscripcion').select('*').eq('id_linea', idLinea).eq('id_academia_campeonato', ac.id).single()
-      if (!linea) return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
-
-      await sb.from('asignacion_pago').delete().eq('id_linea', idLinea)
-      await sb
-        .from('linea_inscripcion')
-        .update({ estado: 'anulado', dorsal_numero: null, dorsal_display: null, updated_at: new Date().toISOString() })
-        .eq('id_linea', idLinea)
-
-      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
-      await recalcularMontosAcademia(sb, ac.id)
+      await anularLineaPortal(sb, ac, idLinea, 'portal')
       return NextResponse.json({ ok: true })
     }
 

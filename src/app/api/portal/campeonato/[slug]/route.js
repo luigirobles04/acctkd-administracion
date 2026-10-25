@@ -14,6 +14,12 @@ import {
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
 import { mensajeErrorApi } from '@/lib/supabase-fetch-retry'
+import {
+  anularLineaPortal,
+  anularLineasActivasPerfil,
+  actualizarLineaPortal,
+  portalPuedeGestionarInscripciones,
+} from '@/lib/campeonato/portal-linea'
 
 async function insertarLineaInscripcion(sb, ac, body) {
   const { modalidad, idPerfiles, idCategoria, pesoDeclarado, tipoOficial, grupoUuid } = body
@@ -217,65 +223,28 @@ export async function POST(request, { params }) {
     }
 
     if (accion === 'anular_linea') {
-      const { idLinea } = body
-      const { data: linea } = await sb
-        .from('linea_inscripcion')
-        .select('*')
-        .eq('id_linea', idLinea)
-        .eq('id_academia_campeonato', ac.id)
-        .single()
-      if (!linea) return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
-      if (linea.estado === 'aprobado') {
-        return NextResponse.json({ error: 'No se puede anular una línea con dorsal aprobado' }, { status: 403 })
+      if (!portalPuedeGestionarInscripciones(check, ac)) {
+        return NextResponse.json({ error: check.reason || 'No se puede anular ahora' }, { status: 403 })
       }
-
-      await sb.from('asignacion_pago').delete().eq('id_linea', idLinea)
-      await sb
-        .from('linea_inscripcion')
-        .update({
-          estado: 'anulado',
-          dorsal_numero: null,
-          dorsal_display: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id_linea', idLinea)
-
-      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
-      await recalcularMontosAcademia(sb, ac.id)
+      const { idLinea } = body
+      await anularLineaPortal(sb, ac, idLinea, 'portal')
       return NextResponse.json({ ok: true })
     }
 
     if (accion === 'actualizar_linea') {
-      const { idLinea, idCategoria, pesoDeclarado } = body
-      const { data: linea } = await sb
-        .from('linea_inscripcion')
-        .select('*')
-        .eq('id_linea', idLinea)
-        .eq('id_academia_campeonato', ac.id)
-        .single()
-      if (!linea) return NextResponse.json({ error: 'Línea no encontrada' }, { status: 404 })
-      if (linea.estado !== 'pendiente_pago') {
-        return NextResponse.json({ error: 'Solo se editan líneas pendientes de pago' }, { status: 403 })
+      if (!portalPuedeGestionarInscripciones(check, ac)) {
+        return NextResponse.json({ error: check.reason || 'No se puede editar ahora' }, { status: 403 })
       }
-
-      const patch = { updated_at: new Date().toISOString() }
-      if (idCategoria != null) patch.id_categoria = idCategoria ? Number(idCategoria) : null
-      if (pesoDeclarado != null) patch.peso_declarado = pesoDeclarado ? Number(pesoDeclarado) : null
-
-      const { data: updated, error: errU } = await sb
-        .from('linea_inscripcion')
-        .update(patch)
-        .eq('id_linea', idLinea)
-        .select()
-        .single()
-      if (errU) throw errU
-
-      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
-      return NextResponse.json({ linea: updated })
+      const { idLinea, idCategoria, pesoDeclarado } = body
+      const linea = await actualizarLineaPortal(sb, ac, idLinea, { idCategoria, pesoDeclarado })
+      return NextResponse.json({ linea })
     }
 
     if (accion === 'eliminar_perfil') {
-      const { idPerfil } = body
+      if (!portalPuedeGestionarInscripciones(check, ac)) {
+        return NextResponse.json({ error: check.reason || 'No se puede eliminar ahora' }, { status: 403 })
+      }
+      const { idPerfil, anularInscripcionesPrimero } = body
       const { count } = await sb
         .from('linea_inscripcion_miembro')
         .select('id_linea, linea_inscripcion!inner(estado, id_academia_campeonato)', { count: 'exact', head: true })
@@ -283,7 +252,17 @@ export async function POST(request, { params }) {
         .eq('linea_inscripcion.id_academia_campeonato', ac.id)
         .neq('linea_inscripcion.estado', 'anulado')
       if ((count || 0) > 0) {
-        return NextResponse.json({ error: 'El competidor tiene inscripciones activas. Anúlalas primero.' }, { status: 403 })
+        if (!anularInscripcionesPrimero) {
+          return NextResponse.json(
+            {
+              error:
+                'El competidor tiene inscripciones activas. Anúlalas en la tabla de arriba o confirma eliminar con anulación automática.',
+              requiereAnular: true,
+            },
+            { status: 403 }
+          )
+        }
+        await anularLineasActivasPerfil(sb, ac, idPerfil)
       }
       await sb.from('competidor_perfil').delete().eq('id_perfil', idPerfil).eq('id_academia', ac.id_academia)
       return NextResponse.json({ ok: true })
