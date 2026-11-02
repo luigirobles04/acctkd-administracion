@@ -9,17 +9,12 @@ export const MODALIDADES = {
   festival: { label: 'Festival Kyorugi', cobra: true, miembros: 1 },
 }
 
-/** Tarifas que pagan los coaches (lista FDPTKD menos retención organizador S/ 20). */
-export const RETENCION_ORGANIZADOR = 20
+export { RETENCION_ORGANIZADOR, TARIFAS_LISTA_FDPTKD, tarifasCoachDesdeLista } from '@/lib/campeonato/tarifas-coach'
 
-export const TARIFAS_FDPTKD_DEFAULT = [
-  { modalidad: 'kyorugi_individual', precio_regular: 70, precio_tardia: 100 },
-  { modalidad: 'poomsae_individual', precio_regular: 70, precio_tardia: 100 },
-  { modalidad: 'poomsae_pareja_reconocida', precio_regular: 120, precio_tardia: 140 },
-  { modalidad: 'poomsae_pareja_freestyle', precio_regular: 120, precio_tardia: 140 },
-  { modalidad: 'poomsae_equipo', precio_regular: 130, precio_tardia: 160 },
-  { modalidad: 'festival', precio_regular: 70, precio_tardia: 100 },
-]
+import { tarifasCoachDesdeLista } from '@/lib/campeonato/tarifas-coach'
+
+/** Precios coach por modalidad (usar al sembrar campeonato_tarifa). */
+export const TARIFAS_FDPTKD_DEFAULT = tarifasCoachDesdeLista()
 
 export const ROLES_OFICIAL = [
   { value: 'coach', label: 'Coach' },

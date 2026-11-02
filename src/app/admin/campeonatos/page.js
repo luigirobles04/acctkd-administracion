@@ -10,7 +10,8 @@ import { isFestcupEventAdmin } from '@/lib/festcup-event-admin'
 import LoadingState from '@/components/ui/LoadingState'
 import { listarCampeonatos } from '@/lib/services/campeonato.service'
 import { formatFecha } from '@/lib/utils/format'
-import { MODALIDADES, TARIFAS_FDPTKD_DEFAULT, RETENCION_ORGANIZADOR } from '@/lib/campeonato/constants'
+import { MODALIDADES, RETENCION_ORGANIZADOR } from '@/lib/campeonato/constants'
+import { tarifasCoachDesdeLista } from '@/lib/campeonato/tarifas-coach'
 
 const ESTADOS = {
   planificado: { label: 'Planificado', cls: 'badge-blue' },
@@ -21,7 +22,7 @@ const ESTADOS = {
 }
 
 function tarifasIniciales() {
-  return TARIFAS_FDPTKD_DEFAULT.map((t) => ({ ...t }))
+  return tarifasCoachDesdeLista()
 }
 
 const FORM_INICIAL = {

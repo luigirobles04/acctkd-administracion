@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import AdminLayout from '@/components/layout/AdminLayout'
 import LoadingState from '@/components/ui/LoadingState'
-import { TARIFAS_FDPTKD_DEFAULT, RETENCION_ORGANIZADOR } from '@/lib/campeonato/constants'
+import { RETENCION_ORGANIZADOR } from '@/lib/campeonato/constants'
+import { tarifasCoachDesdeLista } from '@/lib/campeonato/tarifas-coach'
 
 export default function TarifasCampeonatoPage() {
   const { id } = useParams()
@@ -36,7 +37,7 @@ export default function TarifasCampeonatoPage() {
   }
 
   function aplicarDefaultRetencion() {
-    const byMod = new Map(TARIFAS_FDPTKD_DEFAULT.map((t) => [t.modalidad, t]))
+    const byMod = new Map(tarifasCoachDesdeLista().map((t) => [t.modalidad, t]))
     setTarifas((prev) => prev.map((t) => {
       const d = byMod.get(t.modalidad)
       if (!d) return t

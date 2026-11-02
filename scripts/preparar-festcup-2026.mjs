@@ -65,7 +65,7 @@ const payload = {
   estado: 'inscripciones',
   fecha_inicio_regular: '2026-07-01',
   fecha_fin_regular: '2026-10-31',
-  fecha_cierre_inscripcion: '2026-11-05',
+  fecha_cierre_inscripcion: '2026-11-06',
   fecha_gracia_pago: '2026-11-06',
   cuenta_bancaria_info: `Depósito / transferencia
 Titular: Christopher Martin Cabrera Nole
