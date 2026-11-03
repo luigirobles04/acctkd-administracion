@@ -25,7 +25,7 @@ export const ROLES_OFICIAL = [
   { value: 'presidente', label: 'Presidente' },
 ]
 
-export const MAX_OFICIALES = 3
+export const MAX_OFICIALES = 4
 
 const GRADOS_KUP = [
   '10º kup', '9º kup', '8º kup', '7º kup', '6º kup', '5º kup', '4º kup', '3º kup', '2º kup', '1º kup',

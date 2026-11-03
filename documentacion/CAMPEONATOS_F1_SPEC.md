@@ -46,7 +46,7 @@ F1 entrega inscripciones por academia (link genérico + link propio), perfiles r
 | Pareja reconocida | S/ 140 | S/ 160 |
 | Pareja freestyle (solo mixta) | S/ 140 | S/ 160 |
 | Equipo WT (3) | S/ 150 | S/ 180 |
-| Oficiales (≤3) | S/ 0 | S/ 0 |
+| Oficiales (≤4) | S/ 0 | S/ 0 |
 
 Precio fijado al crear línea. Sin descuentos. Moneda PEN.
 
