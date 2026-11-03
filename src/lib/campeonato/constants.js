@@ -27,11 +27,14 @@ export const ROLES_OFICIAL = [
 
 export const MAX_OFICIALES = 3
 
-export const GRADOS_KUP_DAN = [
+const GRADOS_KUP = [
   '10º kup', '9º kup', '8º kup', '7º kup', '6º kup', '5º kup', '4º kup', '3º kup', '2º kup', '1º kup',
-  '1º poom', '2º poom', '3º poom',
-  '1º dan', '2º dan', '3º dan', '4º dan', '5º dan',
 ]
+const GRADOS_POOM = ['1º poom', '2º poom', '3º poom']
+const GRADOS_DAN = Array.from({ length: 10 }, (_, i) => `${i + 1}º dan`)
+
+/** Opciones del selector en portal, admin y oficiales (hasta 10º dan). */
+export const GRADOS_KUP_DAN = [...GRADOS_KUP, ...GRADOS_POOM, ...GRADOS_DAN]
 
 export const DOCUMENTO_TIPOS = [
   { value: 'DNI', label: 'DNI' },
