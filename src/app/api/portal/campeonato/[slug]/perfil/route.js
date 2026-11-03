@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { resolverPortalCampeonato } from '@/lib/campeonato/portal-server'
 import { puedeInscribir } from '@/lib/campeonato/inscripcion-server'
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import { httpStatusParaErrorApi, mensajeErrorApi } from '@/lib/supabase-fetch-retry'
+import { supabaseErrorMessage } from '@/lib/supabase-errors'
 
 export async function GET(request, { params }) {
   try {
@@ -34,7 +36,8 @@ export async function GET(request, { params }) {
         : null,
     })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    const msg = supabaseErrorMessage(e, mensajeErrorApi(e))
+    return NextResponse.json({ error: msg }, { status: httpStatusParaErrorApi(e, msg) })
   }
 }
 
@@ -114,6 +117,7 @@ export async function POST(request, { params }) {
     await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
     return NextResponse.json({ perfil })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    const msg = supabaseErrorMessage(e, mensajeErrorApi(e))
+    return NextResponse.json({ error: msg }, { status: httpStatusParaErrorApi(e, msg) })
   }
 }

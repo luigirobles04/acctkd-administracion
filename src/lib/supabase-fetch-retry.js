@@ -79,3 +79,16 @@ export function mensajeErrorApi(e, fallback = 'Error del servidor') {
   if (isRetryableSupabaseMessage(msg)) return MENSAJE_INCIDENTE_SUPABASE
   return msg || fallback
 }
+
+/** Errores de negocio / validación → 400; caídas de red o gateway → 503. */
+export function httpStatusParaErrorApi(e, msg = mensajeErrorApi(e)) {
+  const raw = e?.message || String(e || '')
+  if (
+    isRetryableSupabaseMessage(raw)
+    || isRetryableSupabaseMessage(msg)
+    || msg === MENSAJE_INCIDENTE_SUPABASE
+  ) {
+    return 503
+  }
+  return 400
+}

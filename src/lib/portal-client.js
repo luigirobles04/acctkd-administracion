@@ -1,6 +1,7 @@
 import { getSessionToken } from '@/lib/services/auth.service'
-import { fetchWithRetry, isRetryableHttpStatus, MENSAJE_INCIDENTE_SUPABASE } from '@/lib/supabase-fetch-retry'
+import { fetchWithRetry } from '@/lib/supabase-fetch-retry'
 
+/** fetch autenticado del portal; conserva el mensaje de error del servidor (no lo tapa con “intermitencias”). */
 export async function portalFetch(url, options = {}) {
   const token = getSessionToken()
   const headers = {
@@ -11,12 +12,5 @@ export async function portalFetch(url, options = {}) {
     headers['Content-Type'] = 'application/json'
   }
 
-  const res = await fetchWithRetry(url, { ...options, headers })
-  if (!res.ok && isRetryableHttpStatus(res.status)) {
-    return new Response(JSON.stringify({ error: MENSAJE_INCIDENTE_SUPABASE }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  return res
+  return fetchWithRetry(url, { ...options, headers })
 }

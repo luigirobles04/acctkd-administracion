@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { isRetryableHttpStatus, isRetryableSupabaseMessage, mensajeErrorApi } from '@/lib/supabase-fetch-retry'
+import {
+  httpStatusParaErrorApi,
+  isRetryableHttpStatus,
+  isRetryableSupabaseMessage,
+  mensajeErrorApi,
+} from '@/lib/supabase-fetch-retry'
 
 describe('supabase-fetch-retry', () => {
   it('marca 502–504 como reintentables', () => {
@@ -15,5 +20,10 @@ describe('supabase-fetch-retry', () => {
 
   it('mensaje amigable en fallos de gateway', () => {
     expect(mensajeErrorApi(new Error('Gateway Timeout'))).toMatch(/intermitencias/i)
+  })
+
+  it('httpStatusParaErrorApi: validación 400, red 503', () => {
+    expect(httpStatusParaErrorApi(new Error('Máximo 3 oficiales'))).toBe(400)
+    expect(httpStatusParaErrorApi(new Error('fetch failed'))).toBe(503)
   })
 })

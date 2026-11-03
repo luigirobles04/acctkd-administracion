@@ -13,7 +13,8 @@ import {
 } from '@/lib/campeonato/inscripcion-server'
 import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
-import { mensajeErrorApi } from '@/lib/supabase-fetch-retry'
+import { httpStatusParaErrorApi, mensajeErrorApi } from '@/lib/supabase-fetch-retry'
+import { supabaseErrorMessage } from '@/lib/supabase-errors'
 import {
   anularLineaPortal,
   anularLineasActivasPerfil,
@@ -160,7 +161,8 @@ export async function GET(request, { params }) {
       maxOficiales: MAX_OFICIALES,
     })
   } catch (e) {
-    return NextResponse.json({ error: mensajeErrorApi(e) }, { status: 503 })
+    const msg = supabaseErrorMessage(e, mensajeErrorApi(e))
+    return NextResponse.json({ error: msg }, { status: httpStatusParaErrorApi(e, msg) })
   }
 }
 
@@ -341,6 +343,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ error: 'Acción no válida' }, { status: 400 })
   } catch (e) {
-    return NextResponse.json({ error: mensajeErrorApi(e) }, { status: 503 })
+    const msg = supabaseErrorMessage(e, mensajeErrorApi(e))
+    return NextResponse.json({ error: msg }, { status: httpStatusParaErrorApi(e, msg) })
   }
 }
