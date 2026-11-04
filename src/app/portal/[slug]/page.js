@@ -861,7 +861,7 @@ export default function PortalCampeonatoPage() {
             <>
               <h3 className="portal-section-title">Buscar participante</h3>
               <p className="portal-section-lead">
-                Si ya está en tu academia, Buscar carga sus datos y foto. Continuar es solo para un competidor nuevo.
+                Si ya está en tu academia, Buscar carga sus datos y foto. Continuar es solo para un participante nuevo.
               </p>
               <div className="portal-field-grid portal-field-grid--doc">
                 <PortalField label="Tipo">
@@ -920,7 +920,7 @@ export default function PortalCampeonatoPage() {
                     setStep(1)
                   }}
                 >
-                  Continuar (competidor nuevo)
+                  Continuar (participante nuevo)
                 </button>
               </div>
             </>

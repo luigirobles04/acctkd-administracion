@@ -88,13 +88,20 @@ function drawCenteredText(
   zone,
   W,
   H,
-  { fontSizeMm, fontWeight, color, lineHeight = 1.12, fontFamily = '"Arial Black", "Helvetica Neue", Arial, sans-serif' }
+  {
+    fontSizeMm,
+    fontWeight,
+    color,
+    lineHeight = 1.12,
+    fontFamily = '"Arial Black", "Helvetica Neue", Arial, sans-serif',
+    startYpx = null,
+  }
 ) {
   const content = `${text || ''}`.trim()
-  if (!content) return
+  if (!content) return startYpx ?? (zone.top / 100) * H
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  let y = (zone.top / 100) * H
+  let y = startYpx ?? (zone.top / 100) * H
   const fontSize = mmToPx(fontSizeMm)
   ctx.save()
   ctx.fillStyle = color
@@ -107,6 +114,7 @@ function drawCenteredText(
     y += fontSize * lineHeight
   }
   ctx.restore()
+  return y
 }
 
 function readText(frenteEl, ...selectors) {
@@ -185,18 +193,20 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
   const nombre = readText(frenteEl, '.cred-festcup-nombre', '.cred-datos-nombre')
   const categoria = readText(frenteEl, '.cred-festcup-categoria', '.cred-datos-categoria-festcup')
 
-  drawCenteredText(ctx, nombre, layout.nombre, W, H, {
+  const afterNombre = drawCenteredText(ctx, nombre, layout.nombre, W, H, {
     fontSizeMm: 2.35,
     fontWeight: 900,
     color: '#0d0d0d',
     lineHeight: 1.1,
   })
+  const catStartY = afterNombre + mmToPx(0.65)
   drawCenteredText(ctx, categoria, layout.categoria, W, H, {
-    fontSizeMm: 1.55,
+    fontSizeMm: 1.65,
     fontWeight: 600,
     color: '#2a2a2a',
-    lineHeight: 1.28,
+    lineHeight: 1.25,
     fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+    startYpx: catStartY,
   })
 
   return canvas
