@@ -1,6 +1,10 @@
 'use client'
 
 import { FESTCUP_2026_CREDENCIAL_LAYOUT } from '@/lib/campeonato/credencial-layout'
+import {
+  FESTCUP_TEXT_FIT_DEFAULTS,
+  shrinkFestcupTextToHeight,
+} from '@/lib/campeonato/fit-festcup-credencial-texto'
 
 export const CAPTURE_DPI = 300
 export const CAPTURE_PX_W = Math.round((54 / 25.4) * CAPTURE_DPI)
@@ -88,7 +92,7 @@ function measureLines(ctx, text, maxW, fontSizePx, lineHeight) {
   return { lines, height: h }
 }
 
-function measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
+function measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
   const nomLh = 1.1
   const catLh = 1.28
   ctx.font = `900 ${mmToPx(nombreMm)}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
@@ -102,63 +106,37 @@ function measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
 function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  const maxBottom = H - mmToPx(exportRules.bottomMm ?? 7)
-  const minTop = H * ((exportRules.maxTopPct ?? 75.2) / 100)
+  const rules = { ...FESTCUP_TEXT_FIT_DEFAULTS, ...exportRules }
+  const maxBottom = H - mmToPx(rules.bottomMm)
+  const minTop = H * (rules.maxTopPct / 100)
 
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
 
-  /** Mismos valores que la web (credenciales.css). */
-  let nombreMm = 2.35
-  let catMm = 1.55
-  let gapMm = 0.5
+  const { block, nombreMm, catMm, gapMm } = shrinkFestcupTextToHeight(
+    (nMm, cMm, gMm) => {
+      const b = measureBlockPx(ctx, nombreStr, catStr, maxW, nMm, cMm, gMm)
+      return { ...b, totalH: b.totalH / mmToPx(1) }
+    },
+    rules,
+  )
 
-  for (let i = 0; i < 48; i++) {
-    const block = measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
-    const startY = maxBottom - block.totalH
+  const startY = maxBottom - mmToPx(block.totalH)
 
-    if (startY >= minTop) {
-      return {
-        cx,
-        startY,
-        maxW,
-        nom: block.nom,
-        cat: block.cat,
-        nombreMm,
-        catMm,
-        gap: block.gap,
-        nomLh: block.nomLh,
-        catLh: block.catLh,
-      }
-    }
-
-    if (nombreMm > 1.88) {
-      nombreMm -= 0.07
-      continue
-    }
-    if (catMm > 1.22) {
-      catMm -= 0.05
-      continue
-    }
-    if (gapMm > 0.32) {
-      gapMm -= 0.03
-      continue
-    }
-    return {
-      cx,
-      startY: Math.max(minTop, maxBottom - block.totalH),
-      maxW,
-      nom: block.nom,
-      cat: block.cat,
-      nombreMm,
-      catMm,
-      gap: block.gap,
-      nomLh: block.nomLh,
-      catLh: block.catLh,
-    }
+  return {
+    cx,
+    startY: Math.max(minTop, startY),
+    maxBottom,
+    minTop,
+    maxW,
+    nom: block.nom,
+    cat: block.cat,
+    nombreMm,
+    catMm,
+    gap: block.gap,
+    nomLh: block.nomLh,
+    catLh: block.catLh,
   }
-
-  return null
 }
 
 function drawLines(ctx, lines, cx, y, fontSizePx, lineHeight, color, font) {
@@ -221,7 +199,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
       const { x, y, w, h } = centerRect(
         { left: logoZone.left, top: logoZone.top, width: logoZone.width, height: logoZone.width },
         W,
-        H
+        H,
       )
       ctx.save()
       ctx.globalAlpha = logoZone.opacity ?? 0.28
@@ -257,6 +235,12 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
     const nomPx = mmToPx(block.nombreMm)
     const catPx = mmToPx(block.catMm)
     let y = block.startY
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, block.minTop, W, block.maxBottom - block.minTop)
+    ctx.clip()
+
     if (block.nom.lines.length) {
       y = drawLines(
         ctx,
@@ -266,7 +250,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
         nomPx,
         block.nomLh ?? 1.1,
         '#0d0d0d',
-        `900 ${nomPx}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
+        `900 ${nomPx}px "Arial Black", "Helvetica Neue", Arial, sans-serif`,
       )
       y += block.gap
     }
@@ -279,9 +263,10 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
         catPx,
         block.catLh ?? 1.28,
         '#2a2a2a',
-        `600 ${catPx}px Arial, "Helvetica Neue", sans-serif`
+        `600 ${catPx}px Arial, "Helvetica Neue", sans-serif`,
       )
     }
+    ctx.restore()
   }
 
   return canvas

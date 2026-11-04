@@ -10,8 +10,8 @@ export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   /** Debajo del rol impreso en la plantilla (DEPORTISTA / ENTRENADOR) */
   nombre: { left: 50, top: 79.5, width: 86 },
   categoria: { left: 50, top: 81.35, width: 86 },
-  /** Franja inferior de logos en plantilla (~7 mm desde el borde) */
-  textoExport: { bottomMm: 7, maxTopPct: 75.2 },
+  /** Franja inferior de logos en plantilla (~11.5 mm desde el borde) */
+  textoExport: { bottomMm: 11.5, maxTopPct: 73.5 },
   datos: { left: 50, top: 74.9, width: 90, height: 10 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
   rolOnTemplate: true,

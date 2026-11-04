@@ -253,6 +253,10 @@ async function buildPdfFromFrentes(frentes, { onProgress, jpegQuality, progressB
     onProgress?.(progressBase + i + 1, totalProgress)
     const el = frentes[i]
     await waitImages(el)
+    if (el.classList.contains('credencial-frente--festcup2026')) {
+      applyFestcupCredencialTextFit(el)
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    }
 
     let canvas
     try {

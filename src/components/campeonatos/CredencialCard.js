@@ -71,7 +71,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const festcupTextoStyle = rolOnTemplate
     ? {
         left: `${(layout.nombre || layout.datos).left}%`,
-        bottom: `${textoExport.bottomMm ?? 7}mm`,
+        bottom: `${textoExport.bottomMm ?? 11.5}mm`,
         top: 'auto',
         width: `${(layout.nombre || layout.datos).width ?? 86}%`,
         transform: 'translateX(-50%)',
