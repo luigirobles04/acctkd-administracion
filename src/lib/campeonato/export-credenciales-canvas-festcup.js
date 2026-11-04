@@ -27,9 +27,9 @@ function initialExportFonts(ctx, nombreStr, catStr, maxW) {
   if (words >= 6 || len >= 41 || webNomLines >= 4) {
     return { nombreMm: 1.56, catMm: 1.16, gapMm: 0.26, extreme: true }
   }
-  /* 5 palabras y 3+ líneas (p. ej. Enmanuel … Sambrano Romero) */
-  if (words >= 5 && (webNomLines >= 3 || len >= 32)) {
-    return { nombreMm: 1.64, catMm: 1.14, gapMm: 0.26, extreme: true }
+  /* 5 palabras largas (p. ej. Enmanuel Alejandro Sambrano Romero, ~33+ chars) */
+  if (words >= 5 && (len >= 33 || webNomLines >= 3)) {
+    return { nombreMm: 1.54, catMm: 1.08, gapMm: 0.24, extreme: true }
   }
   if (words >= 5) {
     return { nombreMm: 1.92, catMm: 1.3, gapMm: 0.32, extreme: false }
