@@ -249,13 +249,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
   gap: 0.5mm;
   box-sizing: border-box;
   padding: 0 1.2mm;
   background: transparent;
   text-align: center;
-  max-width: 92%;
 }
 
 .credencial-frente--festcup2026 .cred-festcup-texto .cred-festcup-nombre,

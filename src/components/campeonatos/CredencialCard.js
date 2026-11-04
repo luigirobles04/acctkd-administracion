@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { applyFestcupCredencialTextFit } from '@/lib/campeonato/fit-festcup-credencial-texto'
+import { useEffect, useMemo, useState } from 'react'
 import {
   credencialRolFestcup2026,
   credencialTemplateSrc,
@@ -27,7 +26,6 @@ function formatCategoriaLegacy(nombre) {
 }
 
 export default function CredencialCard({ competidor: c, templateUrl, layout: layoutProp }) {
-  const frenteRef = useRef(null)
   const [fotoOk, setFotoOk] = useState(Boolean(c.foto_url))
   const nombre = useMemo(() => formatNombre(c.nombres), [c.nombres])
   const layout = useMemo(
@@ -54,6 +52,16 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
 
   const rolOnTemplate = isFestcup2026 && layout.rolOnTemplate
 
+  const festcupZoneStyle = (zone) =>
+    zone
+      ? {
+          left: `${zone.left}%`,
+          top: `${zone.top}%`,
+          width: `${zone.width ?? 90}%`,
+          transform: 'translateX(-50%)',
+        }
+      : null
+
   const datosStyle = {
     left: `${layout.datos.left}%`,
     top: `${layout.datos.top}%`,
@@ -65,28 +73,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
         : {}),
   }
 
-  const textoExport = layout.textoExport || {}
-  const categoriaLabel = isFestcup2026 ? formatCategoriaCredencial(c.categoria) : ''
-
-  const festcupTextoStyle = rolOnTemplate
-    ? {
-        left: `${(layout.nombre || layout.datos).left}%`,
-        bottom: `${textoExport.bottomMm ?? 11.5}mm`,
-        top: 'auto',
-        width: `${(layout.nombre || layout.datos).width ?? 86}%`,
-        transform: 'translateX(-50%)',
-      }
-    : null
-
-  useLayoutEffect(() => {
-    if (!rolOnTemplate || !frenteRef.current) return
-    const el = frenteRef.current
-    const run = () => applyFestcupCredencialTextFit(el, textoExport)
-    run()
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(run) : null
-    ro?.observe(el)
-    return () => ro?.disconnect()
-  }, [rolOnTemplate, nombre, categoriaLabel, textoExport.bottomMm, textoExport.maxTopPct])
+  const festcupTextoStyle = rolOnTemplate ? festcupZoneStyle(layout.nombre || layout.datos) : null
 
   const academiaLogoStyle = isFestcup2026 && layout.academiaLogo
     ? {
@@ -100,6 +87,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
     : null
   const rolLabel =
     isFestcup2026 && !rolOnTemplate ? credencialRolFestcup2026(c.modalidad) : null
+  const categoriaLabel = isFestcup2026 ? formatCategoriaCredencial(c.categoria) : ''
 
   return (
     <article
@@ -110,10 +98,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
       data-alumno-nombre={nombre || c.nombres || ''}
       data-dorsal={c.dorsal || ''}
     >
-      <div
-        ref={frenteRef}
-        className={`credencial-frente${isFestcup2026 ? ' credencial-frente--festcup2026' : ''}`}
-      >
+      <div className={`credencial-frente${isFestcup2026 ? ' credencial-frente--festcup2026' : ''}`}>
         <img src={plantillaSrc} alt="" className="cred-plantilla-bg" />
 
         {isFestcup2026 && c.academia_logo_url && academiaLogoStyle ? (

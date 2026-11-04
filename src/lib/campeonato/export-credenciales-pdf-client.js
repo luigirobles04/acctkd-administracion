@@ -6,8 +6,6 @@ import {
   CAPTURE_PX_W,
   renderFestcupCredencialCanvas,
 } from '@/lib/campeonato/export-credenciales-canvas-festcup'
-import { applyFestcupCredencialTextFit } from '@/lib/campeonato/fit-festcup-credencial-texto'
-
 const CARD_W_MM = 54
 const CARD_H_MM = 86
 
@@ -154,7 +152,6 @@ async function waitImages(root) {
 
 async function captureCredencialCanvas(sourceEl, html2canvas) {
   if (sourceEl.classList.contains('credencial-frente--festcup2026')) {
-    applyFestcupCredencialTextFit(sourceEl)
     return renderFestcupCredencialCanvas(sourceEl)
   }
 
@@ -253,10 +250,6 @@ async function buildPdfFromFrentes(frentes, { onProgress, jpegQuality, progressB
     onProgress?.(progressBase + i + 1, totalProgress)
     const el = frentes[i]
     await waitImages(el)
-    if (el.classList.contains('credencial-frente--festcup2026')) {
-      applyFestcupCredencialTextFit(el)
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-    }
 
     let canvas
     try {
