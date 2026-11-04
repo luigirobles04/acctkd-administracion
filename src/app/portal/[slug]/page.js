@@ -459,7 +459,7 @@ export default function PortalCampeonatoPage() {
       iniciarOtroAlumno()
       setTab('plantel')
       await cargar()
-      alert(`${total} competidor(es) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
+      alert(`${total} participante(s) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -480,7 +480,7 @@ export default function PortalCampeonatoPage() {
       setTab('plantel')
       await cargar()
       if (total > 1) {
-        alert(`${total} competidor(es) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
+        alert(`${total} participante(s) inscrito(s) con dorsal asignado. El pago se valida por separado en ACCTKD.`)
       }
     } catch (e) {
       setError(e.message)
@@ -615,13 +615,13 @@ export default function PortalCampeonatoPage() {
     if (activas.length) {
       if (
         !confirm(
-          `Este competidor tiene ${activas.length} inscripción(es) activa(s) (poomsae, festival, kyorugi, etc.).\n\n¿Anular todas y eliminar del plantel?`
+          `Este participante tiene ${activas.length} inscripción(es) activa(s) (poomsae, festival, kyorugi, etc.).\n\n¿Anular todas y eliminar del plantel?`
         )
       ) {
         return
       }
       anularInscripcionesPrimero = true
-    } else if (!confirm('¿Eliminar este competidor del plantel?')) {
+    } else if (!confirm('¿Eliminar este participante del plantel?')) {
       return
     }
     const res = await portalFetch(`/api/portal/campeonato/${slug}`, {
@@ -823,7 +823,7 @@ export default function PortalCampeonatoPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
-                      <th style={{ padding: '8px 6px' }}>Competidor</th>
+                      <th style={{ padding: '8px 6px' }}>Participante</th>
                       <th style={{ padding: '8px 6px' }}>Modalidades</th>
                       <th style={{ padding: '8px 6px' }}></th>
                     </tr>
@@ -852,16 +852,16 @@ export default function PortalCampeonatoPage() {
           )}
           {editPerfilId && (
             <p className="portal-field-hint portal-field-hint--info" style={{ marginBottom: 12 }}>
-              Editando competidor — completa modalidades y confirma para agregar nuevas inscripciones, o solo actualiza datos en paso 2.
+              Editando participante — completa modalidades y confirma para agregar nuevas inscripciones, o solo actualiza datos en paso 2.
             </p>
           )}
           <PortalWizardSteps steps={STEPS} current={step} />
 
           {step === 0 && (
             <>
-              <h3 className="portal-section-title">Buscar competidor</h3>
+              <h3 className="portal-section-title">Buscar participante</h3>
               <p className="portal-section-lead">
-                Si ya está en tu academia, Buscar carga sus datos y foto. Continuar es solo para un deportista nuevo.
+                Si ya está en tu academia, Buscar carga sus datos y foto. Continuar es solo para un competidor nuevo.
               </p>
               <div className="portal-field-grid portal-field-grid--doc">
                 <PortalField label="Tipo">
@@ -920,7 +920,7 @@ export default function PortalCampeonatoPage() {
                     setStep(1)
                   }}
                 >
-                  Continuar (deportista nuevo)
+                  Continuar (competidor nuevo)
                 </button>
               </div>
             </>
@@ -928,7 +928,7 @@ export default function PortalCampeonatoPage() {
 
           {step === 1 && (
             <>
-              <h3 className="portal-section-title">Datos del competidor</h3>
+              <h3 className="portal-section-title">Datos del participante</h3>
               <p className="portal-section-lead">
                 {editPerfilId
                   ? 'Deportista encontrado — datos y foto cargados. Verifica y continúa con modalidades o guarda cambios.'
@@ -1183,7 +1183,7 @@ export default function PortalCampeonatoPage() {
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--separator)', textAlign: 'left' }}>
                       <th style={{ padding: '8px 6px' }}>Dorsal</th>
-                      <th style={{ padding: '8px 6px' }}>Competidor</th>
+                      <th style={{ padding: '8px 6px' }}>Participante</th>
                       <th style={{ padding: '8px 6px' }}>Modalidad</th>
                       <th style={{ padding: '8px 6px' }}>Categoría</th>
                       <th style={{ padding: '8px 6px' }}>Peso</th>
@@ -1307,12 +1307,12 @@ export default function PortalCampeonatoPage() {
           )}
 
           <div className="portal-card">
-            <h3 className="portal-section-title">Competidores registrados · {(data.perfiles || []).length}</h3>
+            <h3 className="portal-section-title">Participantes registrados · {(data.perfiles || []).length}</h3>
             <p className="portal-section-lead">
               Sube la foto carnet de cada deportista para la credencial (desde el celular está bien). También puedes hacerlo al editar datos.
             </p>
             {(data.perfiles || []).length === 0 ? (
-              <p className="portal-empty">Sin competidores registrados.</p>
+              <p className="portal-empty">Sin participantes registrados.</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -1383,7 +1383,7 @@ export default function PortalCampeonatoPage() {
                 <>
                   <h3 className="portal-section-title">Pareja y equipo poomsae</h3>
                   <p className="portal-section-lead">
-                    Arma parejas reconocidas, freestyle (mixta) o equipos WT con competidores ya registrados en tu academia.
+                    Arma parejas reconocidas, freestyle (mixta) o equipos WT con participantes ya registrados en tu academia.
                   </p>
                   <button
                     type="button"
@@ -1395,7 +1395,7 @@ export default function PortalCampeonatoPage() {
                   </button>
                   {(data.perfiles || []).length < 2 && (
                     <p className="portal-field-hint" style={{ marginTop: 10 }}>
-                      Necesitas al menos 2 competidores en el plantel.
+                      Necesitas al menos 2 participantes en el plantel.
                     </p>
                   )}
                 </>

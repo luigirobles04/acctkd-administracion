@@ -90,7 +90,14 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
   const categoriaLabel = isFestcup2026 ? formatCategoriaCredencial(c.categoria) : ''
 
   return (
-    <article className="credencial-sheet" data-academia={c.id_academia_campeonato}>
+    <article
+      className="credencial-sheet"
+      data-academia={c.id_academia_campeonato}
+      data-id-linea={c.id_linea}
+      data-id-perfil={c.id_perfil ?? ''}
+      data-alumno-nombre={nombre || c.nombres || ''}
+      data-dorsal={c.dorsal || ''}
+    >
       <div className={`credencial-frente${isFestcup2026 ? ' credencial-frente--festcup2026' : ''}`}>
         <img src={plantillaSrc} alt="" className="cred-plantilla-bg" />
 
@@ -118,7 +125,7 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
 
         {rolOnTemplate ? (
           <div className="cred-festcup-texto" style={festcupTextoStyle || undefined}>
-            <p className="cred-festcup-nombre">{nombre || 'COMPETIDOR'}</p>
+            <p className="cred-festcup-nombre">{nombre || 'PARTICIPANTE'}</p>
             {categoriaLabel ? (
               <p className="cred-datos-categoria-festcup cred-festcup-categoria">{categoriaLabel}</p>
             ) : null}
@@ -131,14 +138,14 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
             {isFestcup2026 ? (
               <>
                 {rolLabel ? <p className="cred-datos-rol">{rolLabel}</p> : null}
-                <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>
+                <p className="cred-datos-nombre">{nombre || 'PARTICIPANTE'}</p>
                 {categoriaLabel ? (
                   <p className="cred-datos-categoria-festcup">{categoriaLabel}</p>
                 ) : null}
               </>
             ) : (
               <>
-                <p className="cred-datos-nombre">{nombre || 'COMPETIDOR'}</p>
+                <p className="cred-datos-nombre">{nombre || 'PARTICIPANTE'}</p>
                 <p className="cred-datos-categoria">{formatCategoriaLegacy(c.categoria)}</p>
                 <p className="cred-datos-extra">
                   {c.dorsal}

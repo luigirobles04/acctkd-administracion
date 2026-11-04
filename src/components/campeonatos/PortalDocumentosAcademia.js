@@ -51,7 +51,7 @@ export default function PortalDocumentosAcademia({ slug, nombreAcademia }) {
           {loading === 'xlsx' ? 'Generando…' : 'Descargar ficha Excel'}
         </button>
         <Link href={`/portal/${slug}/credenciales`} className="ios-btn ios-btn-secondary">
-          Ver e imprimir credenciales
+          Ver y descargar credenciales (ZIP / PDF)
         </Link>
       </div>
 

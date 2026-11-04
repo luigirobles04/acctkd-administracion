@@ -10,19 +10,19 @@ export const MODALIDADES_GRUPO = [
   {
     key: 'poomsae_pareja_reconocida',
     label: 'Pareja reconocida',
-    desc: '2 competidores · misma división · mixta o mismo sexo',
+    desc: '2 participantes · misma división · mixta o mismo sexo',
     icon: 'group',
   },
   {
     key: 'poomsae_pareja_freestyle',
     label: 'Pareja freestyle',
-    desc: '2 competidores · exactamente 1 M + 1 F',
+    desc: '2 participantes · exactamente 1 M + 1 F',
     icon: 'groups',
   },
   {
     key: 'poomsae_equipo',
     label: 'Equipo WT',
-    desc: '3 competidores · mismo sexo · misma división',
+    desc: '3 participantes · mismo sexo · misma división',
     icon: 'diversity_3',
   },
 ]
@@ -87,7 +87,7 @@ export default function PortalGrupoForm({ slug, perfiles, categorias, anioCampeo
     setError(null)
     try {
       if (selectedIds.length !== miembros) {
-        throw new Error(`Selecciona ${miembros} competidores`)
+        throw new Error(`Selecciona ${miembros} participantes`)
       }
       if (!idCategoria) throw new Error('Elige la división poomsae')
 
@@ -114,7 +114,7 @@ export default function PortalGrupoForm({ slug, perfiles, categorias, anioCampeo
   if (!perfiles?.length) {
     return (
       <p className="portal-empty">
-        Inscribe competidores individuales primero. Luego podrás armar parejas y equipos aquí.
+        Inscribe participantes individuales primero. Luego podrás armar parejas y equipos aquí.
       </p>
     )
   }

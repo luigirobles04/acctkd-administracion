@@ -465,18 +465,18 @@
   max-width: 100%;
 }
 
-/* ── Impresión: tamaño credencial real (54×86 mm), una por hoja ── */
+/* ── Impresión: una credencial (54×86 mm) centrada por hoja A4 ── */
 @media print {
   @page {
-    size: 54mm 86mm;
-    margin: 0;
+    size: A4 portrait;
+    margin: 10mm;
   }
 
   html,
   body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 54mm !important;
+    width: auto !important;
     height: auto !important;
     background: #fff !important;
     print-color-adjust: exact;
@@ -491,19 +491,31 @@
   .ios-navbar,
   .ios-tabbar,
   .credenciales-academia-head,
-  .credenciales-toolbar {
+  .credenciales-toolbar,
+  .portal-topbar,
+  .portal-page-head,
+  .portal-back,
+  .portal-footer {
     display: none !important;
+  }
+
+  .portal-shell,
+  .portal-main {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: #fff !important;
   }
 
   .ios-main,
   .ios-main > main {
     margin: 0 !important;
     padding: 0 !important;
-    width: 54mm !important;
+    width: auto !important;
   }
 
   .credenciales-academia.is-collapsed .credenciales-stack {
-    display: flex !important;
+    display: block !important;
   }
 
   .credenciales-root,
@@ -513,6 +525,9 @@
     padding: 0;
     max-width: none;
     display: block;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .credencial-sheet {
@@ -520,15 +535,16 @@
     height: 86mm;
     min-height: 86mm;
     max-height: 86mm;
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     overflow: hidden;
     page-break-after: always;
     break-after: page;
     page-break-inside: avoid;
-    break-inside: avoid;
+    break-inside: avoid-page;
     box-sizing: border-box;
     display: block;
+    position: relative;
   }
 
   .credencial-sheet:last-child {
@@ -540,17 +556,30 @@
     display: none !important;
   }
 
+  .credencial-frente,
+  .cred-plantilla-bg,
+  .cred-foto-slot,
+  .cred-festcup-texto,
+  .cred-datos-slot {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+
   .credencial-frente {
     width: 54mm;
     height: 86mm;
     max-width: 54mm;
     max-height: 86mm;
-    margin: 0;
+    margin: 0 auto;
     box-shadow: none;
     border-radius: 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
     overflow: hidden;
     box-sizing: border-box;
+    position: relative;
+  }
+
+  .cred-plantilla-bg {
+    position: absolute;
+    inset: 0;
   }
 }

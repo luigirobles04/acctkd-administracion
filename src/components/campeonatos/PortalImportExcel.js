@@ -188,7 +188,7 @@ export default function PortalImportExcel({ slug, onSuccess, disabled = false })
       {preview && (
         <div className="portal-import-preview">
           <div className="portal-import-stats">
-            <span><b>{preview.resumen?.perfiles || 0}</b> competidores</span>
+            <span><b>{preview.resumen?.perfiles || 0}</b> participantes</span>
             <span><b>{preview.resumen?.ok || 0}</b> líneas OK</span>
             <span className={preview.resumen?.errores ? 'warn' : ''}><b>{preview.resumen?.errores || 0}</b> con error</span>
           </div>

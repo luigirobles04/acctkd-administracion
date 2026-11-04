@@ -76,6 +76,7 @@ export async function buildCredencialesCampeonato(sb, idCampeonato, { idAcademia
     const ac = l.academia_campeonato?.academia
     return {
       id_linea: l.id_linea,
+      id_perfil: p?.id_perfil ?? null,
       id_academia_campeonato: l.id_academia_campeonato,
       id_academia: ac?.id_academia || l.academia_campeonato?.id || l.id_academia_campeonato,
       codigo_academia: ac?.codigo_prefijo ?? ac?.id_academia ?? '',
