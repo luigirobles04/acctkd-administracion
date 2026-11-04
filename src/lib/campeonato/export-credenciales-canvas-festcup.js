@@ -1,14 +1,23 @@
 'use client'
 
 import { FESTCUP_2026_CREDENCIAL_LAYOUT } from '@/lib/campeonato/credencial-layout'
-import {
-  FESTCUP_TEXT_FIT_DEFAULTS,
-  shrinkFestcupTextToHeight,
-} from '@/lib/campeonato/fit-festcup-credencial-texto'
 
 export const CAPTURE_DPI = 300
 export const CAPTURE_PX_W = Math.round((54 / 25.4) * CAPTURE_DPI)
 export const CAPTURE_PX_H = Math.round((86 / 25.4) * CAPTURE_DPI)
+
+const EXPORT_TEXT = {
+  nombreMm: 2.35,
+  catMm: 1.55,
+  gapMm: 0.5,
+  bottomMm: 8.5,
+  minStartPct: 77.8,
+  minNombreMm: 1.75,
+  minCatMm: 1.12,
+  minGapMm: 0.3,
+  floorNombreMm: 1.5,
+  floorCatMm: 1.0,
+}
 
 function mmToPx(mm) {
   return (mm / 25.4) * CAPTURE_DPI
@@ -103,31 +112,29 @@ function measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
   return { nom, cat, gap, nomLh, catLh, totalH: nom.height + gap + cat.height }
 }
 
+/** Misma posición que web (top del bloque); solo export ajusta si no cabe sobre logos. */
 function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  const rules = { ...FESTCUP_TEXT_FIT_DEFAULTS, ...exportRules }
+  const rules = { ...EXPORT_TEXT, ...exportRules }
   const maxBottom = H - mmToPx(rules.bottomMm)
-  const minTop = H * (rules.maxTopPct / 100)
+  const startYWeb = ((zone.top ?? 79.5) / 100) * H
+  const minStartY = H * ((rules.minStartPct ?? 77.8) / 100)
 
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
 
-  const { block, nombreMm, catMm, gapMm } = shrinkFestcupTextToHeight(
-    (nMm, cMm, gMm) => {
-      const b = measureBlockPx(ctx, nombreStr, catStr, maxW, nMm, cMm, gMm)
-      return { ...b, totalH: b.totalH / mmToPx(1) }
-    },
-    rules,
-  )
+  let nombreMm = rules.nombreMm
+  let catMm = rules.catMm
+  let gapMm = rules.gapMm
 
-  const startY = maxBottom - mmToPx(block.totalH)
+  const measure = () => measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
 
-  return {
+  const pack = (block, startY) => ({
     cx,
-    startY: Math.max(minTop, startY),
+    startY,
     maxBottom,
-    minTop,
+    minStartY,
     maxW,
     nom: block.nom,
     cat: block.cat,
@@ -136,7 +143,49 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
     gap: block.gap,
     nomLh: block.nomLh,
     catLh: block.catLh,
+  })
+
+  for (let pass = 0; pass < 2; pass++) {
+    const mins =
+      pass === 0
+        ? { n: rules.minNombreMm, c: rules.minCatMm, g: rules.minGapMm }
+        : { n: rules.floorNombreMm, c: rules.floorCatMm, g: rules.minGapMm }
+
+    for (let i = 0; i < 56; i++) {
+      const block = measure()
+      let startY = startYWeb
+      if (startY + block.totalH <= maxBottom) {
+        return pack(block, startY)
+      }
+
+      if (startY + block.totalH > maxBottom) {
+        const shift = startY + block.totalH - maxBottom
+        startY = Math.max(minStartY, startYWeb - shift)
+        if (startY + block.totalH <= maxBottom) {
+          return pack(block, startY)
+        }
+      }
+
+      if (nombreMm > mins.n) {
+        nombreMm -= pass === 0 ? 0.06 : 0.04
+        continue
+      }
+      if (catMm > mins.c) {
+        catMm -= pass === 0 ? 0.045 : 0.03
+        continue
+      }
+      if (gapMm > mins.g) {
+        gapMm -= 0.025
+        continue
+      }
+
+      const blockFinal = measure()
+      const startY = Math.max(minStartY, maxBottom - blockFinal.totalH)
+      return pack(blockFinal, startY)
+    }
   }
+
+  return null
 }
 
 function drawLines(ctx, lines, cx, y, fontSizePx, lineHeight, color, font) {
@@ -238,7 +287,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
 
     ctx.save()
     ctx.beginPath()
-    ctx.rect(0, block.minTop, W, block.maxBottom - block.minTop)
+    ctx.rect(0, block.minStartY, W, block.maxBottom - block.minStartY)
     ctx.clip()
 
     if (block.nom.lines.length) {
