@@ -52,15 +52,23 @@ export default function CredencialCard({ competidor: c, templateUrl, layout: lay
 
   const rolOnTemplate = isFestcup2026 && layout.rolOnTemplate
 
-  const festcupZoneStyle = (zone) =>
-    zone
-      ? {
-          left: `${zone.left}%`,
-          top: `${zone.top}%`,
-          width: `${zone.width ?? 90}%`,
-          transform: 'translateX(-50%)',
-        }
-      : null
+  const festcupZoneStyle = (zone) => {
+    if (!zone) return null
+    const base = {
+      left: `${zone.left}%`,
+      width: `${zone.width ?? 90}%`,
+      transform: 'translateX(-50%)',
+    }
+    if (zone.bottomMm != null) {
+      return {
+        ...base,
+        bottom: `${zone.bottomMm}mm`,
+        top: 'auto',
+        maxHeight: zone.maxHeightMm ? `${zone.maxHeightMm}mm` : undefined,
+      }
+    }
+    return { ...base, top: `${zone.top}%` }
+  }
 
   const datosStyle = {
     left: `${layout.datos.left}%`,

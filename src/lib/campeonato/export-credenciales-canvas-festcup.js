@@ -21,7 +21,7 @@ async function loadImageBitmap(src) {
     }
     const url = URL.createObjectURL(blob)
     try {
-      return await new Promise((resolve, reject) => {
+      return await new Promise((resolve) => {
         const img = new Image()
         img.onload = () => resolve(img)
         img.onerror = () => resolve(null)
@@ -82,39 +82,72 @@ function wrapLines(ctx, text, maxWidth) {
   return lines
 }
 
-function drawCenteredText(
-  ctx,
-  text,
-  zone,
-  W,
-  H,
-  {
-    fontSizeMm,
-    fontWeight,
-    color,
-    lineHeight = 1.12,
-    fontFamily = '"Arial Black", "Helvetica Neue", Arial, sans-serif',
-    startYpx = null,
-  }
-) {
-  const content = `${text || ''}`.trim()
-  if (!content) return startYpx ?? (zone.top / 100) * H
+function measureLines(ctx, text, maxW, fontSizePx, lineHeight) {
+  const lines = wrapLines(ctx, text, maxW)
+  const h = lines.length * fontSizePx * lineHeight
+  return { lines, height: h }
+}
+
+function fitTextBlock(ctx, nombre, categoria, zone, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  let y = startYpx ?? (zone.top / 100) * H
-  const fontSize = mmToPx(fontSizeMm)
+  const bottomMargin = mmToPx(zone.bottomMm ?? 10.6)
+  const maxBlockH = mmToPx(zone.maxHeightMm ?? 12.6)
+  const minTop = ((zone.minTopPct ?? 76) / 100) * H
+  const maxBottom = H - bottomMargin
+
+  let nombreMm = 2.35
+  let catMm = 1.65
+  let gapMm = 0.55
+
+  const nombreStr = `${nombre || ''}`.trim()
+  const catStr = `${categoria || ''}`.trim()
+
+  for (let i = 0; i < 24; i++) {
+    ctx.font = `900 ${mmToPx(nombreMm)}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
+    const nom = measureLines(ctx, nombreStr, maxW, mmToPx(nombreMm), 1.08)
+    ctx.font = `600 ${mmToPx(catMm)}px Arial, "Helvetica Neue", sans-serif`
+    const cat = catStr ? measureLines(ctx, catStr, maxW, mmToPx(catMm), 1.22) : { lines: [], height: 0 }
+
+    const gap = catStr ? mmToPx(gapMm) : 0
+    const totalH = nom.height + gap + cat.height
+    const startY = maxBottom - totalH
+
+    if (totalH <= maxBlockH && startY >= minTop) {
+      return { cx, startY, maxW, nom, cat, nombreMm, catMm, gap }
+    }
+
+    if (nombreMm > 2.05) {
+      nombreMm -= 0.1
+      continue
+    }
+    if (catMm > 1.42) {
+      catMm -= 0.07
+      continue
+    }
+    if (gapMm > 0.35) {
+      gapMm -= 0.05
+      continue
+    }
+    return { cx, startY: Math.max(minTop, maxBottom - Math.min(totalH, maxBlockH)), maxW, nom, cat, nombreMm, catMm, gap }
+  }
+
+  return null
+}
+
+function drawLines(ctx, lines, cx, y, fontSizePx, lineHeight, color, font) {
   ctx.save()
   ctx.fillStyle = color
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
-  const lines = wrapLines(ctx, content, maxW)
+  ctx.font = font
+  let cy = y
   for (const line of lines) {
-    ctx.fillText(line, cx, y)
-    y += fontSize * lineHeight
+    ctx.fillText(line, cx, cy)
+    cy += fontSizePx * lineHeight
   }
   ctx.restore()
-  return y
+  return cy
 }
 
 function readText(frenteEl, ...selectors) {
@@ -193,21 +226,37 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
   const nombre = readText(frenteEl, '.cred-festcup-nombre', '.cred-datos-nombre')
   const categoria = readText(frenteEl, '.cred-festcup-categoria', '.cred-datos-categoria-festcup')
 
-  const afterNombre = drawCenteredText(ctx, nombre, layout.nombre, W, H, {
-    fontSizeMm: 2.35,
-    fontWeight: 900,
-    color: '#0d0d0d',
-    lineHeight: 1.1,
-  })
-  const catStartY = afterNombre + mmToPx(0.65)
-  drawCenteredText(ctx, categoria, layout.categoria, W, H, {
-    fontSizeMm: 1.65,
-    fontWeight: 600,
-    color: '#2a2a2a',
-    lineHeight: 1.25,
-    fontFamily: 'Arial, "Helvetica Neue", sans-serif',
-    startYpx: catStartY,
-  })
+  const block = fitTextBlock(ctx, nombre, categoria, layout.nombre, W, H)
+  if (block) {
+    const nomPx = mmToPx(block.nombreMm)
+    const catPx = mmToPx(block.catMm)
+    let y = block.startY
+    if (block.nom.lines.length) {
+      y = drawLines(
+        ctx,
+        block.nom.lines,
+        block.cx,
+        y,
+        nomPx,
+        1.08,
+        '#0d0d0d',
+        `900 ${nomPx}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
+      )
+      y += block.gap
+    }
+    if (block.cat.lines.length) {
+      drawLines(
+        ctx,
+        block.cat.lines,
+        block.cx,
+        y,
+        catPx,
+        1.22,
+        '#2a2a2a',
+        `600 ${catPx}px Arial, "Helvetica Neue", sans-serif`
+      )
+    }
+  }
 
   return canvas
 }
