@@ -153,16 +153,15 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
 
     for (let i = 0; i < 56; i++) {
       const block = measure()
-      let startY = startYWeb
-      if (startY + block.totalH <= maxBottom) {
-        return pack(block, startY)
+      if (startYWeb + block.totalH <= maxBottom) {
+        return pack(block, startYWeb)
       }
 
-      if (startY + block.totalH > maxBottom) {
-        const shift = startY + block.totalH - maxBottom
-        startY = Math.max(minStartY, startYWeb - shift)
-        if (startY + block.totalH <= maxBottom) {
-          return pack(block, startY)
+      {
+        const shift = startYWeb + block.totalH - maxBottom
+        const shiftedY = Math.max(minStartY, startYWeb - shift)
+        if (shiftedY + block.totalH <= maxBottom) {
+          return pack(block, shiftedY)
         }
       }
 
@@ -180,8 +179,8 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
       }
 
       const blockFinal = measure()
-      const startY = Math.max(minStartY, maxBottom - blockFinal.totalH)
-      return pack(blockFinal, startY)
+      const fallbackY = Math.max(minStartY, maxBottom - blockFinal.totalH)
+      return pack(blockFinal, fallbackY)
     }
   }
 
