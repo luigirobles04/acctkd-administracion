@@ -10,13 +10,19 @@ const EXPORT_TEXT = {
   nombreMm: 2.35,
   catMm: 1.55,
   gapMm: 0.5,
-  bottomMm: 8.5,
-  minStartPct: 77.8,
-  minNombreMm: 1.75,
-  minCatMm: 1.12,
-  minGapMm: 0.3,
-  floorNombreMm: 1.5,
-  floorCatMm: 1.0,
+  bottomMm: 9,
+  minStartPct: 74.5,
+  minNombreMm: 1.42,
+  minCatMm: 0.95,
+  minGapMm: 0.22,
+}
+
+function initialExportFonts(nombreStr) {
+  const words = `${nombreStr || ''}`.trim().split(/\s+/).filter(Boolean).length
+  if (words >= 6) return { nombreMm: 1.82, catMm: 1.32, gapMm: 0.32 }
+  if (words >= 5) return { nombreMm: 1.98, catMm: 1.4, gapMm: 0.36 }
+  if (words >= 4) return { nombreMm: 2.12, catMm: 1.46, gapMm: 0.42 }
+  return { nombreMm: EXPORT_TEXT.nombreMm, catMm: EXPORT_TEXT.catMm, gapMm: EXPORT_TEXT.gapMm }
 }
 
 function mmToPx(mm) {
@@ -124,17 +130,13 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
 
-  let nombreMm = rules.nombreMm
-  let catMm = rules.catMm
-  let gapMm = rules.gapMm
-
-  const measure = () => measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
+  let { nombreMm, catMm, gapMm } = initialExportFonts(nombreStr)
+  const maxBandH = maxBottom - minStartY
 
   const pack = (block, startY) => ({
     cx,
     startY,
     maxBottom,
-    minStartY,
     maxW,
     nom: block.nom,
     cat: block.cat,
@@ -145,46 +147,34 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
     catLh: block.catLh,
   })
 
-  for (let pass = 0; pass < 2; pass++) {
-    const mins =
-      pass === 0
-        ? { n: rules.minNombreMm, c: rules.minCatMm, g: rules.minGapMm }
-        : { n: rules.floorNombreMm, c: rules.floorCatMm, g: rules.minGapMm }
-
-    for (let i = 0; i < 56; i++) {
-      const block = measure()
-      if (startYWeb + block.totalH <= maxBottom) {
-        return pack(block, startYWeb)
+  for (let i = 0; i < 72; i++) {
+    const block = measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
+    if (block.totalH <= maxBandH) {
+      let startY = startYWeb
+      if (startY + block.totalH > maxBottom) {
+        startY = maxBottom - block.totalH
       }
-
-      {
-        const shift = startYWeb + block.totalH - maxBottom
-        const shiftedY = Math.max(minStartY, startYWeb - shift)
-        if (shiftedY + block.totalH <= maxBottom) {
-          return pack(block, shiftedY)
-        }
-      }
-
-      if (nombreMm > mins.n) {
-        nombreMm -= pass === 0 ? 0.06 : 0.04
-        continue
-      }
-      if (catMm > mins.c) {
-        catMm -= pass === 0 ? 0.045 : 0.03
-        continue
-      }
-      if (gapMm > mins.g) {
-        gapMm -= 0.025
-        continue
-      }
-
-      const blockFinal = measure()
-      const fallbackY = Math.max(minStartY, maxBottom - blockFinal.totalH)
-      return pack(blockFinal, fallbackY)
+      startY = Math.max(minStartY, startY)
+      return pack(block, startY)
     }
+    if (nombreMm > rules.minNombreMm) {
+      nombreMm -= 0.045
+      continue
+    }
+    if (catMm > rules.minCatMm) {
+      catMm -= 0.035
+      continue
+    }
+    if (gapMm > rules.minGapMm) {
+      gapMm -= 0.02
+      continue
+    }
+    break
   }
 
-  return null
+  const block = measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
+  const startY = Math.max(minStartY, maxBottom - Math.min(block.totalH, maxBandH))
+  return pack(block, startY)
 }
 
 function drawLines(ctx, lines, cx, y, fontSizePx, lineHeight, color, font) {
@@ -286,7 +276,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
 
     ctx.save()
     ctx.beginPath()
-    ctx.rect(0, block.minStartY, W, block.maxBottom - block.minStartY)
+    ctx.rect(0, 0, W, block.maxBottom)
     ctx.clip()
 
     if (block.nom.lines.length) {
