@@ -17,12 +17,28 @@ const EXPORT_TEXT = {
   minGapMm: 0.22,
 }
 
-function initialExportFonts(nombreStr) {
-  const words = `${nombreStr || ''}`.trim().split(/\s+/).filter(Boolean).length
-  if (words >= 6) return { nombreMm: 1.82, catMm: 1.32, gapMm: 0.32 }
-  if (words >= 5) return { nombreMm: 1.98, catMm: 1.4, gapMm: 0.36 }
-  if (words >= 4) return { nombreMm: 2.12, catMm: 1.46, gapMm: 0.42 }
-  return { nombreMm: EXPORT_TEXT.nombreMm, catMm: EXPORT_TEXT.catMm, gapMm: EXPORT_TEXT.gapMm }
+/** Solo PDF: nombres extremos (p. ej. Enrique … Quiliche Valladolid). */
+function initialExportFonts(ctx, nombreStr, catStr, maxW) {
+  const t = `${nombreStr || ''}`.trim()
+  const words = t.split(/\s+/).filter(Boolean).length
+  const len = t.length
+  const webNomLines = measureBlockPx(ctx, t, catStr, maxW, 2.35, 1.55, 0.5).nom.lines.length
+
+  if (words >= 6 || len >= 41 || webNomLines >= 4) {
+    return { nombreMm: 1.56, catMm: 1.16, gapMm: 0.26, extreme: true }
+  }
+  if (words >= 5 || webNomLines >= 3) {
+    return { nombreMm: 1.92, catMm: 1.3, gapMm: 0.32, extreme: false }
+  }
+  if (words >= 4) {
+    return { nombreMm: 2.12, catMm: 1.46, gapMm: 0.42, extreme: false }
+  }
+  return {
+    nombreMm: EXPORT_TEXT.nombreMm,
+    catMm: EXPORT_TEXT.catMm,
+    gapMm: EXPORT_TEXT.gapMm,
+    extreme: false,
+  }
 }
 
 function mmToPx(mm) {
@@ -130,8 +146,9 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
 
-  let { nombreMm, catMm, gapMm } = initialExportFonts(nombreStr)
+  let { nombreMm, catMm, gapMm, extreme } = initialExportFonts(ctx, nombreStr, catStr, maxW)
   const maxBandH = maxBottom - minStartY
+  const floorNombreMm = extreme ? 1.22 : rules.minNombreMm
 
   const pack = (block, startY) => ({
     cx,
@@ -157,8 +174,8 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
       startY = Math.max(minStartY, startY)
       return pack(block, startY)
     }
-    if (nombreMm > rules.minNombreMm) {
-      nombreMm -= 0.045
+    if (nombreMm > floorNombreMm) {
+      nombreMm -= extreme ? 0.035 : 0.045
       continue
     }
     if (catMm > rules.minCatMm) {
@@ -173,7 +190,8 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   }
 
   const block = measureBlockPx(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
-  const startY = Math.max(minStartY, maxBottom - Math.min(block.totalH, maxBandH))
+  const fitH = Math.min(block.totalH, maxBandH)
+  const startY = Math.max(minStartY, maxBottom - fitH)
   return pack(block, startY)
 }
 
