@@ -4,6 +4,10 @@ import { jsPDF } from 'jspdf'
 
 const CARD_W_MM = 54
 const CARD_H_MM = 86
+/** Resolución fija de captura (evita depender del tamaño en pantalla y bugs de transform). */
+const CAPTURE_DPI = 300
+const CAPTURE_PX_W = Math.round((CARD_W_MM / 25.4) * CAPTURE_DPI)
+const CAPTURE_PX_H = Math.round((CARD_H_MM / 25.4) * CAPTURE_DPI)
 
 export function slugArchivo(s) {
   return `${s || 'credenciales'}`
@@ -26,6 +30,106 @@ function descargarBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
+function pct(value) {
+  const n = parseFloat(String(value || '0').replace('%', ''))
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Convierte capas con % + translate (html2canvas las rompe) a px absolutos. */
+function flattenAbsoluteLayer(el, W, H) {
+  const st = el.style
+  if (!st.left && !st.top && !st.width) return
+
+  const leftPct = pct(st.left)
+  const topPct = pct(st.top)
+  const widthPct = pct(st.width)
+  const heightPct = st.height ? pct(st.height) : null
+  const transform = st.transform || ''
+
+  const w = (widthPct / 100) * W
+  const h = heightPct != null ? (heightPct / 100) * H : w
+  const textZone =
+    el.classList.contains('cred-festcup-texto') ||
+    (el.classList.contains('cred-datos-slot') && !heightPct)
+
+  if (transform.includes('translate(-50%')) {
+    st.left = `${(leftPct / 100) * W - w / 2}px`
+    st.top = `${(topPct / 100) * H - h / 2}px`
+  } else if (transform.includes('translateX(-50%')) {
+    st.left = `${(leftPct / 100) * W - w / 2}px`
+    st.top = `${(topPct / 100) * H}px`
+  } else {
+    st.left = `${(leftPct / 100) * W}px`
+    st.top = `${(topPct / 100) * H}px`
+  }
+
+  st.width = `${w}px`
+  if (textZone) {
+    st.height = 'auto'
+    st.minHeight = '0'
+  } else {
+    st.height = `${h}px`
+  }
+  st.transform = 'none'
+  st.aspectRatio = 'auto'
+  st.maxWidth = 'none'
+  st.maxHeight = 'none'
+}
+
+function flattenForCapture(root, W, H) {
+  root.querySelectorAll(
+    '.cred-foto-slot, .cred-academia-logo, .cred-festcup-texto, .cred-datos-slot'
+  ).forEach((el) => flattenAbsoluteLayer(el, W, H))
+}
+
+function getCaptureMount() {
+  let mount = document.getElementById('credenciales-capture-mount')
+  if (!mount) {
+    mount = document.createElement('div')
+    mount.id = 'credenciales-capture-mount'
+    mount.setAttribute('aria-hidden', 'true')
+    Object.assign(mount.style, {
+      position: 'fixed',
+      left: '-12000px',
+      top: '0',
+      width: `${CAPTURE_PX_W}px`,
+      height: `${CAPTURE_PX_H}px`,
+      overflow: 'hidden',
+      zIndex: '-1',
+      pointerEvents: 'none',
+      opacity: '1',
+    })
+    document.body.appendChild(mount)
+  }
+  return mount
+}
+
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function inlineImagesAsDataUrls(root) {
+  const imgs = [...root.querySelectorAll('img')]
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.currentSrc || img.getAttribute('src')
+      if (!src || src.startsWith('data:')) return
+      try {
+        const res = await fetch(src, { credentials: 'include' })
+        if (!res.ok) return
+        img.src = await blobToDataUrl(await res.blob())
+      } catch {
+        /* mantener src original */
+      }
+    })
+  )
+}
+
 async function waitImages(root) {
   const imgs = [...root.querySelectorAll('img')]
   await Promise.all(
@@ -43,7 +147,40 @@ async function waitImages(root) {
         })
     )
   )
-  await new Promise((r) => setTimeout(r, 150))
+  await new Promise((r) => setTimeout(r, 80))
+}
+
+async function captureCredencialCanvas(sourceEl, html2canvas) {
+  const mount = getCaptureMount()
+  mount.replaceChildren()
+
+  const clone = sourceEl.cloneNode(true)
+  Object.assign(clone.style, {
+    width: `${CAPTURE_PX_W}px`,
+    height: `${CAPTURE_PX_H}px`,
+    margin: '0',
+    boxShadow: 'none',
+    borderRadius: '0',
+  })
+  mount.appendChild(clone)
+
+  flattenForCapture(clone, CAPTURE_PX_W, CAPTURE_PX_H)
+  await inlineImagesAsDataUrls(clone)
+  await waitImages(clone)
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+  try {
+    return await html2canvas(clone, {
+      scale: 1,
+      width: CAPTURE_PX_W,
+      height: CAPTURE_PX_H,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    })
+  } finally {
+    mount.replaceChildren()
+  }
 }
 
 function visibleSheets(sheetSelector) {
@@ -52,14 +189,8 @@ function visibleSheets(sheetSelector) {
   )
 }
 
-function captureScale(pageCount) {
-  if (pageCount > 40) return 2
-  if (pageCount > 20) return 2.5
-  return Math.min(3, Math.max(2, window.devicePixelRatio || 2))
-}
-
 function jpegQualityForCount(pageCount) {
-  return pageCount > 30 ? 0.88 : 0.92
+  return pageCount > 30 ? 0.9 : 0.93
 }
 
 function alumnoKey(sheet) {
@@ -97,7 +228,7 @@ async function loadHtml2Canvas() {
  * @param {HTMLElement[]} frentes
  * @returns {Promise<jsPDF>}
  */
-async function buildPdfFromFrentes(frentes, { onProgress, scale, jpegQuality, progressBase = 0, progressTotal }) {
+async function buildPdfFromFrentes(frentes, { onProgress, jpegQuality, progressBase = 0, progressTotal }) {
   if (!frentes.length) throw new Error('Sin credenciales para este PDF.')
 
   const html2canvas = await loadHtml2Canvas()
@@ -118,18 +249,10 @@ async function buildPdfFromFrentes(frentes, { onProgress, scale, jpegQuality, pr
 
     let canvas
     try {
-      canvas = await html2canvas(el, {
-        scale,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: el.offsetWidth,
-        height: el.offsetHeight,
-      })
-
+      canvas = await captureCredencialCanvas(el, html2canvas)
       const img = canvas.toDataURL('image/jpeg', jpegQuality)
       if (i > 0) pdf.addPage([CARD_W_MM, CARD_H_MM])
-      pdf.addImage(img, 'JPEG', 0, 0, CARD_W_MM, CARD_H_MM, undefined, 'FAST')
+      pdf.addImage(img, 'JPEG', 0, 0, CARD_W_MM, CARD_H_MM, undefined, 'MEDIUM')
     } catch (err) {
       const globalIdx = progressBase + i + 1
       throw new Error(
@@ -142,7 +265,7 @@ async function buildPdfFromFrentes(frentes, { onProgress, scale, jpegQuality, pr
       }
     }
 
-    await new Promise((r) => setTimeout(r, totalProgress > 15 ? 40 : 0))
+    await new Promise((r) => setTimeout(r, totalProgress > 15 ? 30 : 0))
   }
 
   return pdf
@@ -161,9 +284,8 @@ export async function descargarCredencialesPdf({
     throw new Error('No hay credenciales visibles para exportar.')
   }
 
-  const scale = captureScale(frentes.length)
   const jpegQuality = jpegQualityForCount(frentes.length)
-  const pdf = await buildPdfFromFrentes(frentes, { onProgress, scale, jpegQuality })
+  const pdf = await buildPdfFromFrentes(frentes, { onProgress, jpegQuality })
   pdf.save(filename || `credenciales-${slugArchivo()}.pdf`)
 }
 
@@ -189,7 +311,6 @@ export async function descargarCredencialesZipPorAlumno({
     (n, grupo) => n + grupo.filter((s) => s.querySelector('.credencial-frente')).length,
     0
   )
-  const scale = captureScale(totalPages)
   const jpegQuality = jpegQualityForCount(totalPages)
 
   const { default: JSZip } = await import('jszip')
@@ -201,7 +322,6 @@ export async function descargarCredencialesZipPorAlumno({
   for (const grupoSheets of groups.values()) {
     const frentes = grupoSheets.map((s) => s.querySelector('.credencial-frente')).filter(Boolean)
     const pdf = await buildPdfFromFrentes(frentes, {
-      scale,
       jpegQuality,
       progressBase: pageDone,
       progressTotal: totalPages,
