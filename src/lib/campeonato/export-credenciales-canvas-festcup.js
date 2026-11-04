@@ -88,55 +88,74 @@ function measureLines(ctx, text, maxW, fontSizePx, lineHeight) {
   return { lines, height: h }
 }
 
+function measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
+  const nomLh = 1.1
+  const catLh = 1.28
+  ctx.font = `900 ${mmToPx(nombreMm)}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
+  const nom = measureLines(ctx, nombreStr, maxW, mmToPx(nombreMm), nomLh)
+  ctx.font = `600 ${mmToPx(catMm)}px Arial, "Helvetica Neue", sans-serif`
+  const cat = catStr ? measureLines(ctx, catStr, maxW, mmToPx(catMm), catLh) : { lines: [], height: 0 }
+  const gap = catStr ? mmToPx(gapMm) : 0
+  return { nom, cat, gap, nomLh, catLh, totalH: nom.height + gap + cat.height }
+}
+
 function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  const startTop = ((zone.top ?? 79.5) / 100) * H
-  const bottomMargin = mmToPx(exportRules.bottomMm ?? 10.8)
-  const maxBlockH = mmToPx(exportRules.maxHeightMm ?? 12.4)
-  const minTop = ((exportRules.minTopPct ?? 76.5) / 100) * H
-  const maxBottom = H - bottomMargin
-
-  let nombreMm = 2.35
-  let catMm = 1.65
-  let gapMm = 0.55
+  const startY = ((zone.top ?? 79.5) / 100) * H
+  const maxBottom = H - mmToPx(exportRules.bottomMm ?? 5.8)
 
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
 
-  for (let i = 0; i < 24; i++) {
-    ctx.font = `900 ${mmToPx(nombreMm)}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
-    const nom = measureLines(ctx, nombreStr, maxW, mmToPx(nombreMm), 1.08)
-    ctx.font = `600 ${mmToPx(catMm)}px Arial, "Helvetica Neue", sans-serif`
-    const cat = catStr ? measureLines(ctx, catStr, maxW, mmToPx(catMm), 1.22) : { lines: [], height: 0 }
+  /** Mismos valores que la web (credenciales.css). */
+  let nombreMm = 2.35
+  let catMm = 1.55
+  let gapMm = 0.5
 
-    const gap = catStr ? mmToPx(gapMm) : 0
-    const totalH = nom.height + gap + cat.height
-    let startY = startTop
-    const endY = startY + totalH
+  for (let i = 0; i < 32; i++) {
+    const block = measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
+    const endY = startY + block.totalH
 
-    if (endY <= maxBottom && totalH <= maxBlockH && startY >= minTop) {
-      return { cx, startY, maxW, nom, cat, nombreMm, catMm, gap }
-    }
-
-    startY = maxBottom - totalH
-    if (totalH <= maxBlockH && startY >= minTop) {
-      return { cx, startY, maxW, nom, cat, nombreMm, catMm, gap }
+    if (endY <= maxBottom) {
+      return {
+        cx,
+        startY,
+        maxW,
+        nom: block.nom,
+        cat: block.cat,
+        nombreMm,
+        catMm,
+        gap: block.gap,
+        nomLh: block.nomLh,
+        catLh: block.catLh,
+      }
     }
 
     if (nombreMm > 2.05) {
-      nombreMm -= 0.1
+      nombreMm -= 0.08
       continue
     }
-    if (catMm > 1.42) {
-      catMm -= 0.07
+    if (catMm > 1.38) {
+      catMm -= 0.06
       continue
     }
     if (gapMm > 0.35) {
-      gapMm -= 0.05
+      gapMm -= 0.04
       continue
     }
-    return { cx, startY: Math.max(minTop, maxBottom - Math.min(totalH, maxBlockH)), maxW, nom, cat, nombreMm, catMm, gap }
+    return {
+      cx,
+      startY,
+      maxW,
+      nom: block.nom,
+      cat: block.cat,
+      nombreMm,
+      catMm,
+      gap: block.gap,
+      nomLh: block.nomLh,
+      catLh: block.catLh,
+    }
   }
 
   return null
@@ -245,7 +264,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
         block.cx,
         y,
         nomPx,
-        1.08,
+        block.nomLh ?? 1.1,
         '#0d0d0d',
         `900 ${nomPx}px "Arial Black", "Helvetica Neue", Arial, sans-serif`
       )
@@ -258,7 +277,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
         block.cx,
         y,
         catPx,
-        1.22,
+        block.catLh ?? 1.28,
         '#2a2a2a',
         `600 ${catPx}px Arial, "Helvetica Neue", sans-serif`
       )
