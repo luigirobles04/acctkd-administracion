@@ -1,0 +1,138 @@
+import { fetchAllSupabaseRows } from '@/lib/supabase-server'
+import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
+import {
+  credencialTemplateForLinea,
+  credencialTemplateSrc,
+  FESTCUP_2026_CREDENCIAL_LAYOUT,
+} from '@/lib/campeonato/credencial-layout'
+
+const LINEA_SELECT = `
+  id_linea, dorsal_display, dorsal_numero, modalidad, id_academia_campeonato,
+  categoria:categoria_campeonato(nombre),
+  academia_campeonato(
+    id,
+    academia(id_academia, nombre, codigo_prefijo, logo_url)
+  ),
+  miembros:linea_inscripcion_miembro(
+    perfil:competidor_perfil(id_perfil, nombres, apellidos, foto_url, documento_numero)
+  )
+`
+
+function mapCanchaPorLinea(llaves) {
+  const canchaPorLinea = {}
+  for (const l of llaves || []) {
+    if (!l.cancha) continue
+    for (const idLinea of [l.id_linea1, l.id_linea2]) {
+      if (!idLinea) continue
+      const prev = canchaPorLinea[idLinea]
+      if (!prev || l.ronda > prev.ronda) {
+        canchaPorLinea[idLinea] = { cancha: l.cancha, ronda: l.ronda }
+      }
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(canchaPorLinea).map(([id, v]) => [Number(id), v.cancha])
+  )
+}
+
+/** Datos de credenciales agrupados por academia (opcional: una sola academia). */
+export async function buildCredencialesCampeonato(sb, idCampeonato, { idAcademiaCampeonato = null } = {}) {
+  const [{ data: campeonato, error: errCamp }, lineas, llaves] = await Promise.all([
+    sb
+      .from('campeonato')
+      .select(
+        'id_campeonato, nombre, ciudad, lugar, dias_evento, fecha_inicio, template_competidor_url, template_coach_url, credencial_layout',
+      )
+      .eq('id_campeonato', idCampeonato)
+      .single(),
+    fetchAllSupabaseRows(sb, (client) => {
+      let q = client
+        .from('linea_inscripcion')
+        .select(LINEA_SELECT)
+        .eq('id_campeonato', idCampeonato)
+        .in('estado', ['aprobado', 'pendiente_pago', 'pagado'])
+        .not('dorsal_numero', 'is', null)
+        .order('dorsal_numero', { ascending: true })
+      if (idAcademiaCampeonato) q = q.eq('id_academia_campeonato', idAcademiaCampeonato)
+      return q
+    }),
+    fetchAllSupabaseRows(sb, (client) =>
+      client
+        .from('llave_kyorugi')
+        .select('id_linea1, id_linea2, cancha, ronda')
+        .eq('id_campeonato', idCampeonato)
+        .not('cancha', 'is', null)
+    ),
+  ])
+
+  if (errCamp) throw errCamp
+
+  const canchaPorLinea = mapCanchaPorLinea(llaves)
+  const deportistaTpl = credencialTemplateSrc(campeonato?.template_competidor_url)
+  const entrenadorTpl = credencialTemplateSrc(campeonato?.template_coach_url)
+
+  const competidores = (lineas || []).map((l) => {
+    const p = l.miembros?.[0]?.perfil
+    const ac = l.academia_campeonato?.academia
+    return {
+      id_linea: l.id_linea,
+      id_academia_campeonato: l.id_academia_campeonato,
+      id_academia: ac?.id_academia || l.academia_campeonato?.id || l.id_academia_campeonato,
+      codigo_academia: ac?.codigo_prefijo ?? ac?.id_academia ?? '',
+      dorsal: l.dorsal_display,
+      dorsal_numero: l.dorsal_numero,
+      nombres: p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim().toUpperCase() : '',
+      foto_url: fotoCompetidorProxyUrl(p?.foto_url) || null,
+      documento: p?.documento_numero || '',
+      categoria: l.categoria?.nombre || '',
+      academia: ac?.nombre || '',
+      academia_logo_url: fotoCompetidorProxyUrl(ac?.logo_url) || null,
+      modalidad: l.modalidad,
+      template_url: credencialTemplateForLinea(l.modalidad, {
+        deportistaUrl: campeonato?.template_competidor_url,
+        entrenadorUrl: campeonato?.template_coach_url,
+      }),
+      cancha: canchaPorLinea[l.id_linea] || null,
+      qr_data: l.dorsal_display || String(l.dorsal_numero || l.id_linea),
+    }
+  })
+
+  const academiasMap = new Map()
+  for (const c of competidores) {
+    const key = c.id_academia_campeonato
+    if (!academiasMap.has(key)) {
+      academiasMap.set(key, {
+        id_academia_campeonato: key,
+        id_academia: c.id_academia,
+        codigo_academia: c.codigo_academia,
+        nombre: c.academia,
+        competidores: [],
+      })
+    }
+    academiasMap.get(key).competidores.push(c)
+  }
+
+  const academias = [...academiasMap.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+  const credencialLayout =
+    campeonato?.credencial_layout?.variant === 'festcup2026'
+      ? campeonato.credencial_layout
+      : campeonato?.template_competidor_url?.includes('festcup-2026') ||
+          campeonato?.template_coach_url?.includes('festcup-2026')
+        ? FESTCUP_2026_CREDENCIAL_LAYOUT
+        : campeonato?.credencial_layout
+
+  return {
+    campeonato: campeonato
+      ? {
+          ...campeonato,
+          template_url: deportistaTpl,
+          template_coach_url_resolved: entrenadorTpl,
+          credencial_layout: credencialLayout,
+        }
+      : campeonato,
+    competidores,
+    academias,
+    total: competidores.length,
+  }
+}

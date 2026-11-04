@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import PortalLayout, { PortalBarraTotales, PortalTabs, PortalWizardSteps } from '@/components/campeonatos/PortalLayout'
 import PortalStatusChips from '@/components/campeonatos/PortalStatusChips'
 import {
@@ -26,6 +26,7 @@ import { validarFotoCarnet } from '@/lib/campeonato/validar-foto'
 import { extractStoragePath, fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import PortalGrupoForm from '@/components/campeonatos/PortalGrupoForm'
 import PortalImportExcel from '@/components/campeonatos/PortalImportExcel'
+import PortalDocumentosAcademia from '@/components/campeonatos/PortalDocumentosAcademia'
 import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 import { getCurrentUser, isRepresentante } from '@/lib/services/auth.service'
 import { portalFetch } from '@/lib/portal-client'
@@ -106,6 +107,7 @@ function fmtPrecio(n) {
 export default function PortalCampeonatoPage() {
   const { slug } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState(null)
   const [tab, setTab] = useState('inscribir')
   const [step, setStep] = useState(0)
@@ -152,6 +154,19 @@ export default function PortalCampeonatoPage() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  useEffect(() => {
+    const t = searchParams?.get('tab')
+    if (t === 'documentos' && data?.documentos?.fichaYCredenciales) setTab('documentos')
+  }, [searchParams, data?.documentos?.fichaYCredenciales])
+
+  const portalTabs = useMemo(() => {
+    const tabs = [...TABS]
+    if (data?.documentos?.fichaYCredenciales) {
+      tabs.push({ id: 'documentos', label: 'Ficha / cred.' })
+    }
+    return tabs
+  }, [data?.documentos?.fichaYCredenciales])
 
   const anio = data?.campeonato?.anioCampeonato || new Date().getFullYear()
   const edad = edadWT(perfil.fecha_nacimiento, anio)
@@ -789,7 +804,7 @@ export default function PortalCampeonatoPage() {
         </div>
       )}
 
-      <PortalTabs tabs={TABS} active={tab} onChange={setTab} />
+      <PortalTabs tabs={portalTabs} active={tab} onChange={setTab} />
 
       {tab === 'excel' && ac.aceptacion_bases_at && !rechazada && (
         <PortalImportExcel
@@ -1405,6 +1420,10 @@ export default function PortalCampeonatoPage() {
           )}
 
         </>
+      )}
+
+      {tab === 'documentos' && data.documentos?.fichaYCredenciales && (
+        <PortalDocumentosAcademia slug={slug} nombreAcademia={data.academia?.nombre} />
       )}
 
       {tab === 'pagos' && (

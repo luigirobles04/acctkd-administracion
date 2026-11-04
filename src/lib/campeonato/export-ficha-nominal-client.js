@@ -236,3 +236,12 @@ export async function fetchExportFichaNominal(idCampeonato) {
   if (!res.ok) throw new Error(json.error || 'Error al exportar ficha nominal')
   return json
 }
+
+/** Ficha nominal solo de la academia del representante (portal). */
+export async function fetchExportFichaNominalPortal(slug) {
+  const { portalFetch } = await import('@/lib/portal-client')
+  const res = await portalFetch(`/api/portal/campeonato/${slug}/ficha-nominal`, { cache: 'no-store' })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'Error al cargar ficha nominal')
+  return json
+}

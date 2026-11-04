@@ -15,6 +15,7 @@ import { MODALIDADES, MAX_OFICIALES } from '@/lib/campeonato/constants'
 import { validarLineaInscripcion } from '@/lib/campeonato/validar-linea-inscripcion'
 import { httpStatusParaErrorApi, mensajeErrorApi } from '@/lib/supabase-fetch-retry'
 import { supabaseErrorMessage } from '@/lib/supabase-errors'
+import { portalPuedeVerFichaYCredenciales } from '@/lib/campeonato/portal-documentos-academia'
 import {
   anularLineaPortal,
   anularLineasActivasPerfil,
@@ -151,6 +152,9 @@ export async function GET(request, { params }) {
         anioCampeonato,
       },
       inscripcion: check,
+      documentos: {
+        fichaYCredenciales: portalPuedeVerFichaYCredenciales(slug, ac),
+      },
       tipoTarifa,
       lineas: lineas || [],
       comprobantes: comprobantes || [],
