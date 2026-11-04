@@ -10,8 +10,8 @@ export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   /** Debajo del rol impreso en la plantilla (DEPORTISTA / ENTRENADOR) */
   nombre: { left: 50, top: 79.5, width: 86 },
   categoria: { left: 50, top: 81.35, width: 86 },
-  /** Solo export PDF (no afecta la web): tope encima de la franja de logos ~5.8 mm */
-  textoExport: { bottomMm: 5.8 },
+  /** Franja inferior de logos en plantilla (~7 mm desde el borde) */
+  textoExport: { bottomMm: 7, maxTopPct: 75.2 },
   datos: { left: 50, top: 74.9, width: 90, height: 10 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
   rolOnTemplate: true,
@@ -69,6 +69,7 @@ export function normalizeCredencialLayout(raw, opts = {}) {
     nombre: { ...(base.nombre || base.datos || {}), ...(raw.nombre || {}) },
     categoria: { ...(base.categoria || {}), ...(raw.categoria || {}) },
     academiaLogo: { ...(base.academiaLogo || {}), ...(raw.academiaLogo || {}) },
+    textoExport: { ...(base.textoExport || {}), ...(raw.textoExport || {}) },
     rolOnTemplate: raw.rolOnTemplate ?? base.rolOnTemplate ?? false,
   }
 }

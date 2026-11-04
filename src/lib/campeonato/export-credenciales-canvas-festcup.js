@@ -102,8 +102,8 @@ function measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm) {
 function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  const startY = ((zone.top ?? 79.5) / 100) * H
-  const maxBottom = H - mmToPx(exportRules.bottomMm ?? 5.8)
+  const maxBottom = H - mmToPx(exportRules.bottomMm ?? 7)
+  const minTop = H * ((exportRules.maxTopPct ?? 75.2) / 100)
 
   const nombreStr = `${nombre || ''}`.trim()
   const catStr = `${categoria || ''}`.trim()
@@ -113,11 +113,11 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   let catMm = 1.55
   let gapMm = 0.5
 
-  for (let i = 0; i < 32; i++) {
+  for (let i = 0; i < 48; i++) {
     const block = measureBlock(ctx, nombreStr, catStr, maxW, nombreMm, catMm, gapMm)
-    const endY = startY + block.totalH
+    const startY = maxBottom - block.totalH
 
-    if (endY <= maxBottom) {
+    if (startY >= minTop) {
       return {
         cx,
         startY,
@@ -132,21 +132,21 @@ function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
       }
     }
 
-    if (nombreMm > 2.05) {
-      nombreMm -= 0.08
+    if (nombreMm > 1.88) {
+      nombreMm -= 0.07
       continue
     }
-    if (catMm > 1.38) {
-      catMm -= 0.06
+    if (catMm > 1.22) {
+      catMm -= 0.05
       continue
     }
-    if (gapMm > 0.35) {
-      gapMm -= 0.04
+    if (gapMm > 0.32) {
+      gapMm -= 0.03
       continue
     }
     return {
       cx,
-      startY,
+      startY: Math.max(minTop, maxBottom - block.totalH),
       maxW,
       nom: block.nom,
       cat: block.cat,
