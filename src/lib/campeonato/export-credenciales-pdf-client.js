@@ -1,13 +1,14 @@
 'use client'
 
 import { jsPDF } from 'jspdf'
+import {
+  CAPTURE_PX_H,
+  CAPTURE_PX_W,
+  renderFestcupCredencialCanvas,
+} from '@/lib/campeonato/export-credenciales-canvas-festcup'
 
 const CARD_W_MM = 54
 const CARD_H_MM = 86
-/** Resolución fija de captura (evita depender del tamaño en pantalla y bugs de transform). */
-const CAPTURE_DPI = 300
-const CAPTURE_PX_W = Math.round((CARD_W_MM / 25.4) * CAPTURE_DPI)
-const CAPTURE_PX_H = Math.round((CARD_H_MM / 25.4) * CAPTURE_DPI)
 
 export function slugArchivo(s) {
   return `${s || 'credenciales'}`
@@ -151,6 +152,10 @@ async function waitImages(root) {
 }
 
 async function captureCredencialCanvas(sourceEl, html2canvas) {
+  if (sourceEl.classList.contains('credencial-frente--festcup2026')) {
+    return renderFestcupCredencialCanvas(sourceEl)
+  }
+
   const mount = getCaptureMount()
   mount.replaceChildren()
 
@@ -231,7 +236,7 @@ async function loadHtml2Canvas() {
 async function buildPdfFromFrentes(frentes, { onProgress, jpegQuality, progressBase = 0, progressTotal }) {
   if (!frentes.length) throw new Error('Sin credenciales para este PDF.')
 
-  const html2canvas = await loadHtml2Canvas()
+  let html2canvas = null
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -249,6 +254,9 @@ async function buildPdfFromFrentes(frentes, { onProgress, jpegQuality, progressB
 
     let canvas
     try {
+      if (!el.classList.contains('credencial-frente--festcup2026') && !html2canvas) {
+        html2canvas = await loadHtml2Canvas()
+      }
       canvas = await captureCredencialCanvas(el, html2canvas)
       const img = canvas.toDataURL('image/jpeg', jpegQuality)
       if (i > 0) pdf.addPage([CARD_W_MM, CARD_H_MM])
