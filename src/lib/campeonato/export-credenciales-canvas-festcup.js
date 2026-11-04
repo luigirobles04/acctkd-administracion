@@ -88,12 +88,13 @@ function measureLines(ctx, text, maxW, fontSizePx, lineHeight) {
   return { lines, height: h }
 }
 
-function fitTextBlock(ctx, nombre, categoria, zone, W, H) {
+function fitTextBlock(ctx, nombre, categoria, zone, exportRules, W, H) {
   const maxW = ((zone.width ?? 86) / 100) * W
   const cx = (zone.left / 100) * W
-  const bottomMargin = mmToPx(zone.bottomMm ?? 10.6)
-  const maxBlockH = mmToPx(zone.maxHeightMm ?? 12.6)
-  const minTop = ((zone.minTopPct ?? 76) / 100) * H
+  const startTop = ((zone.top ?? 79.5) / 100) * H
+  const bottomMargin = mmToPx(exportRules.bottomMm ?? 10.8)
+  const maxBlockH = mmToPx(exportRules.maxHeightMm ?? 12.4)
+  const minTop = ((exportRules.minTopPct ?? 76.5) / 100) * H
   const maxBottom = H - bottomMargin
 
   let nombreMm = 2.35
@@ -111,8 +112,14 @@ function fitTextBlock(ctx, nombre, categoria, zone, W, H) {
 
     const gap = catStr ? mmToPx(gapMm) : 0
     const totalH = nom.height + gap + cat.height
-    const startY = maxBottom - totalH
+    let startY = startTop
+    const endY = startY + totalH
 
+    if (endY <= maxBottom && totalH <= maxBlockH && startY >= minTop) {
+      return { cx, startY, maxW, nom, cat, nombreMm, catMm, gap }
+    }
+
+    startY = maxBottom - totalH
     if (totalH <= maxBlockH && startY >= minTop) {
       return { cx, startY, maxW, nom, cat, nombreMm, catMm, gap }
     }
@@ -226,7 +233,7 @@ export async function renderFestcupCredencialCanvas(frenteEl) {
   const nombre = readText(frenteEl, '.cred-festcup-nombre', '.cred-datos-nombre')
   const categoria = readText(frenteEl, '.cred-festcup-categoria', '.cred-datos-categoria-festcup')
 
-  const block = fitTextBlock(ctx, nombre, categoria, layout.nombre, W, H)
+  const block = fitTextBlock(ctx, nombre, categoria, layout.nombre, layout.textoExport || {}, W, H)
   if (block) {
     const nomPx = mmToPx(block.nombreMm)
     const catPx = mmToPx(block.catMm)

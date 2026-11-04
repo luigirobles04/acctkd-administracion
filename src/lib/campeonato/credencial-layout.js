@@ -7,9 +7,11 @@ export const DEFAULT_CREDENCIAL_LAYOUT = {
 /** FestCup 2026 · plantillas limpias (rol en JPG) + foto, nombre, categoría y logo academia */
 export const FESTCUP_2026_CREDENCIAL_LAYOUT = {
   foto: { type: 'rect', left: 50, top: 50.55, width: 37.2, height: 24 },
-  /** Bloque nombre + categoría anclado encima de la franja de logos */
-  nombre: { left: 50, width: 86, bottomMm: 10.6, maxHeightMm: 12.6, minTopPct: 76 },
+  /** Debajo del rol en plantilla (DEPORTISTA / ENTRENADOR); categoría en flex bajo el nombre */
+  nombre: { left: 50, top: 79.5, width: 86 },
   categoria: { left: 50, width: 86 },
+  /** Solo export PDF: no pisar logos del pie */
+  textoExport: { bottomMm: 10.8, maxHeightMm: 12.4, minTopPct: 76.5 },
   datos: { left: 50, top: 74.9, width: 90, height: 10 },
   academiaLogo: { left: 77, top: 35.5, width: 10.5, opacity: 0.28, borderRadius: '22%' },
   rolOnTemplate: true,

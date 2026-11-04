@@ -249,13 +249,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 0.55mm;
+  gap: 0.65mm;
   box-sizing: border-box;
   padding: 0 1.2mm;
   background: transparent;
   text-align: center;
-  overflow: hidden;
 }
 
 .credencial-frente--festcup2026 .cred-festcup-texto .cred-festcup-nombre,
@@ -290,11 +288,11 @@
 .credencial-frente--festcup2026 .cred-festcup-nombre {
   margin: 0;
   font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-  font-size: clamp(1.95mm, 2.35mm, 2.35mm);
+  font-size: 2.35mm;
   font-weight: 900;
   font-style: normal;
   letter-spacing: 0.02em;
-  line-height: 1.08;
+  line-height: 1.1;
   color: #0d0d0d;
   text-transform: uppercase;
   word-break: break-word;
