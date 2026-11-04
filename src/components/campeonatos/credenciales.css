@@ -4,6 +4,11 @@
   padding: 0 8px 48px;
 }
 
+/* Exportación PDF: incluir credenciales aunque la academia esté colapsada */
+.credenciales-root.credenciales-export-mode .credenciales-academia.is-collapsed .credenciales-stack {
+  display: flex !important;
+}
+
 .credenciales-toolbar {
   margin-bottom: 24px;
 }
