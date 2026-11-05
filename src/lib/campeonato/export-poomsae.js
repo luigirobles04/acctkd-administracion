@@ -24,7 +24,7 @@ export function descargarPoomsaeExcel(campeonato, categorias) {
         })
         .join('')
       return `
-        <tr>${thCell(`${c.nombre} — ${c.division || ''} ${c.genero || ''} (${c.inscritos})`, XL.gold, '#111', 5)}</tr>
+        <tr>${thCell(`${c.nombre_display || c.nombre} — ${c.division || ''} ${c.genero || ''} (${c.inscritos})`, XL.gold, '#111', 5)}</tr>
         <tr>${thCell('Orden')}${thCell('Dorsal')}${thCell('Competidor')}${thCell('Academia')}${thCell('Modalidad')}</tr>
         ${filas}
         <tr><td colspan="5" style="height:8px"></td></tr>`
@@ -45,7 +45,7 @@ export function descargarPoomsaeExcel(campeonato, categorias) {
 export function descargarPoomsaePdf(campeonato, categorias) {
   const cats = categoriasConInscritos(categorias)
   const sections = cats.map((c) => ({
-    title: `${c.nombre} — ${c.division || ''} ${c.genero || ''} · ${c.inscritos} participante(s)`,
+    title: `${c.nombre_display || c.nombre} — ${c.division || ''} ${c.genero || ''} · ${c.inscritos} participante(s)`,
     rows: c.participantes.map((p) => [
       { text: String(p.orden), align: 'center', bold: true },
       { text: p.dorsal || '—', align: 'center', bold: true },

@@ -16,8 +16,10 @@ export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
   const categoriasPss = (categorias || []).map((c) => {
     const parsed = parseNombrePoomsae(c.nombre)
     return {
+      grupo_key: c.grupo_key,
       id_categoria: c.id_categoria,
-      nombre: c.nombre,
+      modalidad_key: c.modalidad_key,
+      nombre: c.nombre_display || c.nombre,
       forma: parsed.forma,
       division: c.division,
       genero: c.genero,

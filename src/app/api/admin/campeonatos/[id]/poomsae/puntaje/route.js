@@ -33,26 +33,43 @@ export async function POST(request, { params }) {
       return NextResponse.json({ ok: true, linea: result.linea })
     }
 
-    if (body.idCategoria && body.cerrarCategoria) {
-      const idCategoria = Number(body.idCategoria)
-      const { data: lineas, error } = await sb
-        .from('linea_inscripcion')
-        .select('id_linea, poomsae_puntaje, poomsae_estado')
-        .eq('id_campeonato', idCampeonato)
-        .eq('id_categoria', idCategoria)
-        .neq('estado', 'anulado')
-        .not('dorsal_numero', 'is', null)
-      if (error) throw error
-
+    if (body.cerrarCategoria && (body.grupoKey || body.idCategoria)) {
+      const { fetchOrdenPoomsaeCampeonato } = await import('@/lib/campeonato/poomsae-orden')
+      const { calcularPodioPoomsaeCategoria } = await import('@/lib/campeonato/podio-poomsae')
+      const { categorias } = await fetchOrdenPoomsaeCampeonato(sb, idCampeonato)
+      let cat = null
+      if (body.grupoKey) {
+        cat = (categorias || []).find((c) => c.grupo_key === body.grupoKey)
+      } else {
+        const idCategoria = Number(body.idCategoria)
+        cat = (categorias || []).find(
+          (c) =>
+            c.id_categoria === idCategoria &&
+            (!body.modalidadKey || c.modalidad_key === body.modalidadKey),
+        )
+      }
+      if (!cat) {
+        return NextResponse.json({ error: 'Bloque poomsae no encontrado (catálogo + modalidad)' }, { status: 404 })
+      }
+      const { podio, estado } = calcularPodioPoomsaeCategoria({
+        participantes: cat.participantes,
+        cerrada: true,
+      })
+      if (!podio) {
+        return NextResponse.json({ ok: true, estado, totalCalificados: 0, podio: [] })
+      }
       const medallas = ['oro', 'plata', 'bronce']
-      const ordenados = [...(lineas || [])]
-        .filter((l) => l.poomsae_puntaje != null)
-        .sort((a, b) => b.poomsae_puntaje - a.poomsae_puntaje)
-
+      const filas = [podio.oro, podio.plata, ...(podio.bronce || [])].filter(Boolean)
       return NextResponse.json({
         ok: true,
-        totalCalificados: ordenados.length,
-        podio: ordenados.slice(0, 3).map((l, i) => ({ id_linea: l.id_linea, medalla: medallas[i], puntaje: l.poomsae_puntaje })),
+        grupoKey: cat.grupo_key,
+        estado,
+        totalCalificados: cat.participantes.filter((p) => p.calificado && p.puntaje != null).length,
+        podio: filas.map((p, i) => ({
+          id_linea: p.id_linea,
+          medalla: medallas[i] || 'bronce',
+          puntaje: p.puntaje,
+        })),
       })
     }
 

@@ -1,7 +1,12 @@
 /** Orden de salida Poomsae — listado por categoría (no bracket eliminatorio) */
 
 import { MODALIDADES } from '@/lib/campeonato/constants'
-import { compareCategoriasPorPoomsae } from '@/lib/campeonato/poomsae-formas'
+import {
+  compareGruposPoomsae,
+  labelModalidadPoomsae,
+  parsePoomsaeGrupoKey,
+  poomsaeGrupoKey,
+} from '@/lib/campeonato/poomsae-grupo'
 import { lineaFaltaPago, lineaVisibleEnPoomsae } from '@/lib/campeonato/poomsae-lineas'
 import { sincronizarAprobacionDorsalesAcademia } from '@/lib/campeonato/inscripcion-server'
 
@@ -119,15 +124,24 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
 
   lineas = filtrarLineasPoomsaeActivas(lineas)
 
-  const porCat = (lineas || []).reduce((acc, l) => {
-    if (!l.id_categoria) return acc
-    if (!acc[l.id_categoria]) acc[l.id_categoria] = []
-    acc[l.id_categoria].push(l)
+  const catMeta = new Map((categorias || []).map((c) => [c.id_categoria, c]))
+
+  const porGrupo = (lineas || []).reduce((acc, l) => {
+    if (!l.id_categoria || !l.modalidad) return acc
+    const key = poomsaeGrupoKey(l.id_categoria, l.modalidad)
+    if (!acc[key]) acc[key] = []
+    acc[key].push(l)
     return acc
   }, {})
 
-  const categoriasOut = (categorias || []).map((cat) => {
-    const items = porCat[cat.id_categoria] || []
+  const categoriasOut = Object.entries(porGrupo).map(([grupoKey, items]) => {
+    const parsed = parsePoomsaeGrupoKey(grupoKey)
+    const cat = catMeta.get(parsed?.idCategoria) || {
+      nombre: 'Poomsae',
+      division: '',
+      genero: '',
+    }
+    const modalidadKey = parsed?.modalidad || items[0]?.modalidad
     const sorteada = items.some((l) => l.orden_poomsae != null)
     const ordenados = [...items].sort((a, b) => {
       const oa = a.orden_poomsae
@@ -163,8 +177,11 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
     })
     const calificados = inscritos.filter((p) => p.calificado).length
     return {
-      id_categoria: cat.id_categoria,
+      grupo_key: grupoKey,
+      id_categoria: parsed?.idCategoria ?? cat.id_categoria,
+      modalidad_key: modalidadKey,
       nombre: cat.nombre,
+      nombre_display: `${cat.nombre} — ${labelModalidadPoomsae(modalidadKey)}`,
       division: cat.division,
       genero: cat.genero,
       inscritos: inscritos.length,
@@ -175,7 +192,7 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
     }
   })
 
-  categoriasOut.sort(compareCategoriasPorPoomsae)
+  categoriasOut.sort(compareGruposPoomsae)
 
   const conInscritos = categoriasOut.filter((c) => c.inscritos > 0)
   const todosParticipantes = conInscritos.flatMap((c) => c.participantes)

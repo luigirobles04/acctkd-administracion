@@ -59,8 +59,10 @@ export async function fetchPodiosPoomsaeCampeonato(sb, idCampeonato) {
     const academias_distintas = acadSet.size
     const suma_puntos = academias_distintas >= MIN_ACADEMIAS_PARA_PUNTOS
     return {
+      grupo_key: cat.grupo_key,
       id_categoria: cat.id_categoria,
-      nombre: cat.nombre,
+      modalidad_key: cat.modalidad_key,
+      nombre: cat.nombre_display || cat.nombre,
       division: cat.division,
       genero: cat.genero,
       estado,

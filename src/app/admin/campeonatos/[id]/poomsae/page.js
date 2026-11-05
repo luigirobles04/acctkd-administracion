@@ -52,7 +52,7 @@ export default function CampeonatoPoomsaePage() {
     let items = categorias.filter((c) => c.inscritos > 0)
     if (q) {
       items = items.filter((c) => {
-        const text = [c.nombre, c.division, c.genero, ...c.participantes.map((p) => `${p.nombres} ${p.academia}`)].join(' ').toLowerCase()
+        const text = [c.nombre_display || c.nombre, c.division, c.genero, ...c.participantes.map((p) => `${p.nombres} ${p.academia}`)].join(' ').toLowerCase()
         return text.includes(q)
       })
     }
@@ -61,7 +61,7 @@ export default function CampeonatoPoomsaePage() {
 
   const catActiva = useMemo(() => {
     if (selCat) {
-      const fresh = categorias.find((c) => c.id_categoria === selCat.id_categoria)
+      const fresh = categorias.find((c) => c.grupo_key === selCat.grupo_key)
       if (fresh) return fresh
     }
     return catsFiltradas[0] || null
@@ -284,7 +284,7 @@ export default function CampeonatoPoomsaePage() {
               </div>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '70vh', overflowY: 'auto' }}>
                 {catsFiltradas.map((c) => (
-                  <li key={c.id_categoria}>
+                  <li key={c.grupo_key}>
                     <button
                       type="button"
                       onClick={() => setSelCat(c)}
@@ -294,12 +294,12 @@ export default function CampeonatoPoomsaePage() {
                         padding: '10px 14px',
                         border: 'none',
                         borderBottom: '1px solid #f1f5f9',
-                        background: catActiva?.id_categoria === c.id_categoria ? '#eff6ff' : 'transparent',
+                        background: catActiva?.grupo_key === c.grupo_key ? '#eff6ff' : 'transparent',
                         cursor: 'pointer',
                         fontSize: 13,
                       }}
                     >
-                      <div style={{ fontWeight: 600 }}>{c.nombre}</div>
+                      <div style={{ fontWeight: 600 }}>{c.nombre_display || c.nombre}</div>
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                         {c.inscritos} inscrito(s) · {c.division} {c.genero}
                       </div>
@@ -315,7 +315,7 @@ export default function CampeonatoPoomsaePage() {
                   <header style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                     <div>
                       <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                        {catActiva.nombre}
+                        {catActiva.nombre_display || catActiva.nombre}
                         {catActiva.sorteada && (
                           <span className="badge badge-green" style={{ marginLeft: 8, fontSize: 11, verticalAlign: 'middle' }}>Sorteada</span>
                         )}
@@ -331,7 +331,7 @@ export default function CampeonatoPoomsaePage() {
                         className="ios-btn ios-btn-primary"
                         style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                         disabled={sorteando}
-                        onClick={() => sortear({ idCategoria: catActiva.id_categoria }, `Sorteo realizado: ${catActiva.nombre}.`)}
+                        onClick={() => sortear({ grupoKey: catActiva.grupo_key }, `Sorteo realizado: ${catActiva.nombre_display || catActiva.nombre}.`)}
                       >
                         {sorteando ? <><LoadingSpinner size={14} light /> …</> : '🎲 Sortear'}
                       </button>
@@ -341,7 +341,7 @@ export default function CampeonatoPoomsaePage() {
                           className="ios-btn ios-btn-ghost"
                           style={{ fontSize: 12, padding: '6px 12px' }}
                           disabled={sorteando}
-                          onClick={() => sortear({ idCategoria: catActiva.id_categoria, reset: true }, 'Orden restaurado por dorsal.')}
+                          onClick={() => sortear({ grupoKey: catActiva.grupo_key, reset: true }, 'Orden restaurado por dorsal.')}
                         >
                           ↺ Por dorsal
                         </button>

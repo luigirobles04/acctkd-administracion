@@ -110,8 +110,10 @@ export function agruparPoomsaePorForma(categorias) {
     }
     const g = map.get(key)
     g.categorias.push({
+      grupo_key: cat.grupo_key,
       id_categoria: cat.id_categoria,
-      nombre: cat.nombre,
+      modalidad_key: cat.modalidad_key,
+      nombre: cat.nombre_display || cat.nombre,
       division: cat.division,
       genero: cat.genero || genero,
       edad,
@@ -124,7 +126,7 @@ export function agruparPoomsaePorForma(categorias) {
       g.participantes.push({
         ...p,
         id_categoria: cat.id_categoria,
-        categoria_nombre: cat.nombre,
+        categoria_nombre: cat.nombre_display || cat.nombre,
         forma: key,
         edad,
         genero: cat.genero || genero,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { fetchOrdenPoomsaeCampeonato, MODALIDADES_POOMSAE } from '@/lib/campeonato/poomsae-orden'
+import { parsePoomsaeGrupoKey, poomsaeGrupoKey } from '@/lib/campeonato/poomsae-grupo'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -70,9 +71,11 @@ export async function GET(_request, { params }) {
 
 /**
  * POST: realiza el sorteo del orden de salida poomsae y lo persiste.
- * body: { idCategoria }  -> sortea una categoría
- *       { todas: true }  -> sortea todas las categorías con inscritos
- *       { idCategoria, reset: true } -> vuelve al orden por dorsal (limpia sorteo)
+ * body: { grupoKey }  -> sortea un bloque (catálogo + modalidad poomsae)
+ *       { idCategoria, modalidadKey } -> mismo bloque
+ *       { idCategoria } -> sortea cada modalidad de esa fila del catálogo por separado
+ *       { todas: true }  -> sortea todos los bloques con inscritos
+ *       { reset: true } con grupoKey o idCategoria (+ modalidadKey opcional)
  */
 export async function POST(request, { params }) {
   try {
@@ -98,7 +101,7 @@ export async function POST(request, { params }) {
     // Solo líneas poomsae aprobadas del campeonato (una query)
     let q = sb
       .from('linea_inscripcion')
-      .select('id_linea, id_categoria')
+      .select('id_linea, id_categoria, modalidad')
       .eq('id_campeonato', idCampeonato)
       .in('modalidad', MODALIDADES_POOMSAE)
       .neq('estado', 'anulado')
@@ -107,10 +110,18 @@ export async function POST(request, { params }) {
       .not('id_categoria', 'is', null)
 
     if (!body.todas) {
-      if (!body.idCategoria) {
-        return NextResponse.json({ error: 'Indica idCategoria o todas:true' }, { status: 400 })
+      if (!body.grupoKey && !body.idCategoria) {
+        return NextResponse.json({ error: 'Indica grupoKey, idCategoria (+ modalidadKey) o todas:true' }, { status: 400 })
       }
-      q = q.eq('id_categoria', Number(body.idCategoria))
+      if (body.grupoKey) {
+        const parsed = parsePoomsaeGrupoKey(body.grupoKey)
+        if (!parsed) return NextResponse.json({ error: 'grupoKey inválido' }, { status: 400 })
+        q = q.eq('id_categoria', parsed.idCategoria).eq('modalidad', parsed.modalidad)
+      } else if (body.modalidadKey) {
+        q = q.eq('id_categoria', Number(body.idCategoria)).eq('modalidad', body.modalidadKey)
+      } else {
+        q = q.eq('id_categoria', Number(body.idCategoria))
+      }
     }
 
     const { data: lineas, error: errL } = await q
@@ -119,15 +130,16 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'No hay inscritos poomsae para sortear' }, { status: 400 })
     }
 
-    // Agrupar por categoría
-    const porCat = new Map()
+    // Un bloque = misma fila catálogo + misma modalidad (individual / pareja / equipo)
+    const porGrupo = new Map()
     for (const l of lineas) {
-      if (!porCat.has(l.id_categoria)) porCat.set(l.id_categoria, [])
-      porCat.get(l.id_categoria).push(l.id_linea)
+      const key = poomsaeGrupoKey(l.id_categoria, l.modalidad)
+      if (!porGrupo.has(key)) porGrupo.set(key, [])
+      porGrupo.get(key).push(l.id_linea)
     }
 
     const patches = []
-    for (const ids of porCat.values()) {
+    for (const ids of porGrupo.values()) {
       if (body.reset) {
         for (const id_linea of ids) patches.push({ id_linea, orden_poomsae: null })
         continue
@@ -153,7 +165,7 @@ export async function POST(request, { params }) {
     const { categorias, resumen } = await fetchOrdenPoomsaeCampeonato(sb, idCampeonato)
     return NextResponse.json({
       ok: true,
-      categoriasSorteadas: porCat.size,
+      categoriasSorteadas: porGrupo.size,
       lineasActualizadas: patches.length,
       reset: Boolean(body.reset),
       categorias,
