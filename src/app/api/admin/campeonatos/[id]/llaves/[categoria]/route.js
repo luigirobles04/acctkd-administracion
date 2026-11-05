@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { parseCompetidor } from '@/lib/campeonato/llaves-kyorugi'
+import { parseCompetidor, listarInscritosKyorugiLlave, campeonatoLlavesSinPesaje } from '@/lib/campeonato/llaves-kyorugi'
 
 function enrichCombate(l, lineaMap, catMap) {
   const vacio = l.estado === 'vacío'
@@ -80,7 +80,11 @@ export async function GET(_request, { params }) {
       return acc
     }, {})
 
-    return NextResponse.json({ llaves: enriched, porRonda })
+    const llavesSinPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+    const todosInscritos = await listarInscritosKyorugiLlave(sb, idCampeonato, llavesSinPesaje)
+    const inscritos = (todosInscritos || []).filter((x) => x.id_categoria === idCategoria)
+
+    return NextResponse.json({ llaves: enriched, porRonda, inscritos, categoria: cat })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

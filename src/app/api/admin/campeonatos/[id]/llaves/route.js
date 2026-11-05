@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { lineaAptaParaLlave } from '@/lib/campeonato/pesaje'
 import {
   generarLlaveCategoria,
   generarTodasLasLlaves,
   asignarCanchasCampeonato,
   campeonatoLlavesSinPesaje,
   conteosKyorugiLlave,
+  listarInscritosKyorugiLlave,
 } from '@/lib/campeonato/llaves-kyorugi'
 
 export const maxDuration = 300
@@ -62,7 +64,7 @@ export async function GET(_request, { params }) {
       let qSolo = sb
         .from('linea_inscripcion')
         .select(`
-          id_linea, id_categoria, dorsal_display,
+          id_linea, id_categoria, dorsal_display, pesaje_estado, peso_declarado,
           miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
         `)
         .eq('id_campeonato', idCampeonato)
@@ -70,10 +72,16 @@ export async function GET(_request, { params }) {
         .eq('estado', 'aprobado')
         .not('dorsal_numero', 'is', null)
         .in('id_categoria', soloIds)
-      if (!llavesSinPesaje) qSolo = qSolo.in('pesaje_estado', ['ok', 'subido'])
       const { data: lineasSolo } = await qSolo
+      const aptOpts = { omitirPesaje: llavesSinPesaje, aceptarPesoDeclarado: true }
       const porCat = {}
       for (const l of lineasSolo || []) {
+        if (
+          !llavesSinPesaje &&
+          !lineaAptaParaLlave(l.pesaje_estado, { ...aptOpts, pesoDeclarado: l.peso_declarado })
+        ) {
+          continue
+        }
         const p = l.miembros?.[0]?.perfil
         const nombre = p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : ''
         porCat[l.id_categoria] = {
@@ -87,10 +95,14 @@ export async function GET(_request, { params }) {
       }
     }
 
+    const inscritos_kyorugi = await listarInscritosKyorugiLlave(sb, idCampeonato, llavesSinPesaje)
+
     return NextResponse.json({
       categorias: cats,
+      inscritos_kyorugi,
       llaves_sin_pesaje: llavesSinPesaje,
       requiere_pesaje: !llavesSinPesaje,
+      usa_peso_declarado: true,
     })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

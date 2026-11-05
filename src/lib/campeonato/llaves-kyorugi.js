@@ -1,11 +1,16 @@
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
-import { lineaAptaParaLlave, PESAJE_ESTADOS_APTOS_LLAVE } from '@/lib/campeonato/pesaje'
+import { lineaAptaParaLlave } from '@/lib/campeonato/pesaje'
 import { esCategoriaKyorugiFestival } from '@/lib/campeonato/validar-categoria'
 
 const SELECT_LINEA_LLAVE = `
   id_linea, id_categoria, dorsal_display, dorsal_numero, id_academia_campeonato, pesaje_estado,
+  peso_declarado, peso_oficial,
   miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
 `
+
+function optsAptoLlave(omitirPesaje) {
+  return { omitirPesaje, aceptarPesoDeclarado: true }
+}
 
 export async function campeonatoLlavesSinPesaje(sb, idCampeonato) {
   const { data } = await sb
@@ -25,15 +30,21 @@ function queryLineasKyorugiLlave(sb, idCampeonato, { idCategoria, omitirPesaje }
     .eq('estado', 'aprobado')
     .not('dorsal_numero', 'is', null)
   if (idCategoria) q = q.eq('id_categoria', idCategoria)
-  if (!omitirPesaje) q = q.in('pesaje_estado', PESAJE_ESTADOS_APTOS_LLAVE)
   return q
+}
+
+function filtrarLineasAptasLlave(lineas, omitirPesaje) {
+  const aptOpts = optsAptoLlave(omitirPesaje)
+  return (lineas || []).filter((l) =>
+    lineaAptaParaLlave(l.pesaje_estado, { ...aptOpts, pesoDeclarado: l.peso_declarado }),
+  )
 }
 
 /** Conteos por categoría: inscritos con dorsal vs aptos tras pesaje */
 export async function conteosKyorugiLlave(sb, idCampeonato, omitirPesaje = false) {
   const { data: lineas, error } = await sb
     .from('linea_inscripcion')
-    .select('id_categoria, pesaje_estado')
+    .select('id_categoria, pesaje_estado, peso_declarado')
     .eq('id_campeonato', idCampeonato)
     .eq('modalidad', 'kyorugi_individual')
     .eq('estado', 'aprobado')
@@ -42,14 +53,57 @@ export async function conteosKyorugiLlave(sb, idCampeonato, omitirPesaje = false
 
   const inscritosPorCat = {}
   const aptosPorCat = {}
+  const aptOpts = optsAptoLlave(omitirPesaje)
   for (const l of lineas || []) {
     if (!l.id_categoria) continue
     inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
-    if (lineaAptaParaLlave(l.pesaje_estado, { omitirPesaje })) {
+    if (lineaAptaParaLlave(l.pesaje_estado, { ...aptOpts, pesoDeclarado: l.peso_declarado })) {
       aptosPorCat[l.id_categoria] = (aptosPorCat[l.id_categoria] || 0) + 1
     }
   }
   return { inscritosPorCat, aptosPorCat }
+}
+
+/** Todos los kyorugi individual con dorsal (consolidación / vista previo llave). */
+export async function listarInscritosKyorugiLlave(sb, idCampeonato, omitirPesaje = false) {
+  const { data: lineas, error } = await sb
+    .from('linea_inscripcion')
+    .select(`
+      ${SELECT_LINEA_LLAVE},
+      categoria:categoria_campeonato(id_categoria, nombre, division, genero, peso_min, peso_max),
+      academia_campeonato(academia(nombre))
+    `)
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+    .order('dorsal_numero', { ascending: true })
+  if (error) throw error
+
+  const aptOpts = optsAptoLlave(omitirPesaje)
+  return (lineas || []).map((l) => {
+    const p = l.miembros?.[0]?.perfil
+    const nombre = p ? `${p.nombres || ''} ${p.apellidos || ''}`.trim() : '—'
+    const pesoRef = l.peso_oficial != null ? Number(l.peso_oficial) : Number(l.peso_declarado)
+    const apto = lineaAptaParaLlave(l.pesaje_estado, {
+      ...aptOpts,
+      pesoDeclarado: l.peso_declarado,
+    })
+    return {
+      id_linea: l.id_linea,
+      id_categoria: l.id_categoria,
+      categoria_nombre: l.categoria?.nombre || '',
+      division: l.categoria?.division || '',
+      dorsal: l.dorsal_display || '',
+      nombre,
+      academia: l.academia_campeonato?.academia?.nombre || '',
+      peso_declarado: l.peso_declarado != null ? Number(l.peso_declarado) : null,
+      peso_oficial: l.peso_oficial != null ? Number(l.peso_oficial) : null,
+      peso_referencia: Number.isFinite(pesoRef) && pesoRef > 0 ? pesoRef : null,
+      pesaje_estado: l.pesaje_estado || 'pendiente',
+      apto_llave: apto,
+    }
+  })
 }
 
 async function mensajeMinimoParticipantes(sb, idCampeonato, idCategoria, aptos, omitirPesaje) {
@@ -450,7 +504,7 @@ export async function generarLlaveCategoria(sb, idCampeonato, idCategoria, { asi
   })
   if (error) throw error
 
-  const participantes = lineas || []
+  const participantes = filtrarLineasAptasLlave(lineas, omitirPesaje)
   if (participantes.length < 2) {
     const msg = await mensajeMinimoParticipantes(sb, idCampeonato, idCategoria, participantes.length, omitirPesaje)
     throw new Error(msg)
@@ -743,9 +797,9 @@ export async function generarLlaveCategoriaUnico(sb, idCampeonato, idCategoria, 
   })
   if (error) throw error
 
-  const participantes = lineas || []
+  const participantes = filtrarLineasAptasLlave(lineas, omitirPesaje)
   if (participantes.length !== 1) {
-    const etiqueta = omitirPesaje ? 'competidor con dorsal' : 'competidor con pesaje OK'
+    const etiqueta = omitirPesaje ? 'competidor con dorsal' : 'competidor apto (pesaje o peso declarado)'
     throw new Error(`Oro único requiere exactamente 1 ${etiqueta} (hay ${participantes.length})`)
   }
 
@@ -850,7 +904,7 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
   if (!nombrePorId[destino]) throw new Error('La categoría destino no pertenece a este campeonato')
 
   const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
-  const etiqueta = omitirPesaje ? 'con dorsal' : 'con pesaje OK'
+  const etiqueta = omitirPesaje ? 'con dorsal' : 'apto (pesaje o peso declarado)'
   const movidos = []
 
   for (const idCat of origenes) {
@@ -859,7 +913,7 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
       omitirPesaje,
     })
     if (error) throw error
-    const aptos = lineas || []
+    const aptos = filtrarLineasAptasLlave(lineas, omitirPesaje)
     if (aptos.length !== 1) {
       throw new Error(
         `"${nombrePorId[idCat] || idCat}" debe tener exactamente 1 competidor ${etiqueta} (hay ${aptos.length})`,
@@ -880,7 +934,8 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
       omitirPesaje,
     })
     if (errDest) throw errDest
-    if (!(lineasDest || []).length) {
+    const aptosDest = filtrarLineasAptasLlave(lineasDest, omitirPesaje)
+    if (!aptosDest.length) {
       throw new Error(
         `"${nombrePorId[destino]}" debe tener al menos 1 competidor ${etiqueta} para unir solitarios`,
       )

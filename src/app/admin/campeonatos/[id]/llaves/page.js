@@ -1,7 +1,7 @@
 'use client'
 import { adminFetch } from '@/lib/admin-client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
@@ -48,6 +48,11 @@ export default function CampeonatoLlavesPage() {
   const [solosSel, setSolosSel] = useState([])
   const [destinoConsol, setDestinoConsol] = useState('')
   const [consolidando, setConsolidando] = useState(false)
+  const [inscritosKyorugi, setInscritosKyorugi] = useState([])
+  const [usaPesoDeclarado, setUsaPesoDeclarado] = useState(true)
+  const [buscarInscrito, setBuscarInscrito] = useState('')
+  const [filtroCatInscrito, setFiltroCatInscrito] = useState('')
+  const [mostrarInscritos, setMostrarInscritos] = useState(true)
 
   const cargarCats = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -58,6 +63,8 @@ export default function CampeonatoLlavesPage() {
       const json = await readJsonResponse(res)
       if (!res.ok) throw new Error(apiError(json, 'Error al cargar categorías'))
       setCategorias(json.categorias || [])
+      setInscritosKyorugi(json.inscritos_kyorugi || [])
+      setUsaPesoDeclarado(json.usa_peso_declarado !== false)
       setLlavesSinPesaje(Boolean(json.llaves_sin_pesaje))
       setRequierePesaje(json.requiere_pesaje !== false)
       return json.categorias || []
@@ -467,6 +474,24 @@ export default function CampeonatoLlavesPage() {
 
   const bloqueado = generandoTodas || Boolean(generando) || consolidando
 
+  const inscritosFiltrados = useMemo(() => {
+    const q = buscarInscrito.trim().toLowerCase()
+    const catId = Number(filtroCatInscrito) || 0
+    return (inscritosKyorugi || []).filter((x) => {
+      if (catId && x.id_categoria !== catId) return false
+      if (!q) return true
+      const blob = `${x.dorsal} ${x.nombre} ${x.categoria_nombre} ${x.academia}`.toLowerCase()
+      return blob.includes(q)
+    })
+  }, [inscritosKyorugi, buscarInscrito, filtroCatInscrito])
+
+  const inscritosResumen = useMemo(() => {
+    const total = inscritosKyorugi.length
+    const aptos = inscritosKyorugi.filter((x) => x.apto_llave).length
+    const solos = categorias.filter((c) => (requierePesaje ? c.aptos === 1 : c.inscritos === 1) && !c.tiene_llave).length
+    return { total, aptos, solos }
+  }, [inscritosKyorugi, categorias, requierePesaje])
+
   const combatesFiltrados = selCat && porRonda
     ? Object.keys(porRonda)
         .sort((a, b) => Number(b) - Number(a))
@@ -491,7 +516,9 @@ export default function CampeonatoLlavesPage() {
           Llaves aleatorias · 3 canchas · peto azul (Chung) / rojo (Hong) · toca el ganador para avanzar.
           {requierePesaje && (
             <span style={{ display: 'block', marginTop: 6, color: '#b45309' }}>
-              Generación bloqueada hasta pesaje OK — completa Pesaje antes de armar llaves.
+              {usaPesoDeclarado
+                ? 'Aptos para llave: pesaje OK o peso declarado en inscripción (sin pesaje oficial aún).'
+                : 'Generación bloqueada hasta pesaje OK — completa Pesaje antes de armar llaves.'}
             </span>
           )}
         </p>
@@ -675,6 +702,97 @@ export default function CampeonatoLlavesPage() {
           </div>
         )}
 
+        {!loading && inscritosKyorugi.length > 0 && (
+          <div className="ios-card" style={{ padding: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Competidores kyorugi ({inscritosResumen.total})</h3>
+                <p className="ios-caption" style={{ color: 'var(--label2)', marginTop: 4, marginBottom: 0 }}>
+                  {inscritosResumen.aptos} aptos para llave · {inscritosResumen.solos} categorías con 1 solo · consolidación y exhibición abajo
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ios-btn ios-btn-secondary"
+                style={{ fontSize: 12 }}
+                onClick={() => setMostrarInscritos((v) => !v)}
+              >
+                {mostrarInscritos ? 'Ocultar lista' : 'Ver lista'}
+              </button>
+            </div>
+            {mostrarInscritos && (
+              <>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <input
+                    className="ios-input"
+                    placeholder="Buscar dorsal, nombre, academia…"
+                    value={buscarInscrito}
+                    onChange={(e) => setBuscarInscrito(e.target.value)}
+                    style={{ flex: '1 1 200px', minWidth: 160 }}
+                  />
+                  <select
+                    className="ios-input"
+                    value={filtroCatInscrito}
+                    onChange={(e) => setFiltroCatInscrito(e.target.value)}
+                    style={{ flex: '1 1 220px', minWidth: 180 }}
+                  >
+                    <option value="">Todas las categorías</option>
+                    {categorias
+                      .filter((c) => c.inscritos > 0)
+                      .map((c) => (
+                        <option key={c.id_categoria} value={c.id_categoria}>
+                          {c.nombre} ({requierePesaje ? c.aptos : c.inscritos})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div style={{ maxHeight: 420, overflow: 'auto', border: '1px solid var(--separator)', borderRadius: 10 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--fill2)', textAlign: 'left', position: 'sticky', top: 0 }}>
+                        <th style={{ padding: '8px 10px' }}>Dorsal</th>
+                        <th style={{ padding: '8px 10px' }}>Competidor</th>
+                        <th style={{ padding: '8px 10px' }}>Categoría</th>
+                        <th style={{ padding: '8px 10px' }}>Peso</th>
+                        <th style={{ padding: '8px 10px' }}>Apto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inscritosFiltrados.map((x) => (
+                        <tr key={x.id_linea} style={{ borderTop: '1px solid var(--separator)' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>{x.dorsal || '—'}</td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <div>{x.nombre}</div>
+                            <div className="ios-caption" style={{ color: 'var(--label3)' }}>{x.academia}</div>
+                          </td>
+                          <td style={{ padding: '8px 10px', fontSize: 12 }}>{x.categoria_nombre}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                            {x.peso_oficial != null ? `${x.peso_oficial} kg ✓` : x.peso_declarado != null ? `${x.peso_declarado} kg (decl.)` : '—'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            {x.apto_llave ? (
+                              <span style={{ color: '#15803d', fontWeight: 600 }}>Sí</span>
+                            ) : (
+                              <span style={{ color: '#b45309' }} title={x.pesaje_estado}>{x.pesaje_estado || 'pendiente'}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {inscritosFiltrados.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ padding: 16, color: 'var(--label3)', textAlign: 'center' }}>
+                            Sin coincidencias
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {!loading && (
           <div className="ios-card" style={{ padding: 16, marginBottom: 16 }}>
             <h3 style={{ margin: '0 0 8px' }}>Combate de exhibición</h3>
@@ -720,7 +838,7 @@ export default function CampeonatoLlavesPage() {
                         {requierePesaje
                           ? `${c.aptos ?? 0} aptos · ${c.inscritos ?? 0} inscritos`
                           : `${c.inscritos ?? 0} inscritos`}
-                        {' · '}{c.tiene_llave ? 'Llave OK' : c.puede_generar ? 'Listo' : 'Falta pesaje'}
+                        {' · '}{c.tiene_llave ? 'Llave OK' : c.puede_generar ? 'Listo' : requierePesaje ? 'Faltan aptos' : 'Insuficientes'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>

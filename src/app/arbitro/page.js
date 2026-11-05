@@ -344,7 +344,7 @@ function PanelKyorugi({ idCampeonato, cancha, onCambiarCancha }) {
 
 function PanelPoomsae({ idCampeonato }) {
   const [categorias, setCategorias] = useState([])
-  const [catActivaId, setCatActivaId] = useState(null)
+  const [grupoActivoKey, setGrupoActivoKey] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [needsMigration, setNeedsMigration] = useState(false)
@@ -368,7 +368,10 @@ function PanelPoomsae({ idCampeonato }) {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const catActiva = useMemo(() => categorias.find((c) => c.id_categoria === catActivaId) || null, [categorias, catActivaId])
+  const catActiva = useMemo(
+    () => categorias.find((c) => c.grupo_key === grupoActivoKey) || null,
+    [categorias, grupoActivoKey],
+  )
 
   async function guardarPuntaje(idLinea) {
     const puntaje = scores[idLinea]
@@ -399,7 +402,7 @@ function PanelPoomsae({ idCampeonato }) {
       const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae/puntaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idCategoria: catActiva.id_categoria, cerrarCategoria: true }),
+        body: JSON.stringify({ grupoKey: catActiva.grupo_key, cerrarCategoria: true }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
@@ -434,10 +437,10 @@ function PanelPoomsae({ idCampeonato }) {
         ) : (
           <div className="arb-grid-cards">
             {categorias.map((c) => (
-              <button key={c.id_categoria} className="arb-card" onClick={() => setCatActivaId(c.id_categoria)}>
+              <button key={c.grupo_key} className="arb-card" onClick={() => setGrupoActivoKey(c.grupo_key)}>
                 <div className="arb-card-icon">🎯</div>
                 <div className="arb-card-body">
-                  <strong>{c.nombre}</strong>
+                  <strong>{c.nombre_display || c.nombre}</strong>
                   <span>{c.inscritos} inscritos{c.calificados ? ` · ${c.calificados} calificados` : ''}</span>
                 </div>
                 {c.cerrada && <span className="arb-badge arb-badge--live">Completa</span>}
@@ -452,11 +455,11 @@ function PanelPoomsae({ idCampeonato }) {
   return (
     <div className="arb-container">
       <div className="arb-toolbar">
-        <button className="arb-btn-outline" onClick={() => { setCatActivaId(null); setPodio(null) }}>← Categorías</button>
+        <button className="arb-btn-outline" onClick={() => { setGrupoActivoKey(null); setPodio(null) }}>← Categorías</button>
         <button className="arb-btn-outline" onClick={cargar}>↻ Actualizar</button>
         <button className="arb-btn-fill" onClick={cerrarCategoria}>🏁 Calcular podio</button>
       </div>
-      <h1 className="arb-h1">{catActiva.nombre}</h1>
+      <h1 className="arb-h1">{catActiva.nombre_display || catActiva.nombre}</h1>
       <p className="arb-sub">Ingresa el puntaje (0–10) de cada competidor en el orden que decidas y guarda.</p>
 
       {podio && (

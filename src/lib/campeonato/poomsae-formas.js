@@ -3,6 +3,19 @@
  * Podios siguen por categoría (edad + sexo).
  */
 
+/** Mismo orden que poomsae-grupo (evita dependencia circular). */
+const POOMSAE_MODALIDAD_ORDEN = [
+  'poomsae_individual',
+  'poomsae_pareja_reconocida',
+  'poomsae_pareja_freestyle',
+  'poomsae_equipo',
+]
+
+function modalidadPoomsaeRank(modalidad) {
+  const i = POOMSAE_MODALIDAD_ORDEN.indexOf(modalidad)
+  return i >= 0 ? i : 99
+}
+
 const EDAD_ORDER = [
   'Pre Infantil',
   'Infantil A',
@@ -126,6 +139,7 @@ export function agruparPoomsaePorForma(categorias) {
       g.participantes.push({
         ...p,
         id_categoria: cat.id_categoria,
+        modalidad_key: cat.modalidad_key,
         categoria_nombre: cat.nombre_display || cat.nombre,
         forma: key,
         edad,
@@ -133,6 +147,14 @@ export function agruparPoomsaePorForma(categorias) {
         orden_cat: p.orden,
       })
     }
+    g.categorias.sort((a, b) => {
+      const ca = compareCategoriasPorPoomsae(
+        { nombre: a.nombre, genero: a.genero },
+        { nombre: b.nombre, genero: b.genero },
+      )
+      if (ca !== 0) return ca
+      return modalidadPoomsaeRank(a.modalidad_key) - modalidadPoomsaeRank(b.modalidad_key)
+    })
   }
 
   const formas = [...map.values()].map((g) => {
@@ -141,6 +163,8 @@ export function agruparPoomsaePorForma(categorias) {
       if (ea !== 0) return ea
       const ga = generoRank(a.genero) - generoRank(b.genero)
       if (ga !== 0) return ga
+      const ma = modalidadPoomsaeRank(a.modalidad_key) - modalidadPoomsaeRank(b.modalidad_key)
+      if (ma !== 0) return ma
       return (a.orden_cat ?? 0) - (b.orden_cat ?? 0)
     })
     // orden global de llamado dentro de la forma

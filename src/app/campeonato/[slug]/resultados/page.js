@@ -236,7 +236,7 @@ export default function ResultadosPublicosPage() {
                     )}
                     <div className="podios-grid">
                       {data.poomsae.podios.map((cat) => (
-                        <PodioCard key={cat.id_categoria} categoria={cat} modalidad="poomsae" />
+                        <PodioCard key={cat.grupo_key || cat.id_categoria} categoria={cat} modalidad="poomsae" />
                       ))}
                     </div>
                   </>
