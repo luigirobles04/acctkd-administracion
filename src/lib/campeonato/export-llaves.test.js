@@ -1,25 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { combatesPeleables, buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
-
-function compararCategoria(a, b) {
-  return (a.orden ?? 9999) - (b.orden ?? 9999)
-}
-
-function buildOrdenBloques(categorias, porCat, canchaPorCat) {
-  const map = {}
-  for (const cancha of [1, 2, 3]) {
-    const cats = categorias
-      .filter((c) => Number(canchaPorCat[c.id_categoria]) === cancha)
-      .sort(compararCategoria)
-    let orden = 1
-    for (const cat of cats) {
-      for (const c of combatesPeleables(porCat[cat.id_categoria])) {
-        map[c.id_llave] = orden++
-      }
-    }
-  }
-  return map
-}
+import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
+import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
 
 describe('numeración por bloques de categoría', () => {
   const catA = { id_categoria: 1, orden: 1 }
@@ -37,20 +18,17 @@ describe('numeración por bloques de categoría', () => {
   }
   const canchaPorCat = { 1: 1, 2: 1 }
 
-  it('continúa numeración entre categorías del mismo área', () => {
-    const map = buildOrdenBloques([catA, catB], porCat, canchaPorCat)
+  it('continúa numeración entre categorías con descanso antes de cada final', () => {
+    const map = buildOrdenPistaMapPorCancha([catA, catB], porCat, canchaPorCat)
     expect(map[10]).toBe(1)
     expect(map[11]).toBe(2)
-    expect(map[12]).toBe(3)
-    expect(map[20]).toBe(4)
-    expect(map[21]).toBe(5)
+    expect(map[12]).toBe(4)
+    expect(map[20]).toBe(5)
+    expect(map[21]).toBe(7)
   })
 
-  it('buildSchedulePorCategoria coincide con orden de bloques', () => {
+  it('buildSchedulePorCategoria no altera el orden de bloques', () => {
     const schedule = buildSchedulePorCategoria([catA, catB], porCat)
-    const map = buildOrdenBloques([catA, catB], porCat, canchaPorCat)
-    schedule.forEach((c, i) => {
-      expect(map[c.id_llave]).toBe(i + 1)
-    })
+    expect(schedule.map((c) => c.id_llave)).toEqual([10, 11, 12, 20, 21])
   })
 })

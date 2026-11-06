@@ -28,3 +28,35 @@ export function computeOrdenLlavePdf(combates) {
   })
   return map
 }
+
+/**
+ * Mapa id_llave → orden_pista por área (bloques de categoría).
+ * Cada categoría: pre-finales 1..N, un hueco (descanso), final = N+2; la siguiente categoría continúa después del máximo.
+ */
+export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
+  const map = {}
+  for (let cancha = 1; cancha <= numCanchas; cancha++) {
+    const cats = (categorias || [])
+      .filter((c) => Number(canchaPorCat[c.id_categoria]) === cancha)
+      .sort((a, b) => {
+        const oa = a.orden ?? 9999
+        const ob = b.orden ?? 9999
+        if (oa !== ob) return oa - ob
+        return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
+      })
+    let offset = 0
+    for (const cat of cats) {
+      const combates = porCat[cat.id_categoria] || []
+      const local = computeOrdenLlavePdf(combates)
+      let maxLocal = 0
+      for (const c of combates) {
+        const loc = local[c.id_llave]
+        if (loc == null) continue
+        map[c.id_llave] = loc + offset
+        maxLocal = Math.max(maxLocal, loc)
+      }
+      offset += maxLocal
+    }
+  }
+  return map
+}

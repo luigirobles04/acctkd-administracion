@@ -1,3 +1,5 @@
+import { computeOrdenLlavePdf } from '@/lib/campeonato/orden-llave'
+
 /** Combates activos ordenados: ronda más alta primero, luego match_numero. */
 export function combatesOrdenados(lista) {
   return (lista || [])
@@ -84,7 +86,7 @@ export function buildScheduleHibrido(categorias, porCat) {
 /**
  * Programación por bloques de categoría:
  * termina todos los combates de una categoría antes de pasar a la siguiente.
- * Numeración seguida 1, 2, 3… (pre-finales y final sin hueco).
+ * Orden de salida seguido; la numeración en pista reserva 1 combate de descanso antes de cada final.
  */
 export function buildSchedulePorCategoria(categorias, porCat) {
   const schedule = []
@@ -115,7 +117,7 @@ function compararCategoriaExport(a, b) {
 }
 
 /**
- * Asigna orden_pista continuo por área: categoría completa, luego la siguiente.
+ * Asigna orden_pista por área (bloques de categoría): pre-finales, 1 descanso, final N+2.
  * Muta porRonda in-place (sin bye/saltado/vacío).
  */
 export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.cancha ?? 1 } = {}) {
@@ -128,11 +130,18 @@ export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.ca
 
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    let orden = 1
+    let offset = 0
     for (const cat of cats) {
-      for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {
-        c.orden_pista = orden++
+      const combates = combatesPeleables(combatesDesdePorRonda(cat.porRonda))
+      const local = computeOrdenLlavePdf(combates)
+      let maxLocal = 0
+      for (const c of combates) {
+        const loc = local[c.id_llave]
+        if (loc == null) continue
+        c.orden_pista = loc + offset
+        maxLocal = Math.max(maxLocal, loc)
       }
+      offset += maxLocal
     }
   }
 }

@@ -393,7 +393,7 @@ async function batchUpdateCanchas(sb, rows) {
   }
 }
 
-/** Garantiza orden_pista 1…N único por cancha antes de persistir. */
+/** Ordena por cancha y orden_pista; conserva huecos (descanso antes de finales). */
 function normalizarUpdatesOrdenPista(updates) {
   const byCancha = new Map()
   for (const u of updates) {
@@ -404,12 +404,13 @@ function normalizarUpdatesOrdenPista(updates) {
   const out = []
   for (const rows of byCancha.values()) {
     rows.sort((a, b) => (a.orden_pista ?? 9999) - (b.orden_pista ?? 9999) || (a.id_llave || 0) - (b.id_llave || 0))
-    rows.forEach((r, i) => out.push({ ...r, orden_pista: i + 1 }))
+    out.push(...rows)
   }
   return out
 }
 
 import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
+import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
 
 /** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
@@ -448,9 +449,14 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
 
   const porCancha = Array.from({ length: numCanchas }, () => [])
+  const canchaPorCat = {}
   catsConLlave.forEach((cat, ci) => {
+    const cancha = (ci % numCanchas) + 1
+    canchaPorCat[cat.id_categoria] = cancha
     porCancha[ci % numCanchas].push(cat)
   })
+
+  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, { numCanchas })
 
   const resumen = []
   let updates = []
@@ -459,12 +465,14 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     const catsEnCancha = porCancha[n]
     const secuencia = buildSchedulePorCategoria(catsEnCancha, porCat)
     const conteoCat = {}
-    let ordenCancha = 1
 
     for (const combate of secuencia) {
-      updates.push({ id_llave: combate.id_llave, cancha: n + 1, orden_pista: ordenCancha })
+      updates.push({
+        id_llave: combate.id_llave,
+        cancha: n + 1,
+        orden_pista: ordenPistaMap[combate.id_llave] ?? null,
+      })
       conteoCat[combate.id_categoria] = (conteoCat[combate.id_categoria] || 0) + 1
-      ordenCancha++
     }
 
     for (const cat of catsEnCancha) {

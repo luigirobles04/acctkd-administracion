@@ -1,5 +1,5 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
-import { combatesPeleables } from '@/lib/campeonato/schedule-canchas'
+import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -29,24 +29,9 @@ function compararCategoria(a, b) {
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
-/**
- * Numeración continua por área en bloques de categoría:
- * Cat A: 1..N, Cat B: N+1.., sin huecos (final incluida al final de cada bloque).
- */
+/** Numeración por área: pre-finales seguidos, 1 combate de descanso, final N+2; luego siguiente categoría. */
 function buildOrdenBloquesPorCancha(categorias, porCat, canchaPorCat) {
-  const map = {}
-  for (const cancha of [1, 2, 3]) {
-    const catsEnCancha = categorias
-      .filter((c) => Number(canchaPorCat[c.id_categoria]) === cancha)
-      .sort(compararCategoria)
-    let orden = 1
-    for (const cat of catsEnCancha) {
-      for (const c of combatesPeleables(porCat[cat.id_categoria])) {
-        map[c.id_llave] = orden++
-      }
-    }
-  }
-  return map
+  return buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas: 3 })
 }
 
 /** Agrupa combates por categoría con metadata para export */
