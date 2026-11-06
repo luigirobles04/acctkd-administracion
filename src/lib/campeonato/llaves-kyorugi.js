@@ -409,9 +409,10 @@ function normalizarUpdatesOrdenPista(updates) {
   return out
 }
 
-import { buildScheduleNumeracionIntercalada } from '@/lib/campeonato/schedule-canchas'
+import { buildOrdenPistaPorBuckets } from '@/lib/campeonato/schedule-canchas'
 import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
 import { compararCategoriaPorTamanioLlave } from '@/lib/campeonato/bracket-export'
+import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
 
 /** Asignación de área balanceada por combates; orden_pista intercalado con descanso antes de cada final. */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
@@ -456,10 +457,14 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     .eq('modalidad', 'kyorugi_individual')
     .eq('estado', 'aprobado')
     .not('dorsal_numero', 'is', null)
-  const inscritosPorCat = {}
+  const inscritosPorCatRaw = {}
   for (const l of inscRows || []) {
     if (!l.id_categoria) continue
-    inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
+    inscritosPorCatRaw[l.id_categoria] = (inscritosPorCatRaw[l.id_categoria] || 0) + 1
+  }
+  const inscritosPorCat = {
+    ...inscritosPorCatRaw,
+    ...buildMapInscritosResueltos(catsConLlave, inscritosPorCatRaw, porCat),
   }
 
   const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, numCanchas)
@@ -482,7 +487,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
-    const secuencia = buildScheduleNumeracionIntercalada(catsEnCancha, porCat, inscritosPorCat)
+    const secuencia = buildOrdenPistaPorBuckets(catsEnCancha, porCat, inscritosPorCat)
     const conteoCat = {}
 
     for (const combate of secuencia) {

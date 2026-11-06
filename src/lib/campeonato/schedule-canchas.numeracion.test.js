@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  buildOrdenPistaPorBuckets,
   buildScheduleNumeracionIntercalada,
   buildSchedulePorCategoria,
 } from '@/lib/campeonato/schedule-canchas'
@@ -139,5 +140,40 @@ describe('buildScheduleNumeracionIntercalada', () => {
     expect(map[10]).toBe(1)
     expect(map[20]).toBe(2)
     expect(map[11]).toBe(3)
+  })
+})
+
+describe('buildOrdenPistaPorBuckets', () => {
+  it('pone todas las finales directas (2 insc) primero y números 1, 2, 3… sin huecos', () => {
+    const cat2 = { id_categoria: 1, orden: 1, nombre: 'A' }
+    const cat4 = { id_categoria: 2, orden: 2, nombre: 'B' }
+    const porCat = {
+      1: [{ id_llave: 20, id_categoria: 1, ronda: 1, match_numero: 1, estado: 'pendiente' }],
+      2: [
+        { id_llave: 10, id_categoria: 2, ronda: 2, match_numero: 1, estado: 'pendiente' },
+        { id_llave: 11, id_categoria: 2, ronda: 1, match_numero: 1, estado: 'pendiente' },
+      ],
+    }
+    const ins = { 1: 2, 2: 4 }
+    const schedule = buildOrdenPistaPorBuckets([cat2, cat4], porCat, ins)
+    expect(schedule.map((c) => c.id_llave)).toEqual([20, 10, 11])
+    const map = ordenPistaDesdeSchedule(schedule)
+    expect(map[20]).toBe(1)
+    expect(map[10]).toBe(2)
+    expect(map[11]).toBe(3)
+  })
+
+  it('dos categorías de 2 insc: orden_pista 1 y 2 seguidos (no 2 y 4)', () => {
+    const a = { id_categoria: 1, orden: 1 }
+    const b = { id_categoria: 2, orden: 2 }
+    const porCat = {
+      1: [{ id_llave: 1, id_categoria: 1, ronda: 1, match_numero: 1, estado: 'pendiente' }],
+      2: [{ id_llave: 2, id_categoria: 2, ronda: 1, match_numero: 1, estado: 'pendiente' }],
+    }
+    const ins = { 1: 2, 2: 2 }
+    const schedule = buildOrdenPistaPorBuckets([a, b], porCat, ins)
+    const map = ordenPistaDesdeSchedule(schedule)
+    expect(map[1]).toBe(1)
+    expect(map[2]).toBe(2)
   })
 })

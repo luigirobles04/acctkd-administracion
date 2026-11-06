@@ -1,10 +1,27 @@
-/** Misma lógica que bracket-export.bucketInscritosLlave (evita import circular). */
+import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
+
+/**
+ * Misma lógica que bracket-export.bucketInscritosLlave (duplicada aquí para evitar import circular con bracket-export).
+ */
 function bucketInscritosLlaveLocal(inscritos) {
   const n = Math.max(0, Number(inscritos) || 0)
   if (n < 2) return 99
   if (n === 2) return 0
   if (n === 3) return 1
   return 2
+}
+
+function compararCategoriaPorTamanioLlaveLocal(a, b, inscritosPorCat) {
+  const map = inscritosPorCat || {}
+  const ia = map[a.id_categoria] ?? a.inscritos ?? 0
+  const ib = map[b.id_categoria] ?? b.inscritos ?? 0
+  const ba = bucketInscritosLlaveLocal(ia)
+  const bb = bucketInscritosLlaveLocal(ib)
+  if (ba !== bb) return ba - bb
+  const oa = a.orden ?? 9999
+  const ob = b.orden ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
 /** Combates activos ordenados: ronda más alta primero, luego match_numero. */
@@ -144,10 +161,14 @@ function compararColaCategoria(a, b) {
  * - Tras el último pre-final de una categoría, **un solo** combate ajeno y luego su final (no enfriar al ganador).
  */
 export function buildScheduleNumeracionIntercalada(categorias, porCat, inscritosPorCat = {}) {
+  const insMap = {
+    ...inscritosPorCat,
+    ...buildMapInscritosResueltos(categorias, inscritosPorCat, porCat),
+  }
   const queues = (categorias || []).map((cat) => ({
     catId: cat.id_categoria,
     catOrden: cat.orden ?? 9999,
-    catInscritos: inscritosPorCat[cat.id_categoria] ?? cat.inscritos ?? 0,
+    catInscritos: insMap[cat.id_categoria] ?? cat.inscritos ?? 0,
     list: [...combatesPeleables(porCat[cat.id_categoria])],
   }))
 
@@ -227,6 +248,43 @@ export function buildScheduleNumeracionIntercalada(categorias, porCat, inscritos
   return schedule
 }
 
+/**
+ * Orden de pista por área: primero **todos** los combates de categorías de 2 inscritos (3/01, 3/02…),
+ * luego bloque de 3, luego 4+; dentro de cada bloque la lógica intercalada + descanso antes de final.
+ */
+export function buildOrdenPistaPorBuckets(catsEnCancha, porCat, inscritosPorCat = {}) {
+  const cats = catsEnCancha || []
+  const ins = {
+    ...(inscritosPorCat || {}),
+    ...buildMapInscritosResueltos(cats, inscritosPorCat, porCat),
+  }
+  /** Sin conteo confiable no podemos partir en bloques 2/3/4+ (evita omitir categorías). */
+  const sinConteoConfiable = cats.some((cat) => {
+    const n = ins[cat.id_categoria] ?? cat.inscritos
+    return n == null || Number(n) < 2
+  })
+  if (sinConteoConfiable) {
+    return buildScheduleNumeracionIntercalada(cats, porCat, ins)
+  }
+
+  const sorted = [...cats].sort((a, b) =>
+    compararCategoriaPorTamanioLlaveLocal(a, b, ins),
+  )
+  const buckets = [[], [], []]
+  for (const cat of sorted) {
+    const n = ins[cat.id_categoria] ?? cat.inscritos ?? 0
+    const b = bucketInscritosLlaveLocal(n)
+    if (b === 99) continue
+    buckets[b].push(cat)
+  }
+  const schedule = []
+  for (const block of buckets) {
+    if (!block.length) continue
+    schedule.push(...buildScheduleNumeracionIntercalada(block, porCat, ins))
+  }
+  return schedule
+}
+
 /** Numeración densa 1, 2, 3… según la secuencia intercalada (sin números omitidos). */
 export function ordenPistaDesdeSchedule(schedule) {
   const map = {}
@@ -283,7 +341,7 @@ export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.ca
   const map = {}
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat, insMap)))
+    Object.assign(map, ordenPistaDesdeSchedule(buildOrdenPistaPorBuckets(cats, porCat, insMap)))
   }
   for (const cat of categorias || []) {
     for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {

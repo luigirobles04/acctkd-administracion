@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { columnasBracket, rondasOrdenadas, categoriasOrdenadasExport, porRondaFiltrado } from '@/lib/campeonato/bracket-export'
+import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
 import { entradasPrimeraRonda, ROWS_PER_MATCH, outRowCenter, layoutCnuBracket, countPlayersInEntradas, COL_SEED, COL_NAME, COL_TEAM, COL_BRACKET } from '@/lib/campeonato/bracket-cnu-layout'
 import { WT_LOGO_PNG, ACADEMIA_LOGO_PNG } from '@/lib/campeonato/pdf-logos'
 import { BUCKET, extractStoragePath } from '@/lib/campeonato/foto-competidor'
@@ -966,8 +967,37 @@ export async function loadAcademiaLogosForPdf(sb, categorias) {
   return cache
 }
 
+function porRondaACombatesPlano(categorias) {
+  const m = {}
+  for (const cat of categorias || []) {
+    if (cat?.id_categoria == null) continue
+    const flat = []
+    for (const lista of Object.values(cat.porRonda || {})) {
+      flat.push(...(lista || []))
+    }
+    m[cat.id_categoria] = flat
+  }
+  return m
+}
+
+function minOrdenPistaCategoria(cat) {
+  let min = Infinity
+  for (const lista of Object.values(cat?.porRonda || {})) {
+    for (const c of lista || []) {
+      const op = c?.orden_pista
+      if (op != null && Number.isFinite(Number(op))) min = Math.min(min, Number(op))
+    }
+  }
+  return Number.isFinite(min) ? min : 9999
+}
+
 export async function buildBracketPdfBuffer(data, sb, { idCategoria = null, cancha = null } = {}) {
-  let cats = categoriasOrdenadasExport(data.categorias || [], data.inscritosPorCat || {})
+  const listaCats = data.categorias || []
+  const porCatPlano = porRondaACombatesPlano(listaCats)
+  const insRes = buildMapInscritosResueltos(listaCats, data.inscritosPorCat || {}, porCatPlano)
+  let cats = categoriasOrdenadasExport(listaCats, insRes).sort(
+    (a, b) => minOrdenPistaCategoria(a) - minOrdenPistaCategoria(b),
+  )
   if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
   if (cancha != null) cats = cats.filter((c) => Number(c.cancha) === Number(cancha))
   cats = cats.filter(categoriaExportablePdf)

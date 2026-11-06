@@ -4,6 +4,7 @@ import {
   canchaPorCategoriaBalanceada,
   etiquetaOrdenPista,
 } from '@/lib/campeonato/orden-llave'
+import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -56,7 +57,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
     .eq('estado', 'aprobado')
     .not('dorsal_numero', 'is', null)
 
-  const inscritosPorCat = (inscripciones || []).reduce((acc, l) => {
+  const inscritosPorCatRaw = (inscripciones || []).reduce((acc, l) => {
     if (l.id_categoria) acc[l.id_categoria] = (acc[l.id_categoria] || 0) + 1
     return acc
   }, {})
@@ -74,6 +75,11 @@ export async function buildExportLlaves(sb, idCampeonato) {
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
   /** Misma regla que `asignarCanchasCampeonato` (no inferir área desde `porCancha` en BD). */
   const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, 3)
+
+  const inscritosPorCat = {
+    ...inscritosPorCatRaw,
+    ...buildMapInscritosResueltos(categorias || [], inscritosPorCatRaw, porCat),
+  }
 
   const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(categorias || [], porCat, canchaPorCat, {
     numCanchas: 3,
@@ -136,7 +142,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
       orden: cat.orden,
       division: cat.division,
       genero: cat.genero,
-      inscritos: inscritosPorCat[cat.id_categoria] || 0,
+      inscritos: inscritosPorCat[cat.id_categoria] ?? inscritosPorCatRaw[cat.id_categoria] ?? 0,
       combates: combates.length,
       cancha: canchaPorCat[cat.id_categoria] || '',
       tiene_llave: combates.length > 0,
@@ -158,7 +164,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
   const totales = {
     categorias: categoriasExport.length,
     con_llave: categoriasExport.filter((c) => c.tiene_llave).length,
-    competidores: Object.values(inscritosPorCat).reduce((a, b) => a + b, 0),
+    competidores: Object.values(inscritosPorCatRaw).reduce((a, b) => a + b, 0),
     combates: categoriasExport.reduce((a, c) => a + c.combates, 0),
   }
 

@@ -1,9 +1,10 @@
 import {
-  buildScheduleNumeracionIntercalada,
+  buildOrdenPistaPorBuckets,
   combatesPeleables,
   ordenPistaDesdeSchedule,
 } from '@/lib/campeonato/schedule-canchas'
 import { compararCategoriaPorTamanioLlave } from '@/lib/campeonato/bracket-export'
+import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
 
 /** Combates exportables en llave (no vacío/bye). */
 export function combateEnLlave(c) {
@@ -12,7 +13,7 @@ export function combateEnLlave(c) {
 
 export { ordenPistaDesdeSchedule }
 
-/** Etiqueta PDF/planilla: `Área/NN` (NN = posición en el orden del área; puede haber saltos 04→06). */
+/** Etiqueta PDF/planilla: `Área/NN` (NN = posición densa 01, 02… en el orden del área). */
 export function etiquetaOrdenPista(cancha, ordenPista) {
   if (ordenPista == null || ordenPista === '') return ''
   const area = Number(cancha)
@@ -81,7 +82,8 @@ export function computeOrdenLlavePdf(combates) {
 
 /**
  * Mapa id_llave → orden_pista por área.
- * Intercalado entre categorías: **al menos un combate ajeno** (p. ej. siguiente categoría) antes de cada final.
+ * Por área: primero **todas** las categorías de 2 inscritos (01, 02… sin huecos por mezclar con 3/4+),
+ * luego bloque de 3, luego 4+; dentro de cada bloque, intercalado + descanso antes de cada final.
  * Numeración densa 1, 2, 3… canchaPorCat: balance por cantidad de combates (`canchaPorCategoriaBalanceada`).
  */
 export function buildOrdenPistaMapPorCancha(
@@ -90,7 +92,11 @@ export function buildOrdenPistaMapPorCancha(
   canchaPorCat,
   { numCanchas = 3, inscritosPorCat = null } = {},
 ) {
-  const ins = inscritosPorCat && typeof inscritosPorCat === 'object' ? inscritosPorCat : {}
+  const insRaw = inscritosPorCat && typeof inscritosPorCat === 'object' ? inscritosPorCat : {}
+  const ins = {
+    ...insRaw,
+    ...buildMapInscritosResueltos(categorias, insRaw, porCat),
+  }
   const map = {}
   for (let cancha = 1; cancha <= numCanchas; cancha++) {
     const cats = (categorias || [])
@@ -98,7 +104,7 @@ export function buildOrdenPistaMapPorCancha(
       .sort((a, b) => compararCategoriaPorTamanioLlave(a, b, ins))
     Object.assign(
       map,
-      ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat, ins)),
+      ordenPistaDesdeSchedule(buildOrdenPistaPorBuckets(cats, porCat, ins)),
     )
   }
   return map

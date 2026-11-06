@@ -1,3 +1,5 @@
+import { lookupInscritosMap } from '@/lib/campeonato/inscripciones-resueltas'
+
 export const RONDA_LABEL_EXPORT = {
   1: 'Final',
   2: 'S-Final',
@@ -248,7 +250,9 @@ export function bucketInscritosLlave(inscritos) {
 function inscritosPorCategoriaMap(categorias, inscritosPorCat) {
   const m = { ...(inscritosPorCat || {}) }
   for (const c of categorias || []) {
-    if (m[c.id_categoria] == null && c.inscritos != null) m[c.id_categoria] = c.inscritos
+    if (lookupInscritosMap(m, c.id_categoria) == null && c.inscritos != null) {
+      m[c.id_categoria] = c.inscritos
+    }
   }
   return m
 }
@@ -256,8 +260,8 @@ function inscritosPorCategoriaMap(categorias, inscritosPorCat) {
 /** Orden programa dentro del mismo bucket de tamaño. */
 export function compararCategoriaPorTamanioLlave(a, b, inscritosPorCat) {
   const map = inscritosPorCat || {}
-  const ia = map[a.id_categoria] ?? a.inscritos ?? 0
-  const ib = map[b.id_categoria] ?? b.inscritos ?? 0
+  const ia = lookupInscritosMap(map, a.id_categoria) ?? a.inscritos ?? 0
+  const ib = lookupInscritosMap(map, b.id_categoria) ?? b.inscritos ?? 0
   const ba = bucketInscritosLlave(ia)
   const bb = bucketInscritosLlave(ib)
   if (ba !== bb) return ba - bb

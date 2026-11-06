@@ -5,6 +5,8 @@ import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
 describe('numeración intercalada por área', () => {
   const catA = { id_categoria: 1, orden: 1 }
   const catB = { id_categoria: 2, orden: 2 }
+  /** Misma llave de 4 inscritos en ambas categorías (bloque 4+; orden por buckets no aplica sin inscritos). */
+  const inscritosPorCat = { 1: 4, 2: 4 }
   const porCat = {
     1: [
       { id_llave: 10, id_categoria: 1, ronda: 2, match_numero: 1, estado: 'pendiente' },
@@ -19,7 +21,9 @@ describe('numeración intercalada por área', () => {
   const canchaPorCat = { 1: 1, 2: 1 }
 
   it('intercala y pone un combate ajeno antes de cada final', () => {
-    const map = buildOrdenPistaMapPorCancha([catA, catB], porCat, canchaPorCat)
+    const map = buildOrdenPistaMapPorCancha([catA, catB], porCat, canchaPorCat, {
+      inscritosPorCat,
+    })
     expect(map[10]).toBe(1)
     expect(map[20]).toBe(2)
     expect(map[11]).toBe(3)
