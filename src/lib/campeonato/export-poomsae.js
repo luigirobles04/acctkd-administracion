@@ -8,6 +8,7 @@ import {
   parseNombrePoomsae,
   tituloFormaPoomsae,
 } from '@/lib/campeonato/poomsae-formas'
+import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 
 function categoriasConInscritos(categorias) {
   return (categorias || []).filter((c) => c.inscritos > 0)
@@ -22,13 +23,17 @@ const POOMSAE_PDF_COLUMNS = [
 ]
 
 function participanteRows(participantes) {
-  return (participantes || []).map((p) => [
-    { text: String(p.orden ?? ''), align: 'center', bold: true },
-    { text: p.dorsal || '—', align: 'center', bold: true },
-    p.nombres,
-    p.academia,
-    p.modalidad,
-  ])
+  return (participantes || []).map((p) => {
+    const nombres = p.nombres_llamado || p.nombres
+    const esGrupo = (p.miembros_nombres?.length > 1) || esModalidadGrupo(p.modalidad_key)
+    return [
+      { text: String(p.orden ?? ''), align: 'center', bold: true },
+      { text: p.dorsal || '—', align: 'center', bold: true },
+      esGrupo ? { text: nombres, multiline: true } : nombres,
+      p.academia,
+      p.modalidad,
+    ]
+  })
 }
 
 /** Secciones export: KIBOM/PAL JANG… · bloques PAREJAS y EQUIPOS · sin duplicar líneas */
@@ -87,10 +92,18 @@ function bloquesExcelPorForma(categorias) {
           const bg = i % 2 ? XL.gray : '#ffffff'
           const [orden, dorsal, nombres, academia, modalidad] = row
           const t = (cell) => (typeof cell === 'object' && cell?.text != null ? cell.text : cell)
+          const nombresCell =
+            typeof nombres === 'object' && nombres?.multiline
+              ? String(t(nombres)).replace(/\n/g, '<br/>')
+              : t(nombres)
+          const nombresOpts =
+            typeof nombres === 'object' && nombres?.multiline
+              ? { bg, wrap: true }
+              : { bg }
           return `<tr>
             ${tdCell(t(orden), { bg, align: 'center', bold: true })}
             ${tdCell(t(dorsal), { bg, align: 'center', bold: true })}
-            ${tdCell(nombres, { bg })}
+            ${tdCell(nombresCell, nombresOpts)}
             ${tdCell(academia, { bg })}
             ${tdCell(modalidad, { bg })}
           </tr>`

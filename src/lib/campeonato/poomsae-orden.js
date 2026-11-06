@@ -9,20 +9,16 @@ import {
 } from '@/lib/campeonato/poomsae-grupo'
 import { lineaFaltaPago, lineaVisibleEnPoomsae } from '@/lib/campeonato/poomsae-lineas'
 import { sincronizarAprobacionDorsalesAcademia } from '@/lib/campeonato/inscripcion-server'
+import {
+  miembrosNombresCompletos,
+  nombresPoomsaeInline,
+  nombresPoomsaeParaLlamado,
+} from '@/lib/campeonato/poomsae-nombres'
 
 const MODALIDADES_POOMSAE = Object.keys(MODALIDADES).filter((k) => k.startsWith('poomsae_'))
 
 function nombreCompetidor(linea) {
-  const miembros = linea.miembros || []
-  if (!miembros.length) return linea.dorsal_display || '—'
-  return miembros
-    .map((m) => {
-      const p = m.perfil
-      if (!p) return ''
-      return `${p.nombres || ''} ${p.apellidos || ''}`.trim()
-    })
-    .filter(Boolean)
-    .join(' · ')
+  return nombresPoomsaeInline(linea)
 }
 
 function academiaNombre(linea) {
@@ -140,6 +136,7 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       nombre: 'Poomsae',
       division: '',
       genero: '',
+      orden: 9999,
     }
     const modalidadKey = parsed?.modalidad || items[0]?.modalidad
     const sorteada = items.some((l) => l.orden_poomsae != null)
@@ -162,6 +159,8 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
         modalidad: MODALIDADES[l.modalidad]?.label || l.modalidad,
         modalidad_key: l.modalidad,
         nombres: nombreCompetidor(l),
+        nombres_llamado: nombresPoomsaeParaLlamado(l),
+        miembros_nombres: miembrosNombresCompletos(l),
         academia: academiaNombre(l),
         academia_logo: l.academia_campeonato?.academia?.logo_url || '',
         puntaje: l.poomsae_puntaje ?? null,
@@ -184,6 +183,7 @@ export async function fetchOrdenPoomsaeCampeonato(sb, idCampeonato) {
       nombre_display: `${cat.nombre} — ${labelModalidadPoomsae(modalidadKey)}`,
       division: cat.division,
       genero: cat.genero,
+      orden: cat.orden ?? 9999,
       inscritos: inscritos.length,
       sorteada,
       calificados,

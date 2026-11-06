@@ -134,19 +134,35 @@ export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, secti
     }
 
     for (const row of section.rows) {
-      if (y + rowH > bottomY) {
+      let rowHeight = rowH
+      const cellLines = []
+      for (let i = 0; i < cols.length; i++) {
+        const c = cols[i]
+        const cell = row[i]
+        const val = cell && typeof cell === 'object' ? cell.text : cell
+        const multiline = cell && typeof cell === 'object' && cell.multiline
+        if (multiline && val) {
+          const lines = doc.splitTextToSize(String(val), c.w - 3)
+          cellLines[i] = lines
+          rowHeight = Math.max(rowHeight, Math.max(1, lines.length) * 4.2 + 2)
+        } else {
+          cellLines[i] = null
+        }
+      }
+
+      if (y + rowHeight > bottomY) {
         newPage()
         drawColHeader()
         rowIndex = 0
       }
       if (rowIndex % 2 === 1) {
         doc.setFillColor(...ROW_ALT)
-        doc.rect(marginL, y, pageW - marginL * 2, rowH, 'F')
+        doc.rect(marginL, y, pageW - marginL * 2, rowHeight, 'F')
       }
+
       let x = marginL
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8.5)
-      doc.setTextColor(...DARK)
       for (let i = 0; i < cols.length; i++) {
         const c = cols[i]
         const cell = row[i]
@@ -157,13 +173,17 @@ export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, secti
         doc.setFont('helvetica', bold ? 'bold' : 'normal')
         const align = c.align || 'left'
         const tx = align === 'center' ? x + c.w / 2 : align === 'right' ? x + c.w - 2 : x + 2
-        doc.text(trunc(doc, val ?? '', c.w - 3), tx, y + rowH - 2.3, { align })
+        if (cellLines[i]?.length) {
+          doc.text(cellLines[i], tx, y + 4, { align, lineHeightFactor: 1.15 })
+        } else {
+          doc.text(trunc(doc, val ?? '', c.w - 3), tx, y + rowHeight - 2.3, { align })
+        }
         x += c.w
       }
       doc.setDrawColor(...BORDER)
       doc.setLineWidth(0.15)
-      doc.line(marginL, y + rowH, pageW - marginL, y + rowH)
-      y += rowH
+      doc.line(marginL, y + rowHeight, pageW - marginL, y + rowHeight)
+      y += rowHeight
       rowIndex++
     }
   }

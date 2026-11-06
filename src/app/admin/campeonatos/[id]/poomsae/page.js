@@ -20,6 +20,7 @@ import {
   parseNombrePoomsae,
   tituloFormaPoomsae,
 } from '@/lib/campeonato/poomsae-formas'
+import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 
 export default function CampeonatoPoomsaePage() {
   const { id } = useParams()
@@ -447,7 +448,15 @@ export default function CampeonatoPoomsaePage() {
                           <td style={{ padding: '8px 10px', fontWeight: 600, color: '#64748b' }}>{p.orden}</td>
                           <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{p.dorsal || '—'}</td>
                           <td style={{ padding: '8px 10px', fontWeight: 500 }}>
-                            {p.nombres}
+                            {esModalidadGrupo(p.modalidad_key) && p.miembros_nombres?.length > 1 ? (
+                              <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.45 }}>
+                                {p.miembros_nombres.map((n) => (
+                                  <li key={n}>{n}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              p.nombres_llamado || p.nombres
+                            )}
                             {p.faltaPago && (
                               <span className="badge badge-yellow" style={{ marginLeft: 8, fontSize: 10 }}>Pago pendiente</span>
                             )}

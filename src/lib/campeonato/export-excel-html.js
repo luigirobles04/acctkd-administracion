@@ -73,8 +73,10 @@ export function tdCell(text, opts = {}) {
     align = 'left',
     bold = false,
     border = '1px solid #d1d5db',
+    wrap = false,
   } = opts
-  return `<td style="background:${bg};color:${color};text-align:${align};font-weight:${bold ? 'bold' : 'normal'};border:${border};">${text ?? ''}</td>`
+  const wrapStyle = wrap ? 'white-space:normal;vertical-align:top;line-height:1.35;' : ''
+  return `<td style="background:${bg};color:${color};text-align:${align};font-weight:${bold ? 'bold' : 'normal'};border:${border};${wrapStyle}">${text ?? ''}</td>`
 }
 
 export { slugArchivo } from '@/lib/campeonato/export-utils'

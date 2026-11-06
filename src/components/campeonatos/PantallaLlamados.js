@@ -160,6 +160,21 @@ function ColumnaArea({ area }) {
   )
 }
 
+function NombresPoomsaeLlamado({ atleta, destacado }) {
+  const lista = atleta?.miembros_nombres?.length > 1 ? atleta.miembros_nombres : null
+  const texto = atleta?.nombres_llamado || atleta?.nombres
+  if (lista?.length) {
+    return (
+      <ul className={`llamados-poomsae-nombres-lista${destacado ? ' llamados-poomsae-nombres-lista--actual' : ''}`}>
+        {lista.map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+      </ul>
+    )
+  }
+  return <span className="llamados-nombre">{texto}</span>
+}
+
 function AtletaPoomsae({ atleta, destacado }) {
   if (!atleta) return null
   const enVivo = atleta.estado === 'en_curso' || atleta.en_curso
@@ -172,7 +187,7 @@ function AtletaPoomsae({ atleta, destacado }) {
           {enVivo && destacado ? ' · EN PISTA' : ''}
         </span>
         <span className="llamados-dorsal">{atleta.dorsal}</span>
-        <span className="llamados-nombre">{atleta.nombres}</span>
+        <NombresPoomsaeLlamado atleta={atleta} destacado={destacado} />
         <span className="llamados-academia">{atleta.academia}</span>
         {atleta.categoria_nombre && (
           <span className="llamados-poomsae-cat-mini">{atleta.categoria_nombre}</span>
@@ -285,6 +300,31 @@ function VistaPoomsae({ poomsae }) {
           </div>
         </aside>
       )}
+      {(poomsae?.gruposLlamado || []).map((bloque) => (
+        <section key={bloque.banner} className="llamados-poomsae-grupos">
+          <h2 className="llamados-poomsae-grupos-titulo">{bloque.banner}</h2>
+          <div className="llamados-poomsae-grupos-grid">
+            {bloque.items.map((item) => (
+              <article key={item.id_linea} className="llamados-poomsae-grupo-card">
+                <div className="llamados-poomsae-grupo-meta">
+                  <span className="llamados-dorsal">{item.dorsal}</span>
+                  <span className="llamados-poomsae-grupo-orden">#{item.orden}</span>
+                </div>
+                {item.formaTitulo && (
+                  <p className="llamados-poomsae-grupo-forma">{item.formaTitulo}</p>
+                )}
+                <ul className="llamados-poomsae-nombres-lista llamados-poomsae-nombres-lista--card">
+                  {(item.miembros_nombres?.length ? item.miembros_nombres : [item.nombres]).map((n) => (
+                    <li key={`${item.id_linea}-${n}`}>{n}</li>
+                  ))}
+                </ul>
+                <p className="llamados-poomsae-cat-mini">{item.categoria_nombre}</p>
+                <p className="llamados-academia">{item.academia}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
 import {
   agruparPoomsaePorForma,
+  listarPoomsaeGruposParaLlamado,
   organizarPantallaPoomsaePorAreas,
   parseNombrePoomsae,
   tituloFormaPoomsae,

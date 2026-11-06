@@ -675,10 +675,78 @@
 }
 
 .llamados-poomsae-atleta-info .llamados-nombre {
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: pre-line;
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.llamados-poomsae-nombres-lista {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  color: #f1f5f9;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.llamados-poomsae-nombres-lista--actual {
+  font-size: clamp(13px, 1.2vw, 16px);
+}
+
+.llamados-poomsae-nombres-lista--card {
+  font-size: 15px;
+  margin-top: 8px;
+}
+
+.llamados-poomsae-grupos {
+  margin-top: 20px;
+  padding: 16px 18px 8px;
+  background: #0b1220;
+  border-radius: 16px;
+  border: 1px solid #1e293b;
+}
+
+.llamados-poomsae-grupos-titulo {
+  margin: 0 0 14px;
+  text-align: center;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  color: #f8fafc;
+}
+
+.llamados-poomsae-grupos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.llamados-poomsae-grupo-card {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.llamados-poomsae-grupo-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.llamados-poomsae-grupo-orden {
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.llamados-poomsae-grupo-forma {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fbbf24;
 }
 
 .llamados-poomsae-orden {

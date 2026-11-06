@@ -3,6 +3,8 @@
  * Podios siguen por categoría (edad + sexo).
  */
 
+import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
+
 /** Mismo orden que poomsae-grupo (evita dependencia circular). */
 const POOMSAE_MODALIDAD_ORDEN = [
   'poomsae_individual',
@@ -152,6 +154,39 @@ export function agruparPoomsaeParaOrden(categorias) {
   pushGrupo('equipos', 'EQUIPOS', byTipo('equipos'))
 
   return bloques
+}
+
+/** Parejas y equipos para llamados (nombres completos por integrante). */
+export function listarPoomsaeGruposParaLlamado(categorias) {
+  const cats = (categorias || []).filter((c) => c?.inscritos > 0 && esModalidadGrupo(c.modalidad_key))
+  const parejas = []
+  const equipos = []
+
+  for (const cat of cats) {
+    const { forma } = parseNombrePoomsae(cat.nombre)
+    const formaTitulo = tituloFormaPoomsae(forma)
+    const dest = bloquePoomsaeTipo(cat.modalidad_key) === 'equipos' ? equipos : parejas
+    for (const p of cat.participantes || []) {
+      dest.push({
+        ...p,
+        nombres_llamado: p.nombres_llamado || p.nombres,
+        miembros_nombres: p.miembros_nombres || [],
+        categoria_nombre: cat.nombre_display || cat.nombre,
+        formaTitulo,
+        cat_orden: cat.orden ?? 9999,
+      })
+    }
+  }
+
+  const sortItems = (a, b) => {
+    if (a.cat_orden !== b.cat_orden) return a.cat_orden - b.cat_orden
+    return (a.orden ?? 0) - (b.orden ?? 0)
+  }
+
+  const out = []
+  if (parejas.length) out.push({ banner: 'PAREJAS', kind: 'parejas', items: parejas.sort(sortItems) })
+  if (equipos.length) out.push({ banner: 'EQUIPOS', kind: 'equipos', items: equipos.sort(sortItems) })
+  return out
 }
 
 function edadRank(edad) {
@@ -407,6 +442,7 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3, liv
     areas,
     formas,
     formasPendientes,
+    gruposLlamado: listarPoomsaeGruposParaLlamado(categorias),
     stats: {
       totalFormas: formas.length,
       abiertas: abiertas.length,
