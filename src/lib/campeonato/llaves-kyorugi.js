@@ -411,6 +411,7 @@ function normalizarUpdatesOrdenPista(updates) {
 
 import { buildScheduleNumeracionIntercalada } from '@/lib/campeonato/schedule-canchas'
 import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
+import { compararCategoriaPorTamanioLlave } from '@/lib/campeonato/bracket-export'
 
 /** Asignación de área balanceada por combates; orden_pista intercalado con descanso antes de cada final. */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
@@ -448,21 +449,40 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
 
+  const { data: inscRows } = await sb
+    .from('linea_inscripcion')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  const inscritosPorCat = {}
+  for (const l of inscRows || []) {
+    if (!l.id_categoria) continue
+    inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
+  }
+
   const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, numCanchas)
   const porCancha = Array.from({ length: numCanchas }, () => [])
   for (const cat of catsConLlave) {
     const cancha = canchaPorCat[cat.id_categoria]
     if (cancha >= 1 && cancha <= numCanchas) porCancha[cancha - 1].push(cat)
   }
+  for (let i = 0; i < numCanchas; i++) {
+    porCancha[i].sort((a, b) => compararCategoriaPorTamanioLlave(a, b, inscritosPorCat))
+  }
 
-  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, { numCanchas })
+  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, {
+    numCanchas,
+    inscritosPorCat,
+  })
 
   const resumen = []
   let updates = []
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
-    const secuencia = buildScheduleNumeracionIntercalada(catsEnCancha, porCat)
+    const secuencia = buildScheduleNumeracionIntercalada(catsEnCancha, porCat, inscritosPorCat)
     const conteoCat = {}
 
     for (const combate of secuencia) {

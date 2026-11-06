@@ -138,7 +138,19 @@ describe('categoriasOrdenadasExport', () => {
       { id_categoria: 3, nombre: 'C -33kg', cancha: 1, tiene_llave: true, orden: 2 },
       { id_categoria: 4, nombre: 'D -36kg', cancha: 2, tiene_llave: true, orden: 1 },
     ]
-    const ids = categoriasOrdenadasExport(cats).map((c) => c.id_categoria)
+    const ids = categoriasOrdenadasExport(cats, {}).map((c) => c.id_categoria)
     expect(ids).toEqual([2, 3, 4, 1])
+  })
+
+  it('en cada área: primero categorías de 2 inscritos, luego 3, luego 4+', () => {
+    const cats = [
+      { id_categoria: 1, nombre: 'Cuatro', cancha: 1, tiene_llave: true, orden: 1 },
+      { id_categoria: 2, nombre: 'Dos A', cancha: 1, tiene_llave: true, orden: 2 },
+      { id_categoria: 3, nombre: 'Tres', cancha: 1, tiene_llave: true, orden: 3 },
+      { id_categoria: 4, nombre: 'Dos B', cancha: 1, tiene_llave: true, orden: 4 },
+    ]
+    const ins = { 1: 4, 2: 2, 3: 3, 4: 2 }
+    const ids = categoriasOrdenadasExport(cats, ins).map((c) => c.id_categoria)
+    expect(ids).toEqual([2, 4, 3, 1])
   })
 })

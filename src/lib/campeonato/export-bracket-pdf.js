@@ -967,7 +967,7 @@ export async function loadAcademiaLogosForPdf(sb, categorias) {
 }
 
 export async function buildBracketPdfBuffer(data, sb, { idCategoria = null, cancha = null } = {}) {
-  let cats = categoriasOrdenadasExport(data.categorias || [])
+  let cats = categoriasOrdenadasExport(data.categorias || [], data.inscritosPorCat || {})
   if (idCategoria) cats = cats.filter((c) => c.id_categoria === idCategoria)
   if (cancha != null) cats = cats.filter((c) => Number(c.cancha) === Number(cancha))
   cats = cats.filter(categoriaExportablePdf)

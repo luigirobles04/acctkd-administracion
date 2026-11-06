@@ -236,7 +236,36 @@ function compararCategoriaExport(a, b) {
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
-export function agruparPorArea(categorias) {
+/** Grupo para ordenar el PDF: primero llaves de 2, luego 3, luego 4+ inscritos. */
+export function bucketInscritosLlave(inscritos) {
+  const n = Math.max(0, Number(inscritos) || 0)
+  if (n < 2) return 99
+  if (n === 2) return 0
+  if (n === 3) return 1
+  return 2
+}
+
+function inscritosPorCategoriaMap(categorias, inscritosPorCat) {
+  const m = { ...(inscritosPorCat || {}) }
+  for (const c of categorias || []) {
+    if (m[c.id_categoria] == null && c.inscritos != null) m[c.id_categoria] = c.inscritos
+  }
+  return m
+}
+
+/** Orden programa dentro del mismo bucket de tamaño. */
+export function compararCategoriaPorTamanioLlave(a, b, inscritosPorCat) {
+  const map = inscritosPorCat || {}
+  const ia = map[a.id_categoria] ?? a.inscritos ?? 0
+  const ib = map[b.id_categoria] ?? b.inscritos ?? 0
+  const ba = bucketInscritosLlave(ia)
+  const bb = bucketInscritosLlave(ib)
+  if (ba !== bb) return ba - bb
+  return compararCategoriaExport(a, b)
+}
+
+export function agruparPorArea(categorias, inscritosPorCat) {
+  const insMap = inscritosPorCategoriaMap(categorias, inscritosPorCat)
   const areas = { 1: [], 2: [], 3: [] }
   for (const cat of categorias || []) {
     if (!cat.tiene_llave) continue
@@ -245,13 +274,13 @@ export function agruparPorArea(categorias) {
     else areas[1].push(cat)
   }
   for (const n of [1, 2, 3]) {
-    areas[n].sort(compararCategoriaExport)
+    areas[n].sort((x, y) => compararCategoriaPorTamanioLlave(x, y, insMap))
   }
   return areas
 }
 
-/** Lista plana para PDF: Área 1 → 2 → 3, categorías ordenadas dentro de cada área */
-export function categoriasOrdenadasExport(categorias) {
-  const areas = agruparPorArea(categorias)
+/** Lista plana para PDF: Área 1 → 2 → 3; dentro de cada área: 2 insc → 3 → 4+. */
+export function categoriasOrdenadasExport(categorias, inscritosPorCat) {
+  const areas = agruparPorArea(categorias, inscritosPorCat)
   return [1, 2, 3].flatMap((n) => areas[n])
 }

@@ -3,6 +3,7 @@ import {
   combatesPeleables,
   ordenPistaDesdeSchedule,
 } from '@/lib/campeonato/schedule-canchas'
+import { compararCategoriaPorTamanioLlave } from '@/lib/campeonato/bracket-export'
 
 /** Combates exportables en llave (no vacío/bye). */
 export function combateEnLlave(c) {
@@ -83,18 +84,22 @@ export function computeOrdenLlavePdf(combates) {
  * Intercalado entre categorías: **al menos un combate ajeno** (p. ej. siguiente categoría) antes de cada final.
  * Numeración densa 1, 2, 3… canchaPorCat: balance por cantidad de combates (`canchaPorCategoriaBalanceada`).
  */
-export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
+export function buildOrdenPistaMapPorCancha(
+  categorias,
+  porCat,
+  canchaPorCat,
+  { numCanchas = 3, inscritosPorCat = null } = {},
+) {
+  const ins = inscritosPorCat && typeof inscritosPorCat === 'object' ? inscritosPorCat : {}
   const map = {}
   for (let cancha = 1; cancha <= numCanchas; cancha++) {
     const cats = (categorias || [])
       .filter((c) => Number(canchaPorCat[c.id_categoria]) === cancha)
-      .sort((a, b) => {
-        const oa = a.orden ?? 9999
-        const ob = b.orden ?? 9999
-        if (oa !== ob) return oa - ob
-        return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
-      })
-    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
+      .sort((a, b) => compararCategoriaPorTamanioLlave(a, b, ins))
+    Object.assign(
+      map,
+      ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat, ins)),
+    )
   }
   return map
 }

@@ -77,6 +77,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
 
   const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(categorias || [], porCat, canchaPorCat, {
     numCanchas: 3,
+    inscritosPorCat,
   })
 
   function conOrdenBloque(c) {
@@ -161,7 +162,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
     combates: categoriasExport.reduce((a, c) => a + c.combates, 0),
   }
 
-  return { campeonato, resumen, categorias: categoriasExport, totales }
+  return { campeonato, resumen, categorias: categoriasExport, totales, inscritosPorCat }
 }
 
 export function nombreHojaExcel(nombre, max = 28) {

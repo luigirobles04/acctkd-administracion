@@ -1,3 +1,11 @@
+/** Misma lógica que bracket-export.bucketInscritosLlave (evita import circular). */
+function bucketInscritosLlaveLocal(inscritos) {
+  const n = Math.max(0, Number(inscritos) || 0)
+  if (n < 2) return 99
+  if (n === 2) return 0
+  if (n === 3) return 1
+  return 2
+}
 
 /** Combates activos ordenados: ronda más alta primero, luego match_numero. */
 export function combatesOrdenados(lista) {
@@ -121,6 +129,9 @@ function elegirColaBuffer(otros) {
 }
 
 function compararColaCategoria(a, b) {
+  const ba = bucketInscritosLlaveLocal(a.catInscritos ?? 0)
+  const bb = bucketInscritosLlaveLocal(b.catInscritos ?? 0)
+  if (ba !== bb) return ba - bb
   const oa = a.catOrden ?? 9999
   const ob = b.catOrden ?? 9999
   if (oa !== ob) return oa - ob
@@ -132,10 +143,11 @@ function compararColaCategoria(a, b) {
  * - Pre-finales repartidos entre categorías (round-robin).
  * - Tras el último pre-final de una categoría, **un solo** combate ajeno y luego su final (no enfriar al ganador).
  */
-export function buildScheduleNumeracionIntercalada(categorias, porCat) {
+export function buildScheduleNumeracionIntercalada(categorias, porCat, inscritosPorCat = {}) {
   const queues = (categorias || []).map((cat) => ({
     catId: cat.id_categoria,
     catOrden: cat.orden ?? 9999,
+    catInscritos: inscritosPorCat[cat.id_categoria] ?? cat.inscritos ?? 0,
     list: [...combatesPeleables(porCat[cat.id_categoria])],
   }))
 
@@ -263,10 +275,15 @@ export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.ca
     if (!byCancha.has(k)) byCancha.set(k, [])
     byCancha.get(k).push(cat)
   }
+  const insMap = {}
+  for (const cat of categorias || []) {
+    const id = cat.id_categoria
+    if (cat.inscritos != null && insMap[id] == null) insMap[id] = cat.inscritos
+  }
   const map = {}
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
+    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat, insMap)))
   }
   for (const cat of categorias || []) {
     for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {

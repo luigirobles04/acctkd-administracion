@@ -183,7 +183,7 @@ function addAreaSheet(wb, camp, areaNum, categorias) {
 /** Genera buffer xlsx en servidor (ExcelJS no corre bien en browser) */
 export async function buildLlavesExcelBuffer(data) {
   const camp = data.campeonato?.nombre || 'Campeonato'
-  const areas = agruparPorArea(data.categorias)
+  const areas = agruparPorArea(data.categorias, data.inscritosPorCat || {})
   const wb = new ExcelJS.Workbook()
 
   addResumenSheet(wb, camp, data.resumen)
