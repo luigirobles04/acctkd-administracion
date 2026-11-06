@@ -14,7 +14,12 @@ import {
   descargarPoomsaeCategoriaPdf,
 } from '@/lib/campeonato/export-poomsae'
 import { categoriasPoomsaeValidas } from '@/lib/campeonato/validar-categoria'
-import { agruparPoomsaePorForma, parseNombrePoomsae, tituloFormaPoomsae } from '@/lib/campeonato/poomsae-formas'
+import {
+  agruparPoomsaeParaOrden,
+  bloquePoomsaeTipo,
+  parseNombrePoomsae,
+  tituloFormaPoomsae,
+} from '@/lib/campeonato/poomsae-formas'
 
 export default function CampeonatoPoomsaePage() {
   const { id } = useParams()
@@ -65,13 +70,12 @@ export default function CampeonatoPoomsaePage() {
     return items
   }, [categorias, buscar])
 
-  const formasSidebar = useMemo(() => agruparPoomsaePorForma(catsFiltradas), [catsFiltradas])
+  const bloquesSidebar = useMemo(() => agruparPoomsaeParaOrden(catsFiltradas), [catsFiltradas])
 
   const catPorGrupo = useMemo(() => {
     const m = new Map()
     for (const c of catsFiltradas) {
       if (c.grupo_key) m.set(c.grupo_key, c)
-      if (c.id_categoria) m.set(`id:${c.id_categoria}`, c)
     }
     return m
   }, [catsFiltradas])
@@ -302,8 +306,8 @@ export default function CampeonatoPoomsaePage() {
                 Categorías
               </div>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '70vh', overflowY: 'auto' }}>
-                {formasSidebar.map((bloque) => (
-                  <li key={bloque.forma}>
+                {bloquesSidebar.map((bloque) => (
+                  <li key={`${bloque.kind}-${bloque.banner}`}>
                     <div
                       style={{
                         padding: '10px 14px',
@@ -315,12 +319,10 @@ export default function CampeonatoPoomsaePage() {
                         textAlign: 'center',
                       }}
                     >
-                      {tituloFormaPoomsae(bloque.forma)}
+                      {bloque.banner}
                     </div>
                     {bloque.categorias.map((catMeta) => {
-                      const c =
-                        catPorGrupo.get(catMeta.grupo_key) ||
-                        catPorGrupo.get(`id:${catMeta.id_categoria}`)
+                      const c = catPorGrupo.get(catMeta.grupo_key)
                       if (!c) return null
                       return (
                         <button
@@ -339,6 +341,11 @@ export default function CampeonatoPoomsaePage() {
                             display: 'block',
                           }}
                         >
+                          {(bloque.kind === 'parejas' || bloque.kind === 'equipos') && catMeta.formaTitulo && (
+                            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.05em', color: '#b45309', marginBottom: 2 }}>
+                              {catMeta.formaTitulo}
+                            </div>
+                          )}
                           <div style={{ fontWeight: 600 }}>{c.nombre_display || c.nombre}</div>
                           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                             {c.inscritos} inscrito(s) · {c.division} {c.genero}
@@ -365,7 +372,11 @@ export default function CampeonatoPoomsaePage() {
                           color: '#64748b',
                         }}
                       >
-                        {tituloFormaPoomsae(parseNombrePoomsae(catActiva.nombre).forma)}
+                        {bloquePoomsaeTipo(catActiva.modalidad_key) === 'parejas'
+                          ? 'PAREJAS'
+                          : bloquePoomsaeTipo(catActiva.modalidad_key) === 'equipos'
+                            ? 'EQUIPOS'
+                            : tituloFormaPoomsae(parseNombrePoomsae(catActiva.nombre).forma)}
                       </p>
                       <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
                         {catActiva.nombre_display || catActiva.nombre}

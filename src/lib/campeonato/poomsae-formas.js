@@ -85,6 +85,75 @@ export function tituloFormaPoomsae(forma) {
   return s ? s.toUpperCase() : 'POOMSAE'
 }
 
+/** individual | parejas | equipos — pareja/equipo no van en cola por forma (Kibom, Pal Jang…). */
+export function bloquePoomsaeTipo(modalidadKey) {
+  if (modalidadKey === 'poomsae_equipo') return 'equipos'
+  if (modalidadKey === 'poomsae_pareja_reconocida' || modalidadKey === 'poomsae_pareja_freestyle') {
+    return 'parejas'
+  }
+  return 'individual'
+}
+
+function compareCatsOrdenAdmin(a, b) {
+  const ca = compareCategoriasPorPoomsae(
+    { nombre: a.nombre, genero: a.genero },
+    { nombre: b.nombre, genero: b.genero },
+  )
+  if (ca !== 0) return ca
+  return modalidadPoomsaeRank(a.modalidad_key) - modalidadPoomsaeRank(b.modalidad_key)
+}
+
+/**
+ * Orden admin / PDF / Excel: formas individuales, luego bloque PAREJAS, luego EQUIPOS.
+ * @returns {{ banner: string, kind: string, categorias: Array<{ grupo_key, id_categoria, modalidad_key, nombre, formaTitulo }> }[]}
+ */
+export function agruparPoomsaeParaOrden(categorias) {
+  const cats = (categorias || []).filter((c) => c?.inscritos > 0)
+  const byTipo = (t) => cats.filter((c) => bloquePoomsaeTipo(c.modalidad_key) === t)
+
+  const bloques = []
+
+  for (const f of agruparPoomsaePorForma(byTipo('individual'))) {
+    bloques.push({
+      banner: tituloFormaPoomsae(f.forma),
+      kind: 'forma',
+      categorias: f.categorias.map((cm) => ({
+        ...cm,
+        formaTitulo: tituloFormaPoomsae(f.forma),
+      })),
+    })
+  }
+
+  const pushGrupo = (kind, banner, list) => {
+    if (!list.length) return
+    const sorted = [...list].sort((a, b) =>
+      compareCatsOrdenAdmin(
+        { nombre: a.nombre, genero: a.genero, modalidad_key: a.modalidad_key },
+        { nombre: b.nombre, genero: b.genero, modalidad_key: b.modalidad_key },
+      ),
+    )
+    bloques.push({
+      banner,
+      kind,
+      categorias: sorted.map((cat) => {
+        const { forma } = parseNombrePoomsae(cat.nombre)
+        return {
+          grupo_key: cat.grupo_key,
+          id_categoria: cat.id_categoria,
+          modalidad_key: cat.modalidad_key,
+          nombre: cat.nombre_display || cat.nombre,
+          formaTitulo: tituloFormaPoomsae(forma),
+        }
+      }),
+    })
+  }
+
+  pushGrupo('parejas', 'PAREJAS', byTipo('parejas'))
+  pushGrupo('equipos', 'EQUIPOS', byTipo('equipos'))
+
+  return bloques
+}
+
 function edadRank(edad) {
   const i = EDAD_ORDER.findIndex((e) => e.toLowerCase() === String(edad || '').toLowerCase())
   return i >= 0 ? i : 99
@@ -117,6 +186,7 @@ export function agruparPoomsaePorForma(categorias) {
 
   for (const cat of categorias || []) {
     if (!cat?.inscritos) continue
+    if (bloquePoomsaeTipo(cat.modalidad_key) !== 'individual') continue
     const { forma, edad, genero, esRanking } = parseNombrePoomsae(cat.nombre)
     const key = forma
     if (!map.has(key)) {

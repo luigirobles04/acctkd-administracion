@@ -2,7 +2,12 @@
 
 import { descargarExcelHtml, XL, thCell, tdCell, slugArchivo } from '@/lib/campeonato/export-excel-html'
 import { descargarTablaPdf, buildTablePdfBuffer } from '@/lib/campeonato/export-table-pdf'
-import { agruparPoomsaePorForma, parseNombrePoomsae, tituloFormaPoomsae } from '@/lib/campeonato/poomsae-formas'
+import {
+  agruparPoomsaeParaOrden,
+  bloquePoomsaeTipo,
+  parseNombrePoomsae,
+  tituloFormaPoomsae,
+} from '@/lib/campeonato/poomsae-formas'
 
 function categoriasConInscritos(categorias) {
   return (categorias || []).filter((c) => c.inscritos > 0)
@@ -26,28 +31,38 @@ function participanteRows(participantes) {
   ])
 }
 
-/** Secciones export: banner FORMA en mayúsculas + cada categoría de esa forma */
+/** Secciones export: KIBOM/PAL JANG… · bloques PAREJAS y EQUIPOS · sin duplicar líneas */
 export function buildPoomsaeExportSectionsPorForma(categorias) {
-  const cats = categoriasConInscritos(categorias)
-  const byId = new Map(cats.map((c) => [c.id_categoria, c]))
-  const byGrupo = new Map(cats.map((c) => [c.grupo_key, c]))
-  const formas = agruparPoomsaePorForma(cats)
+  const byGrupo = new Map(categoriasConInscritos(categorias).map((c) => [c.grupo_key, c]))
+  const bloques = agruparPoomsaeParaOrden(categorias)
   const sections = []
+  const lineasVistas = new Set()
 
-  for (const f of formas) {
-    sections.push({ formaBanner: tituloFormaPoomsae(f.forma) })
+  for (const bloque of bloques) {
+    sections.push({ formaBanner: bloque.banner })
 
-    for (const catMeta of f.categorias) {
-      const cat =
-        byId.get(catMeta.id_categoria) ||
-        (catMeta.grupo_key ? byGrupo.get(catMeta.grupo_key) : null)
-      const participantes = (cat?.participantes || f.participantes.filter((p) => p.id_categoria === catMeta.id_categoria))
+    for (const catMeta of bloque.categorias) {
+      const cat = byGrupo.get(catMeta.grupo_key)
+      if (!cat?.participantes?.length) continue
+
+      const participantes = cat.participantes
+        .filter((p) => {
+          if (lineasVistas.has(p.id_linea)) return false
+          lineasVistas.add(p.id_linea)
+          return true
+        })
         .slice()
         .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+
       if (!participantes.length) continue
 
+      const title =
+        bloque.kind === 'forma'
+          ? `${catMeta.nombre || cat.nombre_display || cat.nombre} · ${participantes.length} participante(s)`
+          : `${catMeta.formaTitulo || tituloFormaPoomsae(parseNombrePoomsae(cat.nombre).forma)} · ${catMeta.nombre || cat.nombre_display || cat.nombre} · ${participantes.length} participante(s)`
+
       sections.push({
-        title: `${catMeta.nombre || cat?.nombre_display || cat?.nombre} · ${participantes.length} participante(s)`,
+        title,
         rows: participanteRows(participantes),
       })
     }
@@ -109,7 +124,7 @@ export function poomsaePdfOptsPorForma(campeonato, categorias) {
   return {
     campeonato,
     titulo: 'Orden de salida — Poomsae (por forma)',
-    subtitulo: `${formasCount(sections)} formas · ${cats.length} categorías · ${totalParts} participantes`,
+    subtitulo: `${formasCount(sections)} bloques · ${cats.length} categorías · ${totalParts} participantes`,
     orientation: 'portrait',
     columns: POOMSAE_PDF_COLUMNS,
     sections,
@@ -140,8 +155,11 @@ export function descargarPoomsaeCategoriaPdf(campeonato, categoria) {
   const c = categoriasConInscritos([categoria])[0]
   if (!c) return
   const { forma } = parseNombrePoomsae(c.nombre)
+  const tipo = bloquePoomsaeTipo(c.modalidad_key)
+  const banner =
+    tipo === 'parejas' ? 'PAREJAS' : tipo === 'equipos' ? 'EQUIPOS' : tituloFormaPoomsae(forma)
   const sections = [
-    { formaBanner: tituloFormaPoomsae(forma) },
+    { formaBanner: banner },
     {
       title: `${c.nombre_display || c.nombre} · ${c.inscritos} participante(s)`,
       rows: participanteRows(c.participantes),

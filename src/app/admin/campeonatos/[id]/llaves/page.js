@@ -18,6 +18,10 @@ import {
   fetchExportLlaves,
   apiError,
 } from '@/lib/campeonato/export-llaves-client'
+import {
+  descargarKyorugiPlanillaExcel,
+  descargarKyorugiPlanillaPdf,
+} from '@/lib/campeonato/export-kyorugi-planilla'
 
 const RONDA_LABEL = { 1: 'Final', 2: 'Semifinal', 3: 'Cuartos de final', 4: 'Octavos de final', 5: 'Dieciseisavos de final' }
 const VISTAS = [
@@ -440,6 +444,15 @@ export default function CampeonatoLlavesPage() {
       else if (formato.startsWith('pdf-area-')) {
         const cancha = Number(formato.replace('pdf-area-', ''))
         await descargarLlavesPdfPorCancha(idCampeonato, campeonato?.nombre, cancha)
+      } else if (formato === 'planilla-xlsx' || formato === 'planilla-pdf') {
+        const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/kyorugi-planilla`, { cache: 'no-store' })
+        const json = await readJsonResponse(res)
+        if (!res.ok) throw new Error(json.error || 'Error al cargar planilla')
+        if (formato === 'planilla-xlsx') {
+          descargarKyorugiPlanillaExcel(json.campeonato, json.bloques)
+        } else {
+          descargarKyorugiPlanillaPdf(json.campeonato, json.bloques, json.categorias)
+        }
       }
     } catch (e) {
       alert(e.message)
@@ -581,6 +594,24 @@ export default function CampeonatoLlavesPage() {
                 {exportando === `pdf-area-${area}` ? 'Exportando…' : `PDF Área ${area}`}
               </button>
             ))}
+            <button
+              type="button"
+              className="ios-btn ios-btn-ghost"
+              style={{ fontSize: 12 }}
+              disabled={bloqueado || exportando}
+              onClick={() => exportar('planilla-xlsx')}
+            >
+              {exportando === 'planilla-xlsx' ? '…' : '⬇ Planilla Kyorugi Excel'}
+            </button>
+            <button
+              type="button"
+              className="ios-btn ios-btn-ghost"
+              style={{ fontSize: 12 }}
+              disabled={bloqueado || exportando}
+              onClick={() => exportar('planilla-pdf')}
+            >
+              {exportando === 'planilla-pdf' ? '…' : '⬇ Planilla Kyorugi PDF'}
+            </button>
             <button
               type="button"
               className="ios-btn ios-btn-secondary"

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
+  agruparPoomsaeParaOrden,
   agruparPoomsaePorForma,
+  bloquePoomsaeTipo,
   compareCategoriasPorPoomsae,
   formaRank,
   organizarPantallaPoomsaePorAreas,
@@ -55,6 +57,42 @@ describe('parseNombrePoomsae', () => {
 
   it('detecta ranking', () => {
     expect(parseNombrePoomsae('Poomsae Ranking · Cadete · F').forma).toBe('Ranking')
+  })
+})
+
+describe('bloquePoomsaeTipo / agruparPoomsaeParaOrden', () => {
+  it('separa parejas y equipos de formas individuales', () => {
+    expect(bloquePoomsaeTipo('poomsae_pareja_reconocida')).toBe('parejas')
+    expect(bloquePoomsaeTipo('poomsae_equipo')).toBe('equipos')
+    expect(bloquePoomsaeTipo('poomsae_individual')).toBe('individual')
+
+    const cats = [
+      {
+        grupo_key: '1:poomsae_individual',
+        id_categoria: 1,
+        modalidad_key: 'poomsae_individual',
+        nombre: 'Poomsae Kibom · Infantil A · M',
+        genero: 'M',
+        inscritos: 1,
+        participantes: [{ id_linea: 1 }],
+      },
+      {
+        grupo_key: '1:poomsae_pareja_reconocida',
+        id_categoria: 1,
+        modalidad_key: 'poomsae_pareja_reconocida',
+        nombre: 'Poomsae Kibom · Infantil A · M',
+        genero: 'M',
+        inscritos: 1,
+        participantes: [{ id_linea: 2 }],
+      },
+    ]
+    const formas = agruparPoomsaePorForma(cats)
+    expect(formas).toHaveLength(1)
+    expect(formas[0].inscritos).toBe(1)
+
+    const bloques = agruparPoomsaeParaOrden(cats)
+    expect(bloques.map((b) => b.banner)).toEqual(['KIBOM', 'PAREJAS'])
+    expect(bloques[1].categorias[0].grupo_key).toBe('1:poomsae_pareja_reconocida')
   })
 })
 
