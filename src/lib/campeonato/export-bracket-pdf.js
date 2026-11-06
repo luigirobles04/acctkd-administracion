@@ -130,6 +130,16 @@ function drawHeader(doc, campeonato, cat, pageW) {
   doc.line(10, 23, pageW - 10, 23)
 }
 
+/** Clave estable para deduplicar badges (soporta "1/04" o número suelto). */
+function badgeKeyFromLabel(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+  const m = s.match(/^(\d+)\s*\/\s*(\d+)$/)
+  if (m) return `${Number(m[1])}/${String(Number(m[2])).padStart(2, '0')}`
+  const n = Number(s)
+  return Number.isFinite(n) ? String(n) : s
+}
+
 function measureFightBadge(doc, area, num, fontSize = 9) {
   if (!num && num !== 0) return { w: 0, h: 0, label: '' }
   const raw = String(num).trim()
@@ -453,7 +463,7 @@ function ensureAllBadgesPlaced(cols, layout, numBlocks, badgeByNum) {
   const { roundX, roundColW } = layout
   for (let colIdx = 0; colIdx < cols.length; colIdx++) {
     cols[colIdx].combates.forEach((combate, mi) => {
-      if (!combate?.numero_combate || badgeByNum.has(Number(combate.numero_combate))) return
+      if (!combate?.numero_combate || badgeByNum.has(badgeKeyFromLabel(combate.numero_combate))) return
       let x
       let y
       if (colIdx === 0) {
@@ -473,9 +483,9 @@ function ensureAllBadgesPlaced(cols, layout, numBlocks, badgeByNum) {
 
 function queueBadge(badgeByNum, { num, x, y }) {
   if (num == null || num === '') return
-  const key = Number(num)
-  if (!Number.isFinite(key)) return
-  if (!badgeByNum.has(key)) badgeByNum.set(key, { x, y, num: key })
+  const key = badgeKeyFromLabel(num)
+  if (!key) return
+  if (!badgeByNum.has(key)) badgeByNum.set(key, { x, y, label: String(num).trim() })
 }
 
 function drawColumnHeaders(doc, cols, layout, y) {
@@ -666,11 +676,13 @@ function connectorXsFromGeom(geom, level, depth, colsLen) {
   }
 }
 
-function queueBadgeOut(badgesOut, num, x, y) {
-  if (num == null || num === '') return
-  const key = Number(num)
-  if (!Number.isFinite(key)) return
-  if (!badgesOut.some((b) => b.num === key)) badgesOut.push({ x, y, num: key })
+function queueBadgeOut(badgesOut, label, x, y) {
+  if (label == null || label === '') return
+  const key = badgeKeyFromLabel(label)
+  if (!key) return
+  if (!badgesOut.some((b) => badgeKeyFromLabel(b.label) === key)) {
+    badgesOut.push({ x, y, label: String(label).trim() })
+  }
 }
 
 /** Brazos 1.ª ronda: name → stub → vertical col 3. */
@@ -759,8 +771,8 @@ function ensureAllBadgesCnu(cols, geom, numBlocks, badgesOut) {
   for (let colIdx = 0; colIdx < cols.length; colIdx++) {
     cols[colIdx].combates.forEach((combate, mi) => {
       if (!combate?.numero_combate) return
-      const num = Number(combate.numero_combate)
-      if (badgesOut.some((b) => b.num === num)) return
+      const lab = combate.numero_combate
+      if (badgesOut.some((b) => badgeKeyFromLabel(b.label) === badgeKeyFromLabel(lab))) return
       let x
       let y
       if (colIdx === 0) {
@@ -773,7 +785,7 @@ function ensureAllBadgesCnu(cols, geom, numBlocks, badgesOut) {
         x = geom.xMid[Math.min(vertColIndex(colIdx), geom.totalCols - 1)]
         y = yMid
       }
-      queueBadgeOut(badgesOut, num, x, y)
+      queueBadgeOut(badgesOut, lab, x, y)
     })
   }
 }
@@ -900,7 +912,7 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   drawWinnerBox(doc, geom.winnerX, yFinal, geom, finalMatchWin?.ganador)
 
   for (const b of badgesOut) {
-    drawFightBadge(doc, b.x, b.y, cat.cancha, b.num, geom.fightFont)
+    drawFightBadge(doc, b.x, b.y, null, b.label, geom.fightFont)
   }
 
   doc.setFontSize(6)
