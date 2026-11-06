@@ -192,7 +192,28 @@ export function agruparKyorugiPlanillaPorDivision(categorias) {
     })
 }
 
-export function buildKyorugiPlanillaSections(bloques) {
+function kyorugiParticipanteRows(participantes, resaltarIdLineas) {
+  return (participantes || []).map((p) => {
+    const highlight = resaltarIdLineas?.has(p.id_linea)
+    const mark = (cell) =>
+      cell && typeof cell === 'object' ? { ...cell, highlight } : { text: cell, highlight }
+    return [
+      mark({ text: String(p.orden), align: 'center', bold: true }),
+      mark({ text: p.dorsal || '—', align: 'center', bold: true }),
+      mark(p.nombres),
+      mark(p.academia),
+      mark(p.peso),
+    ]
+  })
+}
+
+export function buildKyorugiPlanillaSections(bloques, { resaltarIdLineas } = {}) {
+  const highlightSet =
+    resaltarIdLineas instanceof Set
+      ? resaltarIdLineas
+      : resaltarIdLineas
+        ? new Set(resaltarIdLineas)
+        : null
   const sections = []
   const lineasVistas = new Set()
 
@@ -214,13 +235,7 @@ export function buildKyorugiPlanillaSections(bloques) {
 
       sections.push({
         title: `${cat.nombre} · ${cat.genero || ''} · ${participantes.length} competidor(es)`,
-        rows: participantes.map((p) => [
-          { text: String(p.orden), align: 'center', bold: true },
-          { text: p.dorsal || '—', align: 'center', bold: true },
-          p.nombres,
-          p.academia,
-          p.peso,
-        ]),
+        rows: kyorugiParticipanteRows(participantes, highlightSet),
       })
     }
   }

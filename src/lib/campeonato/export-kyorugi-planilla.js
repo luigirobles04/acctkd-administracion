@@ -12,29 +12,26 @@ const COLS = [
   { header: 'Peso', width: 24 },
 ]
 
-function pdfOpts(campeonato, bloques, categorias) {
-  const sections = buildKyorugiPlanillaSections(bloques)
+function rowHighlightBg(row) {
+  return (row || []).some((cell) => cell && typeof cell === 'object' && cell.highlight)
+}
+
+function pdfOpts(campeonato, bloques, categorias, opts = {}) {
+  const sections = buildKyorugiPlanillaSections(bloques, opts)
   const total = (categorias || []).reduce((s, c) => s + c.inscritos, 0)
+  const baseSub = `${sections.filter((s) => s.formaBanner).length} divisiones · ${categorias.length} categorías · ${total} competidores (sin festival)`
   return {
     campeonato,
-    titulo: 'Planilla Kyorugi',
-    subtitulo: `${sections.filter((s) => s.formaBanner).length} divisiones · ${categorias.length} categorías · ${total} competidores (sin festival)`,
+    titulo: opts.tituloPdf || 'Planilla Kyorugi',
+    subtitulo: opts.subtituloPdf ? `${opts.subtituloPdf} · ${baseSub}` : baseSub,
     orientation: 'portrait',
     columns: COLS,
     sections,
   }
 }
 
-export function descargarKyorugiPlanillaPdf(campeonato, bloques, categorias) {
-  descargarTablaPdf(pdfOpts(campeonato, bloques, categorias), `planilla-kyorugi-${slugArchivo(campeonato?.nombre)}.pdf`)
-}
-
-export function buildKyorugiPlanillaPdfBuffer(campeonato, bloques, categorias) {
-  return buildTablePdfBuffer(pdfOpts(campeonato, bloques, categorias))
-}
-
-export function descargarKyorugiPlanillaExcel(campeonato, bloques) {
-  const sections = buildKyorugiPlanillaSections(bloques)
+function planillaKyorugiTableHtml(campeonato, bloques, opts = {}) {
+  const sections = buildKyorugiPlanillaSections(bloques, opts)
   const html = sections
     .map((sec) => {
       if (sec.formaBanner) {
@@ -44,15 +41,18 @@ export function descargarKyorugiPlanillaExcel(campeonato, bloques) {
       }
       const filas = (sec.rows || [])
         .map((row, i) => {
-          const bg = i % 2 ? XL.gray : '#ffffff'
+          const hi = rowHighlightBg(row)
+          const bg = hi ? XL.greenBg : i % 2 ? XL.gray : '#ffffff'
+          const border = hi ? '2px solid #16a34a' : '1px solid #d1d5db'
           const [orden, dorsal, nombres, academia, peso] = row
           const t = (cell) => (typeof cell === 'object' && cell?.text != null ? cell.text : cell)
+          const cellOpts = (extra = {}) => ({ bg, border, ...extra })
           return `<tr>
-            ${tdCell(t(orden), { bg, align: 'center', bold: true })}
-            ${tdCell(t(dorsal), { bg, align: 'center', bold: true })}
-            ${tdCell(nombres, { bg })}
-            ${tdCell(academia, { bg })}
-            ${tdCell(peso, { bg })}
+            ${tdCell(t(orden), cellOpts({ align: 'center', bold: true }))}
+            ${tdCell(t(dorsal), cellOpts({ align: 'center', bold: true }))}
+            ${tdCell(t(nombres), cellOpts())}
+            ${tdCell(t(academia), cellOpts())}
+            ${tdCell(t(peso), cellOpts())}
           </tr>`
         })
         .join('')
@@ -64,13 +64,32 @@ export function descargarKyorugiPlanillaExcel(campeonato, bloques) {
     })
     .join('')
 
-  const table = `
+  return `
     <table>
       <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 5)}</tr>
-      <tr>${thCell('PLANILLA KYORUGI (SIN FESTIVAL)', XL.red, '#fff', 5)}</tr>
+      <tr>${thCell(opts.subtituloHoja || 'PLANILLA KYORUGI (SIN FESTIVAL)', XL.red, '#fff', 5)}</tr>
+      ${opts.notaResaltado ? `<tr><td colspan="5" style="background:${XL.greenBg};padding:8px;font-size:10pt;border-bottom:2px solid #16a34a;">${opts.notaResaltado}</td></tr>` : ''}
       <tr><td colspan="5" style="height:6px"></td></tr>
       ${html}
     </table>`
+}
 
+export function buildKyorugiPlanillaExcelHtml(campeonato, bloques, opts = {}) {
+  return planillaKyorugiTableHtml(campeonato, bloques, opts)
+}
+
+export function descargarKyorugiPlanillaPdf(campeonato, bloques, categorias, opts = {}) {
+  descargarTablaPdf(
+    pdfOpts(campeonato, bloques, categorias, opts),
+    `planilla-kyorugi-${slugArchivo(campeonato?.nombre)}.pdf`,
+  )
+}
+
+export function buildKyorugiPlanillaPdfBuffer(campeonato, bloques, categorias, opts = {}) {
+  return buildTablePdfBuffer(pdfOpts(campeonato, bloques, categorias, opts))
+}
+
+export function descargarKyorugiPlanillaExcel(campeonato, bloques, opts = {}) {
+  const table = planillaKyorugiTableHtml(campeonato, bloques, opts)
   descargarExcelHtml(`planilla-kyorugi-${slugArchivo(campeonato?.nombre)}`, [{ name: 'Kyorugi', html: table }])
 }

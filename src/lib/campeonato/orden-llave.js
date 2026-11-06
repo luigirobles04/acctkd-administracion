@@ -1,7 +1,14 @@
+import {
+  buildScheduleNumeracionIntercalada,
+  ordenPistaDesdeSchedule,
+} from '@/lib/campeonato/schedule-canchas'
+
 /** Combates exportables en llave (no vacío/bye). */
 export function combateEnLlave(c) {
   return c && !['vacío', 'bye'].includes(c.estado) && !c.es_bye
 }
+
+export { ordenPistaDesdeSchedule }
 
 /**
  * Numeración híbrida para PDF por categoría:
@@ -30,8 +37,8 @@ export function computeOrdenLlavePdf(combates) {
 }
 
 /**
- * Mapa id_llave → orden_pista por área (bloques de categoría).
- * Cada categoría: pre-finales 1..N, un hueco (descanso), final = N+2; la siguiente categoría continúa después del máximo.
+ * Mapa id_llave → orden_pista por área.
+ * Round-robin entre categorías del área; numeración continua 1, 2, 3… (descanso = combate de otra cat.).
  */
 export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
   const map = {}
@@ -44,19 +51,8 @@ export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { 
         if (oa !== ob) return oa - ob
         return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
       })
-    let offset = 0
-    for (const cat of cats) {
-      const combates = porCat[cat.id_categoria] || []
-      const local = computeOrdenLlavePdf(combates)
-      let maxLocal = 0
-      for (const c of combates) {
-        const loc = local[c.id_llave]
-        if (loc == null) continue
-        map[c.id_llave] = loc + offset
-        maxLocal = Math.max(maxLocal, loc)
-      }
-      offset += maxLocal
-    }
+    const schedule = buildScheduleNumeracionIntercalada(cats, porCat)
+    Object.assign(map, ordenPistaDesdeSchedule(schedule))
   }
   return map
 }

@@ -29,7 +29,7 @@ function compararCategoria(a, b) {
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
-/** Numeración por área: pre-finales seguidos, 1 combate de descanso, final N+2; luego siguiente categoría. */
+/** Numeración por área: pre-finales intercalados entre categorías; hueco (descanso) antes de cada final. */
 function buildOrdenBloquesPorCancha(categorias, porCat, canchaPorCat) {
   return buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas: 3 })
 }

@@ -1,4 +1,3 @@
-import { computeOrdenLlavePdf } from '@/lib/campeonato/orden-llave'
 
 /** Combates activos ordenados: ronda más alta primero, luego match_numero. */
 export function combatesOrdenados(lista) {
@@ -97,6 +96,41 @@ export function buildSchedulePorCategoria(categorias, porCat) {
   return schedule
 }
 
+/**
+ * Orden para numeración en pista: round-robin entre categorías del área.
+ * Cada categoría aporta combates en orden local (pre-finales → final).
+ * El “descanso” antes de una final es otro combate (otra cat.) con el número siguiente, sin saltos.
+ */
+export function buildScheduleNumeracionIntercalada(categorias, porCat) {
+  const queues = (categorias || []).map((cat) => ({
+    list: [...combatesPeleables(porCat[cat.id_categoria])],
+  }))
+
+  const schedule = []
+  let any = true
+  while (any) {
+    any = false
+    for (const q of queues) {
+      if (q.list.length) {
+        schedule.push(q.list.shift())
+        any = true
+      }
+    }
+  }
+  return schedule
+}
+
+/** Numeración densa 1, 2, 3… según la secuencia intercalada (sin números omitidos). */
+export function ordenPistaDesdeSchedule(schedule) {
+  const map = {}
+  let n = 0
+  for (const combate of schedule || []) {
+    n += 1
+    map[combate.id_llave] = n
+  }
+  return map
+}
+
 /** Combates planos desde porRonda { [ronda]: combate[] }. */
 export function combatesDesdePorRonda(porRonda) {
   const lista = []
@@ -117,31 +151,31 @@ function compararCategoriaExport(a, b) {
 }
 
 /**
- * Asigna orden_pista por área (bloques de categoría): pre-finales, 1 descanso, final N+2.
+ * Asigna orden_pista por área (intercalado entre categorías + hueco antes de final).
  * Muta porRonda in-place (sin bye/saltado/vacío).
  */
 export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.cancha ?? 1 } = {}) {
+  const porCat = {}
+  const canchaPorCat = {}
+  for (const cat of categorias || []) {
+    const id = cat.id_categoria
+    canchaPorCat[id] = Number(getCancha(cat)) || 1
+    porCat[id] = combatesPeleables(combatesDesdePorRonda(cat.porRonda))
+  }
   const byCancha = new Map()
   for (const cat of categorias || []) {
-    const k = Number(getCancha(cat)) || 1
+    const k = canchaPorCat[cat.id_categoria] || 1
     if (!byCancha.has(k)) byCancha.set(k, [])
     byCancha.get(k).push(cat)
   }
-
+  const map = {}
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    let offset = 0
-    for (const cat of cats) {
-      const combates = combatesPeleables(combatesDesdePorRonda(cat.porRonda))
-      const local = computeOrdenLlavePdf(combates)
-      let maxLocal = 0
-      for (const c of combates) {
-        const loc = local[c.id_llave]
-        if (loc == null) continue
-        c.orden_pista = loc + offset
-        maxLocal = Math.max(maxLocal, loc)
-      }
-      offset += maxLocal
+    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
+  }
+  for (const cat of categorias || []) {
+    for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {
+      if (map[c.id_llave] != null) c.orden_pista = map[c.id_llave]
     }
   }
 }

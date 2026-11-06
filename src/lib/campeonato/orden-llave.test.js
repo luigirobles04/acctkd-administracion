@@ -20,7 +20,7 @@ describe('computeOrdenLlavePdf', () => {
 })
 
 describe('buildOrdenPistaMapPorCancha', () => {
-  it('encadena categorías del mismo área tras el máximo local', () => {
+  it('una sola categoría: pre-final y final consecutivos', () => {
     const porCat = {
       1: [
         { id_llave: 10, id_categoria: 1, ronda: 2, match_numero: 1, estado: 'pendiente' },
@@ -33,6 +33,6 @@ describe('buildOrdenPistaMapPorCancha', () => {
       { 1: 1 },
     )
     expect(map[10]).toBe(1)
-    expect(map[11]).toBe(3)
+    expect(map[11]).toBe(2)
   })
 })

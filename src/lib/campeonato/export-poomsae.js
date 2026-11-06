@@ -22,22 +22,31 @@ const POOMSAE_PDF_COLUMNS = [
   { header: 'Modalidad', width: 34 },
 ]
 
-function participanteRows(participantes) {
+function participanteRows(participantes, resaltarIdLineas) {
   return (participantes || []).map((p) => {
     const nombres = p.nombres_llamado || p.nombres
     const esGrupo = (p.miembros_nombres?.length > 1) || esModalidadGrupo(p.modalidad_key)
+    const highlight = resaltarIdLineas?.has(p.id_linea)
+    const mark = (cell) =>
+      cell && typeof cell === 'object' ? { ...cell, highlight } : { text: cell, highlight }
     return [
-      { text: String(p.orden ?? ''), align: 'center', bold: true },
-      { text: p.dorsal || '—', align: 'center', bold: true },
-      esGrupo ? { text: nombres, multiline: true } : nombres,
-      p.academia,
-      p.modalidad,
+      mark({ text: String(p.orden ?? ''), align: 'center', bold: true }),
+      mark({ text: p.dorsal || '—', align: 'center', bold: true }),
+      mark(esGrupo ? { text: nombres, multiline: true } : { text: nombres }),
+      mark({ text: p.academia }),
+      mark({ text: p.modalidad }),
     ]
   })
 }
 
 /** Secciones export: KIBOM/PAL JANG… · bloques PAREJAS y EQUIPOS · sin duplicar líneas */
-export function buildPoomsaeExportSectionsPorForma(categorias) {
+export function buildPoomsaeExportSectionsPorForma(categorias, { resaltarIdLineas } = {}) {
+  const highlightSet =
+    resaltarIdLineas instanceof Set
+      ? resaltarIdLineas
+      : resaltarIdLineas
+        ? new Set(resaltarIdLineas)
+        : null
   const byGrupo = new Map(categoriasConInscritos(categorias).map((c) => [c.grupo_key, c]))
   const bloques = agruparPoomsaeParaOrden(categorias)
   const sections = []
@@ -68,7 +77,7 @@ export function buildPoomsaeExportSectionsPorForma(categorias) {
 
       sections.push({
         title,
-        rows: participanteRows(participantes),
+        rows: participanteRows(participantes, highlightSet),
       })
     }
   }
@@ -80,8 +89,12 @@ function formasCount(sections) {
   return sections.filter((s) => s.formaBanner).length
 }
 
-function bloquesExcelPorForma(categorias) {
-  const sections = buildPoomsaeExportSectionsPorForma(categorias)
+function rowHighlightBg(row) {
+  return (row || []).some((cell) => cell && typeof cell === 'object' && cell.highlight)
+}
+
+function bloquesExcelPorForma(categorias, opts = {}) {
+  const sections = buildPoomsaeExportSectionsPorForma(categorias, opts)
   return sections
     .map((sec) => {
       if (sec.formaBanner) {
@@ -89,23 +102,26 @@ function bloquesExcelPorForma(categorias) {
       }
       const filas = (sec.rows || [])
         .map((row, i) => {
-          const bg = i % 2 ? XL.gray : '#ffffff'
+          const hi = rowHighlightBg(row)
+          const bg = hi ? XL.greenBg : i % 2 ? XL.gray : '#ffffff'
+          const border = hi ? '2px solid #16a34a' : '1px solid #d1d5db'
           const [orden, dorsal, nombres, academia, modalidad] = row
           const t = (cell) => (typeof cell === 'object' && cell?.text != null ? cell.text : cell)
           const nombresCell =
             typeof nombres === 'object' && nombres?.multiline
               ? String(t(nombres)).replace(/\n/g, '<br/>')
               : t(nombres)
+          const cellOpts = (extra = {}) => ({ bg, border, ...extra })
           const nombresOpts =
             typeof nombres === 'object' && nombres?.multiline
-              ? { bg, wrap: true }
-              : { bg }
+              ? cellOpts({ wrap: true })
+              : cellOpts()
           return `<tr>
-            ${tdCell(t(orden), { bg, align: 'center', bold: true })}
-            ${tdCell(t(dorsal), { bg, align: 'center', bold: true })}
+            ${tdCell(t(orden), cellOpts({ align: 'center', bold: true }))}
+            ${tdCell(t(dorsal), cellOpts({ align: 'center', bold: true }))}
             ${tdCell(nombresCell, nombresOpts)}
-            ${tdCell(academia, { bg })}
-            ${tdCell(modalidad, { bg })}
+            ${tdCell(t(academia), cellOpts())}
+            ${tdCell(t(modalidad), cellOpts())}
           </tr>`
         })
         .join('')
@@ -118,44 +134,49 @@ function bloquesExcelPorForma(categorias) {
     .join('')
 }
 
-export function descargarPoomsaeExcel(campeonato, categorias) {
-  const html = `
+export function buildPoomsaeExcelHtml(campeonato, categorias, opts = {}) {
+  return `
     <table>
       <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 5)}</tr>
-      <tr>${thCell('ORDEN DE SALIDA — POOMSAE (POR FORMA)', XL.red, '#fff', 5)}</tr>
+      <tr>${thCell(opts.subtituloHoja || 'ORDEN DE SALIDA — POOMSAE (POR FORMA)', XL.red, '#fff', 5)}</tr>
+      ${opts.notaResaltado ? `<tr><td colspan="5" style="background:${XL.greenBg};padding:8px;font-size:10pt;border-bottom:2px solid #16a34a;">${opts.notaResaltado}</td></tr>` : ''}
       <tr><td colspan="5" style="height:6px"></td></tr>
-      ${bloquesExcelPorForma(categorias)}
+      ${bloquesExcelPorForma(categorias, opts)}
     </table>`
+}
 
+export function descargarPoomsaeExcel(campeonato, categorias, opts = {}) {
+  const html = buildPoomsaeExcelHtml(campeonato, categorias, opts)
   descargarExcelHtml(`orden-poomsae-${slugArchivo(campeonato?.nombre)}`, [{ name: 'Orden Poomsae', html }])
 }
 
-export function poomsaePdfOptsPorForma(campeonato, categorias) {
+export function poomsaePdfOptsPorForma(campeonato, categorias, opts = {}) {
   const cats = categoriasConInscritos(categorias)
-  const sections = buildPoomsaeExportSectionsPorForma(categorias)
+  const sections = buildPoomsaeExportSectionsPorForma(categorias, opts)
   const totalParts = cats.reduce((s, c) => s + c.inscritos, 0)
+  const baseSub = `${formasCount(sections)} bloques · ${cats.length} categorías · ${totalParts} participantes`
   return {
     campeonato,
-    titulo: 'Orden de salida — Poomsae (por forma)',
-    subtitulo: `${formasCount(sections)} bloques · ${cats.length} categorías · ${totalParts} participantes`,
+    titulo: opts.tituloPdf || 'Orden de salida — Poomsae (por forma)',
+    subtitulo: opts.subtituloPdf ? `${baseSub} · ${opts.subtituloPdf}` : baseSub,
     orientation: 'portrait',
     columns: POOMSAE_PDF_COLUMNS,
     sections,
   }
 }
 
-export function descargarPoomsaePdf(campeonato, categorias) {
-  const opts = poomsaePdfOptsPorForma(campeonato, categorias)
-  descargarTablaPdf(opts, `orden-poomsae-${slugArchivo(campeonato?.nombre)}.pdf`)
+export function descargarPoomsaePdf(campeonato, categorias, opts = {}) {
+  const pdfOpts = poomsaePdfOptsPorForma(campeonato, categorias, opts)
+  descargarTablaPdf(pdfOpts, `orden-poomsae-${slugArchivo(campeonato?.nombre)}.pdf`)
 }
 
 /** Alias explícito (mismo layout que PDF estándar). */
-export function descargarPoomsaePdfPorForma(campeonato, categorias) {
-  descargarPoomsaePdf(campeonato, categorias)
+export function descargarPoomsaePdfPorForma(campeonato, categorias, opts = {}) {
+  descargarPoomsaePdf(campeonato, categorias, opts)
 }
 
-export function buildPoomsaePdfPorFormaBuffer(campeonato, categorias) {
-  return buildTablePdfBuffer(poomsaePdfOptsPorForma(campeonato, categorias))
+export function buildPoomsaePdfPorFormaBuffer(campeonato, categorias, opts = {}) {
+  return buildTablePdfBuffer(poomsaePdfOptsPorForma(campeonato, categorias, opts))
 }
 
 /** @deprecated usar buildPoomsaeExportSectionsPorForma */

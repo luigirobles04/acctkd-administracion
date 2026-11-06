@@ -9,6 +9,7 @@ const GRAY = [100, 116, 139]
 const HEAD_BG = [192, 0, 10]
 const SECTION_BG = [254, 243, 199]
 const ROW_ALT = [248, 250, 252]
+const ROW_HIGHLIGHT = [220, 252, 231]
 const BORDER = [209, 213, 219]
 
 function drawPageChrome(doc, { campeonato, titulo, subtitulo, pageW }) {
@@ -155,7 +156,16 @@ export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, secti
         drawColHeader()
         rowIndex = 0
       }
-      if (rowIndex % 2 === 1) {
+      const rowHighlight = row.some(
+        (cell) => cell && typeof cell === 'object' && cell.highlight,
+      )
+      if (rowHighlight) {
+        doc.setFillColor(...ROW_HIGHLIGHT)
+        doc.rect(marginL, y, pageW - marginL * 2, rowHeight, 'F')
+        doc.setDrawColor(22, 163, 74)
+        doc.setLineWidth(0.45)
+        doc.line(marginL, y + rowHeight, pageW - marginL, y + rowHeight)
+      } else if (rowIndex % 2 === 1) {
         doc.setFillColor(...ROW_ALT)
         doc.rect(marginL, y, pageW - marginL * 2, rowHeight, 'F')
       }

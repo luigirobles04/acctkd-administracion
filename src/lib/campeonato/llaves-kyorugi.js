@@ -412,7 +412,7 @@ function normalizarUpdatesOrdenPista(updates) {
 import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
 import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
 
-/** Toda una categoría en la misma cancha; parejas intercaladas 1→2→3→1… */
+/** Misma cancha por categoría; numeración intercalada 1→2→3→1… (solo orden_pista). */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: categorias, error: errC } = await sb
     .from('categoria_campeonato')
