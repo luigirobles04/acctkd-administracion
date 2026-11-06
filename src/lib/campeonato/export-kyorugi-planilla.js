@@ -38,7 +38,9 @@ export function descargarKyorugiPlanillaExcel(campeonato, bloques) {
   const html = sections
     .map((sec) => {
       if (sec.formaBanner) {
-        return `<tr>${thCell(sec.formaBanner, XL.dark, '#fff', 5)}</tr>`
+        const esGenero = sec.formaBanner === 'MASCULINO' || sec.formaBanner === 'FEMENINO'
+        const bg = esGenero ? XL.red : XL.dark
+        return `<tr>${thCell(sec.formaBanner, bg, '#fff', 5)}</tr>`
       }
       const filas = (sec.rows || [])
         .map((row, i) => {

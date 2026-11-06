@@ -129,9 +129,37 @@ export async function fetchPlanillaKyorugiCampeonato(sb, idCampeonato) {
     return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
   })
 
-  const bloques = agruparKyorugiPlanillaPorDivision(categoriasOut)
+  const bloques = agruparKyorugiPlanillaPorGeneroYDivision(categoriasOut)
 
   return { campeonato, categorias: categoriasOut, bloques }
+}
+
+export function tituloGeneroKyorugi(genero) {
+  const g = String(genero || '').toUpperCase()
+  if (g === 'M') return 'MASCULINO'
+  if (g === 'F') return 'FEMENINO'
+  return 'GENERAL'
+}
+
+/** Masculino completo (por división → categoría), luego femenino. */
+export function agruparKyorugiPlanillaPorGeneroYDivision(categorias) {
+  const bloques = []
+  const grupos = [
+    { genero: 'M', titulo: 'MASCULINO' },
+    { genero: 'F', titulo: 'FEMENINO' },
+  ]
+  const otros = (categorias || []).filter((c) => !['M', 'F'].includes(String(c.genero || '').toUpperCase()))
+  if (otros.length) grupos.push({ genero: null, titulo: 'GENERAL', cats: otros })
+
+  for (const g of grupos) {
+    const cats =
+      g.cats ||
+      (categorias || []).filter((c) => String(c.genero || '').toUpperCase() === g.genero)
+    if (!cats.length) continue
+    bloques.push({ generoBanner: g.titulo })
+    bloques.push(...agruparKyorugiPlanillaPorDivision(cats))
+  }
+  return bloques
 }
 
 export function agruparKyorugiPlanillaPorDivision(categorias) {
@@ -169,6 +197,11 @@ export function buildKyorugiPlanillaSections(bloques) {
   const lineasVistas = new Set()
 
   for (const bloque of bloques || []) {
+    if (bloque.generoBanner) {
+      sections.push({ formaBanner: bloque.generoBanner })
+      continue
+    }
+    if (!bloque.categorias?.length) continue
     sections.push({ formaBanner: bloque.banner })
 
     for (const cat of bloque.categorias) {

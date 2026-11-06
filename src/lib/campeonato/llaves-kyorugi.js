@@ -963,13 +963,18 @@ export async function consolidarOrosUnicos(sb, idCampeonato, {
     await sb.from('bitacora_inscripcion').insert({
       id_academia_campeonato: m.id_academia_campeonato,
       id_linea: m.id_linea,
-      accion: destinoExterno ? 'unir_solitario_categoria' : 'consolidar_categoria_llave',
+      accion: 'consolidacion_kyorugi',
       detalle: {
+        tipo: 'Consolidación',
+        mensaje: `Consolidación: ${m.desdeNombre} → ${nombrePorId[destino]}`,
         desde: m.desde,
         desde_nombre: m.desdeNombre,
         hacia: destino,
         hacia_nombre: nombrePorId[destino],
         destino_externo: Boolean(destinoExterno),
+        categorias_consolidadas: origenes
+          .filter((id) => id !== destino)
+          .map((id) => ({ id_categoria: id, nombre: nombrePorId[id] })),
       },
       actor: 'admin',
     })
