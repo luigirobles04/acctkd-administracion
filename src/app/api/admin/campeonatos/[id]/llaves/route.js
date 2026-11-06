@@ -65,6 +65,7 @@ export async function GET(_request, { params }) {
         .from('linea_inscripcion')
         .select(`
           id_linea, id_categoria, dorsal_display, pesaje_estado, peso_declarado,
+          academia_campeonato(academia(nombre)),
           miembros:linea_inscripcion_miembro(perfil:competidor_perfil(nombres, apellidos))
         `)
         .eq('id_campeonato', idCampeonato)
@@ -88,6 +89,7 @@ export async function GET(_request, { params }) {
           id_linea: l.id_linea,
           dorsal: l.dorsal_display,
           nombre: nombre || '—',
+          academia: l.academia_campeonato?.academia?.nombre || '',
         }
       }
       for (const c of cats) {

@@ -673,6 +673,12 @@ export default function CampeonatoLlavesPage() {
                         {c.solo && (
                           <span className="ios-caption" style={{ display: 'block', color: 'var(--label3)', marginTop: 2 }}>
                             {c.solo.dorsal || '—'} · {c.solo.nombre}
+                            {c.solo.academia ? (
+                              <>
+                                {' · '}
+                                <span style={{ color: 'var(--label2)' }}>{c.solo.academia}</span>
+                              </>
+                            ) : null}
                           </span>
                         )}
                       </span>
