@@ -102,22 +102,79 @@ function drawHeaderLogos(doc, pageW) {
   } catch (_) {}
 }
 
-function drawHeader(doc, campeonato, cat, pageW) {
+/** Misma línea de categoría que la planilla Kyorugi PDF (Ficha / lista consolidada). */
+function generoPlanillaKyorugi(g) {
+  const u = String(g ?? '').trim().toUpperCase()
+  if (u === 'M' || u === 'F' || u === 'X') return u
+  return ''
+}
+
+/**
+ * `Categoría · M|F · N competidor(es) · Área a` (+ aviso si N en llave ≠ lista).
+ */
+function tituloCategoriaEstiloPlanilla(cat, { enLlave = null, inscritosRef = null, conDorsal = null } = {}) {
+  const lista =
+    conDorsal != null && Number.isFinite(Number(conDorsal))
+      ? Math.max(0, Math.floor(Number(conDorsal)))
+      : inscritosRef != null && Number.isFinite(Number(inscritosRef))
+        ? Math.max(0, Math.floor(Number(inscritosRef)))
+        : null
+  const enB = enLlave != null && Number.isFinite(Number(enLlave)) ? Math.max(0, Math.floor(Number(enLlave))) : null
+  const n = lista != null && lista > 0 ? lista : enB != null && enB > 0 ? enB : null
+
+  const parts = [String(cat?.nombre || '').trim()].filter(Boolean)
+  const gen = generoPlanillaKyorugi(cat?.genero)
+  if (gen) parts.push(gen)
+  if (n != null) parts.push(`${n} competidor(es)`)
+  const ch = cat?.cancha != null && cat.cancha !== '' ? Number(cat.cancha) : null
+  if (ch != null && Number.isFinite(ch)) parts.push(`Área ${ch}`)
+  if (enB != null && n != null && enB !== n) parts.push(`${enB} en llave`)
+
+  return parts.join(' · ')
+}
+
+function drawHeader(
+  doc,
+  campeonato,
+  cat,
+  pageW,
+  { enLlave = null, aptosLlave = null, conDorsal = null, sinPesajeLlaves = false, textScale = 1 } = {},
+) {
+  const ts = Math.min(1.45, Math.max(0.85, Number(textScale) || 1))
   drawHeaderLogos(doc, pageW)
 
   doc.setTextColor(...DARK)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
+  doc.setFontSize(12 * ts)
   doc.text(trunc(doc, campeonato?.nombre || 'Campeonato', pageW - 90), pageW / 2, 9, { align: 'center' })
 
-  doc.setFontSize(9)
+  doc.setFontSize(9 * ts)
   doc.setFont('helvetica', 'normal')
-  const subtitle = [cat.nombre, cat.cancha ? `Área ${cat.cancha}` : null, cat.inscritos ? `${cat.inscritos} competidores` : null].filter(Boolean).join(' · ')
+  const dorsal =
+    conDorsal != null && Number.isFinite(Number(conDorsal))
+      ? Number(conDorsal)
+      : cat.inscritos_con_dorsal != null && Number.isFinite(Number(cat.inscritos_con_dorsal))
+        ? Number(cat.inscritos_con_dorsal)
+        : null
+  const sinOps = Boolean(sinPesajeLlaves || campeonato?.llaves_sin_pesaje)
+  const refLlave =
+    aptosLlave != null && Number.isFinite(Number(aptosLlave))
+      ? Number(aptosLlave)
+      : cat.inscritos != null && Number.isFinite(Number(cat.inscritos))
+        ? Number(cat.inscritos)
+        : null
+  const inscritosRef = sinOps && dorsal != null ? dorsal : refLlave
+  const enBracket = enLlave != null && Number.isFinite(Number(enLlave)) ? Number(enLlave) : null
+  const subtitle = tituloCategoriaEstiloPlanilla(cat, {
+    enLlave: enBracket,
+    inscritosRef,
+    conDorsal: dorsal,
+  })
   doc.text(trunc(doc, subtitle, pageW - 90), pageW / 2, 15, { align: 'center' })
 
   if (campeonato?.fecha_inicio) {
     const f = new Date(campeonato.fecha_inicio)
-    doc.setFontSize(8)
+    doc.setFontSize(8 * ts)
     doc.text(
       f.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }),
       pageW / 2,
@@ -562,7 +619,8 @@ function isGapCol(c) {
 }
 
 /** Geometría PDF: columnas vert (anchas) y gap (estrechas) como el Excel CNU. */
-export function calcPdfGeometryFromCnu(cnuLayout, pageW, pageH) {
+export function calcPdfGeometryFromCnu(cnuLayout, pageW, pageH, { textScale = 1 } = {}) {
+  const ts = Math.min(1.5, Math.max(0.85, Number(textScale) || 1))
   const marginT = 27
   const marginB = 11
   const maxContentBottom = pageH - marginB - 2
@@ -586,6 +644,23 @@ export function calcPdfGeometryFromCnu(cnuLayout, pageW, pageH) {
     rowH *= 0.92
     boxH = Math.min(Math.max(4, ROWS_PER_MATCH * rowH * 0.2), 10)
     pairGap = Math.max(1.8, rowH * 0.4)
+  }
+
+  if (ts > 1) {
+    rowH *= ts
+    boxH *= ts
+    pairGap *= ts
+    for (let guard = 0; guard < 40; guard++) {
+      const tt = marginT + Math.max(0, (availH - rows * rowH) / 2)
+      const lastRow = rows - 1
+      const yBottom = tt + (lastRow + 0.5) * rowH + boxH / 2
+      const yWin = tt + (outRowCenter(Math.max(0, cnuLayout.bracketCols.length - 1), 0) + 0.5) * rowH
+      const winH = Math.max(boxH * 2 + pairGap + 10, 26)
+      if (Math.max(yBottom, yWin + winH / 2) <= maxContentBottom && rows * rowH <= availH + 0.5) break
+      rowH *= 0.94
+      boxH *= 0.94
+      pairGap *= 0.94
+    }
   }
 
   const treeTop = marginT + Math.max(0, (availH - rows * rowH) / 2)
@@ -626,7 +701,8 @@ export function calcPdfGeometryFromCnu(cnuLayout, pageW, pageH) {
     x += w
   }
 
-  const fightFont = rows > 48 ? 7 : rows > 32 ? 8 : 9
+  const fightFontRaw = rows > 48 ? 7 : rows > 32 ? 8 : 9
+  const fightFont = Math.min(13, fightFontRaw * ts)
   const yRow = (r) => treeTop + (r + 0.5) * rowH
 
   const vertCols = []
@@ -655,6 +731,7 @@ export function calcPdfGeometryFromCnu(cnuLayout, pageW, pageH) {
     xMid,
     vertCols,
     totalCols,
+    textScale: ts,
   }
 }
 
@@ -827,8 +904,9 @@ function parseBadgeLabel(raw, cancha) {
 
 function drawColumnHeadersFromLayout(doc, cnuLayout, geom) {
   const labels = cnuLayout.roundLabels || []
+  const ts = geom.textScale ?? 1
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7)
+  doc.setFontSize(7 * ts)
   doc.setTextColor(...GRAY)
   doc.text('Name / Team', geom.nameX, geom.marginT - 3)
   let bracketIdx = 0
@@ -883,18 +961,30 @@ export function drawContentFromCnuLayout(doc, cnuLayout, geom, { cat, logoCache 
   return { playersDrawn }
 }
 
-export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, pageH = 210, logoCache = {} } = {}) {
+export function dibujarBracketCategoriaPdf(
+  doc,
+  campeonato,
+  cat,
+  { pageW = 297, pageH = 210, logoCache = {}, textScale = 1 } = {},
+) {
   const porRonda = porRondaFiltrado(cat.porRonda, cat.inscritos)
   const cnuLayout = layoutCnuBracket(porRonda, { cancha: cat.cancha, inscritos: cat.inscritos })
   if (!cnuLayout?.entradas?.length) return false
   if (!cnuLayout.entradas.some((e) => blockTieneJugador(e))) return false
 
   const entradas = cnuLayout.entradas
+  const competidoresEnLlave = countPlayersInEntradas(entradas)
   const cols = cnuLayout.bracketCols
   if (!cols?.length) return false
 
-  drawHeader(doc, campeonato, cat, pageW)
-  const geom = calcPdfGeometryFromCnu(cnuLayout, pageW, pageH)
+  drawHeader(doc, campeonato, cat, pageW, {
+    enLlave: competidoresEnLlave,
+    aptosLlave: cat.inscritos,
+    conDorsal: cat.inscritos_con_dorsal,
+    sinPesajeLlaves: Boolean(campeonato?.llaves_sin_pesaje),
+    textScale,
+  })
+  const geom = calcPdfGeometryFromCnu(cnuLayout, pageW, pageH, { textScale })
 
   drawColumnHeadersFromLayout(doc, cnuLayout, geom)
 
@@ -910,26 +1000,36 @@ export function dibujarBracketCategoriaPdf(doc, campeonato, cat, { pageW = 297, 
   const finalIdx = Math.max(0, cols.length - 1)
   const yFinal = geom.yRow(outRowCenter(finalIdx, 0))
   const finalMatchWin = cols[finalIdx]?.combates?.[0]
-  drawWinnerBox(doc, geom.winnerX, yFinal, geom, finalMatchWin?.ganador)
+  /** PDF de programa: nunca mostrar ganador (evita datos de prueba en BD). */
+  drawWinnerBox(doc, geom.winnerX, yFinal, geom, null)
 
   for (const b of badgesOut) {
     drawFightBadge(doc, b.x, b.y, null, b.label, geom.fightFont)
   }
 
-  doc.setFontSize(6)
+  const fts = Math.min(1.35, geom.textScale ?? 1)
+  doc.setFontSize(6 * fts)
   doc.setTextColor(...GRAY)
   doc.text(`${ACBRACKET_VERSION} · ACCTKD · Taekwondo FestCup · World Taekwondo`, pageW / 2, pageH - 6, { align: 'center' })
   return true
 }
 
-/** Valida que entradas del layout incluyen todos los inscritos. */
+/** Valida llave para PDF: al menos 2 en bracket; `matchesReported` false si faltan competidores vs inscritos. */
 export function validatePlayersForPdf(cat) {
   const porRonda = porRondaFiltrado(cat.porRonda, cat.inscritos)
   const cnuLayout = layoutCnuBracket(porRonda, { cancha: cat.cancha, inscritos: cat.inscritos })
-  if (!cnuLayout?.entradas) return { ok: false, expected: cat.inscritos || 0, actual: 0 }
+  if (!cnuLayout?.entradas) return { ok: false, expected: 0, actual: 0, reported: cat.inscritos ?? null }
   const actual = countPlayersInEntradas(cnuLayout.entradas)
-  const expected = cat.inscritos ?? actual
-  return { ok: actual === expected, expected, actual }
+  const reported = cat.inscritos != null && Number.isFinite(Number(cat.inscritos)) ? Number(cat.inscritos) : null
+  const matchesReported = reported == null || reported === actual
+  return {
+    ok: actual >= 2 && matchesReported,
+    enLlave: actual,
+    expected: actual,
+    actual,
+    reported,
+    matchesReported,
+  }
 }
 
 function collectLogoPathsFromCategorias(categorias) {
@@ -991,7 +1091,11 @@ function minOrdenPistaCategoria(cat) {
   return Number.isFinite(min) ? min : 9999
 }
 
-export async function buildBracketPdfBuffer(data, sb, { idCategoria = null, cancha = null } = {}) {
+export async function buildBracketPdfBuffer(
+  data,
+  sb,
+  { idCategoria = null, cancha = null, orientation = 'landscape', textScale = 1 } = {},
+) {
   const listaCats = data.categorias || []
   const porCatPlano = porRondaACombatesPlano(listaCats)
   const insRes = buildMapInscritosResueltos(listaCats, data.inscritosPorCat || {}, porCatPlano)
@@ -1005,14 +1109,15 @@ export async function buildBracketPdfBuffer(data, sb, { idCategoria = null, canc
 
   const logoCache = sb ? await loadAcademiaLogosForPdf(sb, cats) : {}
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
+  const portrait = orientation === 'portrait'
+  const doc = new jsPDF({ orientation: portrait ? 'portrait' : 'landscape', unit: 'mm', format: 'a4', compress: true })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
 
   let firstPage = true
   for (const cat of cats) {
     if (!firstPage) doc.addPage()
-    const drew = dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH, logoCache })
+    const drew = dibujarBracketCategoriaPdf(doc, data.campeonato, cat, { pageW, pageH, logoCache, textScale })
     if (drew) {
       firstPage = false
     } else if (!firstPage) {

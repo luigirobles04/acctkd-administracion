@@ -15,11 +15,13 @@ function categoriasConInscritos(categorias) {
 }
 
 const POOMSAE_PDF_COLUMNS = [
-  { header: 'Orden', width: 16, align: 'center' },
-  { header: 'Dorsal', width: 22, align: 'center' },
-  { header: 'Competidor', width: 66 },
-  { header: 'Academia', width: 52 },
-  { header: 'Modalidad', width: 34 },
+  { header: 'Orden', width: 14, align: 'center' },
+  { header: 'Dorsal', width: 18, align: 'center' },
+  { header: 'Competidor', width: 52 },
+  { header: 'Academia', width: 48 },
+  { header: 'Juez 1', width: 20, align: 'center', minRowHeightMm: 12 },
+  { header: 'Juez 2', width: 20, align: 'center', minRowHeightMm: 12 },
+  { header: 'Juez 3', width: 20, align: 'center', minRowHeightMm: 12 },
 ]
 
 function participanteRows(participantes, resaltarIdLineas) {
@@ -29,12 +31,15 @@ function participanteRows(participantes, resaltarIdLineas) {
     const highlight = resaltarIdLineas?.has(p.id_linea)
     const mark = (cell) =>
       cell && typeof cell === 'object' ? { ...cell, highlight } : { text: cell, highlight }
+    const casillaJuez = () => mark({ text: '', align: 'center' })
     return [
       mark({ text: String(p.orden ?? ''), align: 'center', bold: true }),
       mark({ text: p.dorsal || '—', align: 'center', bold: true }),
       mark(esGrupo ? { text: nombres, multiline: true } : { text: nombres }),
       mark({ text: p.academia }),
-      mark({ text: p.modalidad }),
+      casillaJuez(),
+      casillaJuez(),
+      casillaJuez(),
     ]
   })
 }
@@ -98,14 +103,14 @@ function bloquesExcelPorForma(categorias, opts = {}) {
   return sections
     .map((sec) => {
       if (sec.formaBanner) {
-        return `<tr>${thCell(sec.formaBanner, XL.dark, '#fff', 5)}</tr>`
+        return `<tr>${thCell(sec.formaBanner, XL.dark, '#fff', 7)}</tr>`
       }
       const filas = (sec.rows || [])
         .map((row, i) => {
           const hi = rowHighlightBg(row)
           const bg = hi ? XL.greenBg : i % 2 ? XL.gray : '#ffffff'
           const border = hi ? '2px solid #16a34a' : '1px solid #d1d5db'
-          const [orden, dorsal, nombres, academia, modalidad] = row
+          const [orden, dorsal, nombres, academia, j1, j2, j3] = row
           const t = (cell) => (typeof cell === 'object' && cell?.text != null ? cell.text : cell)
           const nombresCell =
             typeof nombres === 'object' && nombres?.multiline
@@ -116,20 +121,24 @@ function bloquesExcelPorForma(categorias, opts = {}) {
             typeof nombres === 'object' && nombres?.multiline
               ? cellOpts({ wrap: true })
               : cellOpts()
+          const casillaJuezHtml = (cell) =>
+            `<td style="background:${bg};border:${border};width:56px;height:48px;min-height:48px;text-align:center;vertical-align:middle;">${t(cell) ?? ''}</td>`
           return `<tr>
             ${tdCell(t(orden), cellOpts({ align: 'center', bold: true }))}
             ${tdCell(t(dorsal), cellOpts({ align: 'center', bold: true }))}
             ${tdCell(nombresCell, nombresOpts)}
             ${tdCell(t(academia), cellOpts())}
-            ${tdCell(t(modalidad), cellOpts())}
+            ${casillaJuezHtml(j1)}
+            ${casillaJuezHtml(j2)}
+            ${casillaJuezHtml(j3)}
           </tr>`
         })
         .join('')
       return `
-        <tr>${thCell(sec.title, XL.gold, '#111', 5)}</tr>
-        <tr>${thCell('Orden')}${thCell('Dorsal')}${thCell('Competidor')}${thCell('Academia')}${thCell('Modalidad')}</tr>
+        <tr>${thCell(sec.title, XL.gold, '#111', 7)}</tr>
+        <tr>${thCell('Orden')}${thCell('Dorsal')}${thCell('Competidor')}${thCell('Academia')}${thCell('Juez 1')}${thCell('Juez 2')}${thCell('Juez 3')}</tr>
         ${filas}
-        <tr><td colspan="5" style="height:8px"></td></tr>`
+        <tr><td colspan="7" style="height:8px"></td></tr>`
     })
     .join('')
 }
@@ -137,10 +146,10 @@ function bloquesExcelPorForma(categorias, opts = {}) {
 export function buildPoomsaeExcelHtml(campeonato, categorias, opts = {}) {
   return `
     <table>
-      <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 5)}</tr>
-      <tr>${thCell(opts.subtituloHoja || 'ORDEN DE SALIDA — POOMSAE (POR FORMA)', XL.red, '#fff', 5)}</tr>
-      ${opts.notaResaltado ? `<tr><td colspan="5" style="background:${XL.greenBg};padding:8px;font-size:10pt;border-bottom:2px solid #16a34a;">${opts.notaResaltado}</td></tr>` : ''}
-      <tr><td colspan="5" style="height:6px"></td></tr>
+      <tr>${thCell(campeonato?.nombre || 'Campeonato', XL.dark, '#fff', 7)}</tr>
+      <tr>${thCell(opts.subtituloHoja || 'ORDEN DE SALIDA — POOMSAE (POR FORMA)', XL.red, '#fff', 7)}</tr>
+      ${opts.notaResaltado ? `<tr><td colspan="7" style="background:${XL.greenBg};padding:8px;font-size:10pt;border-bottom:2px solid #16a34a;">${opts.notaResaltado}</td></tr>` : ''}
+      <tr><td colspan="7" style="height:6px"></td></tr>
       ${bloquesExcelPorForma(categorias, opts)}
     </table>`
 }

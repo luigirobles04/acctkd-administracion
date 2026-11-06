@@ -43,11 +43,13 @@ execSync(esbuildArgs(join(root, 'scripts/.ejecutar-consolidaciones-entry.mjs'), 
 })
 
 const { buildExportLlaves, buildBracketPdfBuffer } = await import(`file://${pdfBundle}`)
-const { asignarCanchasCampeonato } = await import(`file://${llavesBundle}`)
+const { compactarOrdenPistaCampeonatoExistente } = await import(`file://${llavesBundle}`)
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-await asignarCanchasCampeonato(sb, ID_CAMP)
+if (process.env.RENUMERAR === '1' || process.env.RENUMERAR === 'true') {
+  await compactarOrdenPistaCampeonatoExistente(sb, ID_CAMP)
+}
 
 const data = await buildExportLlaves(sb, ID_CAMP)
 const buffer = await buildBracketPdfBuffer(data, sb, { cancha: CANCHA })

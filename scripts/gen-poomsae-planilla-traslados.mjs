@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Planilla poomsae completa (como admin) con filas de traslados resaltadas.
+ * Planilla poomsae completa (como admin): orden + casillas Juez 1–3 al final.
  * node scripts/gen-poomsae-planilla-traslados.mjs
  */
 import { createClient } from '@supabase/supabase-js'
@@ -12,11 +12,8 @@ import { execSync } from 'node:child_process'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ID_CAMP = 10
 const bundleOut = join(root, 'scripts/.gen-poomsae-planilla-traslados-bundle.mjs')
-const OUT_PDF = join(process.env.HOME || '', 'Desktop', 'orden-poomsae-festcup-2026-traslados-resaltados.pdf')
-const OUT_XLS = join(process.env.HOME || '', 'Desktop', 'orden-poomsae-festcup-2026-traslados-resaltados.xls')
-
-/** id_linea poomsae movidos por admin (FestCup 2026-11-06) */
-const RESALTAR = new Set([16683, 16637, 16640, 16610, 16612, 16671, 16203, 16668, 16187, 16512])
+const OUT_PDF = join(process.env.HOME || '', 'Desktop', 'orden-poomsae-festcup-2026-planilla-jueces.pdf')
+const OUT_XLS = join(process.env.HOME || '', 'Desktop', 'orden-poomsae-festcup-2026-planilla-jueces.xls')
 
 for (const f of ['.env.local', '.env']) {
   const p = join(root, f)
@@ -52,12 +49,8 @@ const { data: campeonato } = await sb.from('campeonato').select('*').eq('id_camp
 const { categorias } = await fetchOrdenPoomsaeCampeonato(sb, ID_CAMP)
 
 const opts = {
-  resaltarIdLineas: RESALTAR,
-  subtituloPdf: 'Filas en verde = traslados admin 6-nov-2026',
-  tituloPdf: 'Orden de salida — Poomsae (por forma)',
-  subtituloHoja: 'ORDEN DE SALIDA — POOMSAE (POR FORMA) · TRASLADOS RESALTADOS',
-  notaResaltado:
-    'Filas en verde (subrayado): competidores movidos de categoría (consolidación/paso admin 6 nov 2026). Resto igual que planilla del sistema.',
+  tituloPdf: 'Orden de salida — Poomsae (por forma) · planilla jueces',
+  subtituloHoja: 'ORDEN DE SALIDA — POOMSAE (POR FORMA)',
 }
 
 const pdfBuf = buildPoomsaePdfPorFormaBuffer(campeonato, categorias, opts)
@@ -79,4 +72,4 @@ const xlsHtml = `<!DOCTYPE html>
 </head><body>${tableHtml}</body></html>`
 writeFileSync(OUT_XLS, '\ufeff' + xlsHtml)
 
-console.log(JSON.stringify({ ok: true, OUT_PDF, OUT_XLS, resaltados: RESALTAR.size }, null, 2))
+console.log(JSON.stringify({ ok: true, OUT_PDF, OUT_XLS }, null, 2))

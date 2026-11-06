@@ -1,6 +1,7 @@
 import { fotoCompetidorProxyUrl } from '@/lib/campeonato/foto-competidor'
 import { lineaAptaParaLlave } from '@/lib/campeonato/pesaje'
 import { esCategoriaKyorugiFestival } from '@/lib/campeonato/validar-categoria'
+import { buildOrdenPistaPorBuckets, combatesPeleables } from '@/lib/campeonato/schedule-canchas'
 
 const SELECT_LINEA_LLAVE = `
   id_linea, id_categoria, dorsal_display, dorsal_numero, id_academia_campeonato, pesaje_estado,
@@ -409,7 +410,50 @@ function normalizarUpdatesOrdenPista(updates) {
   return out
 }
 
-import { buildOrdenPistaPorBuckets } from '@/lib/campeonato/schedule-canchas'
+/**
+ * Cierra huecos en orden_pista (Área/01, 02…) **sin** mover categorías ni canchas.
+ * Útil tras borrar un combate: el siguiente pasa a 01, 02…
+ */
+export async function compactarOrdenPistaCampeonatoExistente(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
+  const rows = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    const { data, error } = await sb
+      .from('llave_kyorugi')
+      .select('id_llave, id_categoria, cancha, orden_pista, ronda, match_numero, estado, es_bye')
+      .eq('id_campeonato', idCampeonato)
+      .neq('estado', 'vacío')
+      .order('id_llave', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    rows.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+
+  const updates = []
+  for (let ch = 1; ch <= numCanchas; ch++) {
+    const enCancha = (rows || []).filter((r) => Number(r.cancha) === ch)
+    const ordenados = combatesPeleables(enCancha).sort(
+      (a, b) =>
+        (a.orden_pista ?? 9999) - (b.orden_pista ?? 9999) || (a.id_llave || 0) - (b.id_llave || 0),
+    )
+    ordenados.forEach((r, i) => {
+      const nuevo = i + 1
+      if (Number(r.orden_pista) !== nuevo) {
+        updates.push({ id_llave: r.id_llave, cancha: ch, orden_pista: nuevo })
+      }
+    })
+  }
+
+  if (updates.length) {
+    await batchUpdateCanchas(sb, normalizarUpdatesOrdenPista(updates))
+  }
+  return { actualizados: updates.length }
+}
+
 import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
 import { compararCategoriaPorTamanioLlave } from '@/lib/campeonato/bracket-export'
 import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'

@@ -150,6 +150,10 @@ export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, secti
           cellLines[i] = null
         }
       }
+      for (let i = 0; i < cols.length; i++) {
+        const mh = cols[i].minRowHeightMm
+        if (mh != null) rowHeight = Math.max(rowHeight, mh)
+      }
 
       if (y + rowHeight > bottomY) {
         newPage()
@@ -193,6 +197,11 @@ export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, secti
       doc.setDrawColor(...BORDER)
       doc.setLineWidth(0.15)
       doc.line(marginL, y + rowHeight, pageW - marginL, y + rowHeight)
+      let xv = marginL
+      for (let i = 0; i <= cols.length; i++) {
+        doc.line(xv, y, xv, y + rowHeight)
+        xv += cols[i]?.w ?? 0
+      }
       y += rowHeight
       rowIndex++
     }

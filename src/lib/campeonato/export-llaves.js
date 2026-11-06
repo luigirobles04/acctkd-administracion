@@ -1,10 +1,7 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
-import {
-  buildOrdenPistaMapPorCancha,
-  canchaPorCategoriaBalanceada,
-  etiquetaOrdenPista,
-} from '@/lib/campeonato/orden-llave'
+import { etiquetaOrdenPista } from '@/lib/campeonato/orden-llave'
 import { buildMapInscritosResueltos } from '@/lib/campeonato/inscripciones-resueltas'
+import { campeonatoLlavesSinPesaje, conteosKyorugiLlave } from '@/lib/campeonato/llaves-kyorugi'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -38,7 +35,7 @@ function compararCategoria(a, b) {
 export async function buildExportLlaves(sb, idCampeonato) {
   const { data: campeonato } = await sb
     .from('campeonato')
-    .select('id_campeonato, nombre, slug, ciudad, lugar, fecha_inicio')
+    .select('id_campeonato, nombre, slug, ciudad, lugar, fecha_inicio, llaves_sin_pesaje')
     .eq('id_campeonato', idCampeonato)
     .single()
 
@@ -62,6 +59,12 @@ export async function buildExportLlaves(sb, idCampeonato) {
     return acc
   }, {})
 
+  /** Misma regla que `generarLlaveCategoria`: aptos para llave (pesaje OK o llaves_sin_pesaje). */
+  const omitirPesaje = await campeonatoLlavesSinPesaje(sb, idCampeonato)
+  const { aptosPorCat: aptosLlavePorCatRaw } = await conteosKyorugiLlave(sb, idCampeonato, omitirPesaje)
+  /** Con consolidación / ops: mismo criterio que generar llave (todos con dorsal cuentan). */
+  const sinPesajeLlaves = Boolean(campeonato?.llaves_sin_pesaje)
+
   const { combates: todosCombates, porCancha } = await fetchCombatesCampeonato(sb, idCampeonato, {
     incluirSaltados: true,
   })
@@ -72,32 +75,27 @@ export async function buildExportLlaves(sb, idCampeonato) {
     return acc
   }, {})
 
-  const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
-  /** Misma regla que `asignarCanchasCampeonato` (no inferir área desde `porCancha` en BD). */
-  const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, 3)
-
+  const inscritosResueltosDesdeLlave = buildMapInscritosResueltos(categorias || [], inscritosPorCatRaw, porCat)
   const inscritosPorCat = {
     ...inscritosPorCatRaw,
-    ...buildMapInscritosResueltos(categorias || [], inscritosPorCatRaw, porCat),
+    ...inscritosResueltosDesdeLlave,
   }
 
-  const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(categorias || [], porCat, canchaPorCat, {
-    numCanchas: 3,
-    inscritosPorCat,
-  })
-
-  function conOrdenBloque(c) {
-    const n = ordenBloquesPorLlave[c.id_llave]
-    const ch = canchaPorCat[c.id_categoria]
-    if (n == null) return c
-    return { ...c, orden_pista: n, etiqueta_pista: etiquetaOrdenPista(ch, n) }
+  /** PDF / Excel: usar cancha y orden_pista **de la BD** (tras asignación manual o `asignarCanchasCampeonato`). */
+  function conEtiquetaPista(c) {
+    const ch = Number(c.cancha) || null
+    const op = c.orden_pista
+    const etiqueta = etiquetaOrdenPista(ch, op)
+    return { ...c, etiqueta_pista: etiqueta || String(op ?? '') }
   }
 
   const categoriasExport = (categorias || []).map((cat) => {
     const rawCat = porCat[cat.id_categoria] || []
+    const combRowCancha = rawCat.find((x) => x.cancha != null && x.cancha !== '')
+    const canchaCategoria = combRowCancha ? Number(combRowCancha.cancha) : ''
 
     function enrichCombate(c) {
-      return conOrdenBloque(c)
+      return conEtiquetaPista(c)
     }
 
     const combates = rawCat.filter(combateExportable).map(enrichCombate)
@@ -126,7 +124,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
-        numero_combate: etiquetaOrdenPista(canchaPorCat[cat.id_categoria], c.orden_pista) || String(c.orden_pista || ''),
+        numero_combate: c.etiqueta_pista || etiquetaOrdenPista(Number(c.cancha), c.orden_pista) || String(c.orden_pista || ''),
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',
@@ -136,15 +134,27 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ganador: labelGanador(c),
       }))
 
+    const idCat = cat.id_categoria
+    /** Solo aprobados con dorsal en BD (sin inferir desde llave). */
+    const conDorsal = inscritosPorCatRaw[idCat] ?? 0
+    const aptosLlaveDb = aptosLlavePorCatRaw[idCat] ?? 0
+    /** Sin exigir pesaje: export y PDF usan solo “con dorsal” (alineado a llave regenerada). */
+    const aptosLlave = sinPesajeLlaves ? conDorsal : aptosLlaveDb
+    /** Número principal: aptos para llave; si el campeonato no exige pesaje, aptos = dorsales. */
+    const inscritos = aptosLlave > 0 ? aptosLlave : conDorsal
+
     return {
       id_categoria: cat.id_categoria,
       nombre: cat.nombre,
       orden: cat.orden,
       division: cat.division,
       genero: cat.genero,
-      inscritos: inscritosPorCat[cat.id_categoria] ?? inscritosPorCatRaw[cat.id_categoria] ?? 0,
+      inscritos,
+      /** Con pesaje obligatorio: puede ser mayor que aptos si falta pesar. Con llaves_sin_pesaje: igual a inscritos. */
+      inscritos_con_dorsal: conDorsal,
+      aptos_llave: aptosLlave,
       combates: combates.length,
-      cancha: canchaPorCat[cat.id_categoria] || '',
+      cancha: canchaCategoria,
       tiene_llave: combates.length > 0,
       porRonda,
       filasCombates,
@@ -156,6 +166,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
     division: c.division || '',
     genero: c.genero || '',
     inscritos: c.inscritos,
+    inscritos_con_dorsal: c.inscritos_con_dorsal,
     combates: c.combates,
     cancha: c.cancha ? `Área ${c.cancha}` : '—',
     llave: c.tiene_llave ? 'Sí' : 'No',
@@ -168,7 +179,16 @@ export async function buildExportLlaves(sb, idCampeonato) {
     combates: categoriasExport.reduce((a, c) => a + c.combates, 0),
   }
 
-  return { campeonato, resumen, categorias: categoriasExport, totales, inscritosPorCat }
+  return {
+    campeonato,
+    resumen,
+    categorias: categoriasExport,
+    totales,
+    inscritosPorCat,
+    aptosLlavePorCat: aptosLlavePorCatRaw,
+    inscritosConDorsalPorCat: inscritosPorCatRaw,
+    llaves_sin_pesaje: sinPesajeLlaves,
+  }
 }
 
 export function nombreHojaExcel(nombre, max = 28) {
