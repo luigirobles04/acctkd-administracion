@@ -653,8 +653,9 @@ export default function CampeonatoLlavesPage() {
           <div className="ios-card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid #f59e0b' }}>
             <h3 style={{ margin: '0 0 8px' }}>Categorías con 1 competidor ({catsSolo.length})</h3>
             <p className="ios-caption" style={{ color: 'var(--label2)', marginBottom: 12 }}>
-              Marca 1 o más solitarios para unirlos a una categoría con inscritos (regenera la llave),
-              o 2+ solos entre sí. También puedes dar oro único o crear una exhibición abajo.
+              Lista categorías con <strong>1 apto</strong> para llave (pesaje OK o peso declarado) y sin llave.
+              Consolidar o pasar no quita la fila si en destino queda solo (ej. U-C-60 en -55kg) o faltan pesajes
+              (ej. 2 inscritos, 1 apto). Marca solitarios para unir, dar oro único o exhibición abajo.
             </p>
             <div style={{ display: 'grid', gap: 8 }}>
               {catsSolo.map((c) => {
@@ -670,6 +671,11 @@ export default function CampeonatoLlavesPage() {
                       />
                       <span style={{ minWidth: 0 }}>
                         <strong>{c.nombre}</strong>
+                        {c.inscritos > 1 && c.aptos === 1 && (
+                          <span className="ios-caption" style={{ display: 'block', color: '#b45309', marginTop: 2 }}>
+                            {c.inscritos} inscritos · {c.aptos} apto (falta pesaje/peso en otros)
+                          </span>
+                        )}
                         {c.solo && (
                           <span className="ios-caption" style={{ display: 'block', color: 'var(--label3)', marginTop: 2 }}>
                             {c.solo.dorsal || '—'} · {c.solo.nombre}

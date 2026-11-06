@@ -37,6 +37,7 @@ export default function CampeonatoPoomsaePage() {
   const [editParticipante, setEditParticipante] = useState(null)
   const [editCatId, setEditCatId] = useState('')
   const [accionBusy, setAccionBusy] = useState(null)
+  const [exportando, setExportando] = useState(false)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -185,12 +186,29 @@ export default function CampeonatoPoomsaePage() {
     }
   }
 
-  function exportar(tipo) {
-    const cats = categorias.filter((c) => c.inscritos > 0)
-    if (!cats.length) { alert('No hay participantes para exportar.'); return }
-    if (tipo === 'excel') descargarPoomsaeExcel(campeonato, cats)
-    else if (tipo === 'pdf-forma') descargarPoomsaePdfPorForma(campeonato, cats)
-    else descargarPoomsaePdf(campeonato, cats)
+  async function exportar(tipo) {
+    setExportando(true)
+    try {
+      const res = await adminFetch(`/api/admin/campeonatos/${idCampeonato}/poomsae`, { cache: 'no-store' })
+      const json = await readJsonResponse(res)
+      if (!res.ok) throw new Error(json.error || 'Error al cargar poomsae')
+      const camp = json.campeonato || campeonato
+      const cats = (json.categorias || []).filter((c) => c.inscritos > 0)
+      setCampeonato(camp)
+      setCategorias(json.categorias || [])
+      setResumen(json.resumen || null)
+      if (!cats.length) {
+        alert('No hay participantes para exportar.')
+        return
+      }
+      if (tipo === 'excel') descargarPoomsaeExcel(camp, cats)
+      else if (tipo === 'pdf-forma') descargarPoomsaePdfPorForma(camp, cats)
+      else descargarPoomsaePdf(camp, cats)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setExportando(false)
+    }
   }
 
   return (
@@ -253,9 +271,11 @@ export default function CampeonatoPoomsaePage() {
           >
             {sorteando ? <><LoadingSpinner size={16} light /> Sorteando…</> : '🎲 Sortear todas'}
           </button>
-          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('excel')}>⬇ Excel</button>
-          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('pdf')}>⬇ PDF</button>
-          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('pdf-forma')}>⬇ PDF por forma</button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando || exportando} onClick={() => exportar('excel')}>
+            {exportando ? 'Actualizando…' : '⬇ Excel'}
+          </button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando || exportando} onClick={() => exportar('pdf')}>⬇ PDF</button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando || exportando} onClick={() => exportar('pdf-forma')}>⬇ PDF por forma</button>
         </div>
 
         {sorteando && (

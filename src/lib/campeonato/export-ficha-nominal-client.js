@@ -7,7 +7,7 @@ import { descargarExcelHtml, tdCell, thCell, XL, slugArchivo } from '@/lib/campe
 import { nombreHojaExcel } from '@/lib/campeonato/export-ficha-nominal'
 
 const COLS_COMP = ['Dorsal', 'Nombre', 'Documento', 'Sexo', 'Edad', 'Grado', 'Categoría', 'Peso']
-const COLS_POOM = ['Nombre', 'Documento', 'Sexo', 'Edad', 'Grado', 'Categoría', 'Modalidad']
+const COLS_POOM = ['Dorsal', 'Nombre', 'Documento', 'Sexo', 'Edad', 'Grado', 'Categoría', 'Modalidad']
 const COLS_OFIC = ['Rol', 'Nombre', 'Documento']
 
 function tablaCompetidoresHtml(rows, titulo) {
@@ -43,6 +43,7 @@ function tablaPoomsaeHtml(rows) {
     const bg = i % 2 === 0 ? '#ffffff' : XL.gray
     html += '<tr>'
     html += [
+      tdCell(r.dorsal, { bg, bold: true, align: 'center' }),
       tdCell(r.nombre, { bg }),
       tdCell(r.documento, { bg, align: 'center' }),
       tdCell(r.sexo, { bg, align: 'center' }),
@@ -189,7 +190,16 @@ export async function descargarFichaNominalPdf(data, { idAcademia } = {}) {
       autoTable(doc, {
         startY: y,
         head: [COLS_POOM],
-        body: ac.poomsae.map((r) => [r.nombre, r.documento, r.sexo, r.edad, r.grado, r.categoria, r.modalidad]),
+        body: ac.poomsae.map((r) => [
+          r.dorsal,
+          r.nombre,
+          r.documento,
+          r.sexo,
+          r.edad,
+          r.grado,
+          r.categoria,
+          r.modalidad,
+        ]),
         styles: { fontSize: 7, cellPadding: 1.5 },
         headStyles: { fillColor: [30, 41, 59] },
         margin: { left: 14, right: 14 },
