@@ -1,6 +1,6 @@
 import {
-  buildScheduleNumeracionIntercalada,
-  buildScheduleNumeracionPorFases,
+  buildSchedulePorCategoria,
+  combatesPeleables,
   ordenPistaDesdeSchedule,
 } from '@/lib/campeonato/schedule-canchas'
 
@@ -10,6 +10,36 @@ export function combateEnLlave(c) {
 }
 
 export { ordenPistaDesdeSchedule }
+
+/**
+ * Reparte áreas **balanceando el número de combates peleables** por categoría (greedy LPT).
+ * Evita que un área acumule muchas más peleas que otras (ej. 20 vs 30).
+ * Debe coincidir con `asignarCanchasCampeonato` y con el export PDF (no usar solo el `cancha` en BD).
+ */
+export function canchaPorCategoriaBalanceada(categoriasConLlaveEnOrden, porCat, numCanchas = 3) {
+  const cats = [...(categoriasConLlaveEnOrden || [])].sort((a, b) => {
+    const wa = combatesPeleables(porCat[a.id_categoria] || []).length
+    const wb = combatesPeleables(porCat[b.id_categoria] || []).length
+    if (wb !== wa) return wb - wa
+    const oa = a.orden ?? 9999
+    const ob = b.orden ?? 9999
+    if (oa !== ob) return oa - ob
+    return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
+  })
+
+  const loads = Array.from({ length: numCanchas }, () => 0)
+  const out = {}
+  for (const cat of cats) {
+    const w = combatesPeleables(porCat[cat.id_categoria] || []).length
+    let best = 0
+    for (let i = 1; i < numCanchas; i++) {
+      if (loads[i] < loads[best]) best = i
+    }
+    out[cat.id_categoria] = best + 1
+    loads[best] += w
+  }
+  return out
+}
 
 /**
  * Numeración híbrida para PDF por categoría:
@@ -39,15 +69,10 @@ export function computeOrdenLlavePdf(combates) {
 
 /**
  * Mapa id_llave → orden_pista por área.
- * Pre-finales repartidos; 1 combate ajeno y final (numeración 1, 2, 3… sin saltos).
- * 4–5 inscritos seguidos (misma área): por fase (cuartos → semi → final) entre categorías.
+ * Orden del programa: todas las peleas de una categoría seguidas, luego la siguiente (numeración densa).
+ * canchaPorCat: balance por cantidad de combates (ver `canchaPorCategoriaBalanceada`).
  */
-export function buildOrdenPistaMapPorCancha(
-  categorias,
-  porCat,
-  canchaPorCat,
-  { numCanchas = 3, inscritosPorCat = null } = {},
-) {
+export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
   const map = {}
   for (let cancha = 1; cancha <= numCanchas; cancha++) {
     const cats = (categorias || [])
@@ -58,12 +83,7 @@ export function buildOrdenPistaMapPorCancha(
         if (oa !== ob) return oa - ob
         return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
       })
-    const inst = inscritosPorCat || {}
-    const schedule =
-      inst && typeof inst === 'object'
-        ? buildScheduleNumeracionPorFases(cats, porCat, inst)
-        : buildScheduleNumeracionIntercalada(cats, porCat)
-    Object.assign(map, ordenPistaDesdeSchedule(schedule))
+    Object.assign(map, ordenPistaDesdeSchedule(buildSchedulePorCategoria(cats, porCat)))
   }
   return map
 }

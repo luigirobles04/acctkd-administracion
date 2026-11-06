@@ -410,9 +410,9 @@ function normalizarUpdatesOrdenPista(updates) {
 }
 
 import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
-import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
+import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
 
-/** Misma cancha por categoría; numeración intercalada 1→2→3→1… (solo orden_pista). */
+/** Asignación de área balanceada por cantidad de combates; orden_pista por bloques de categoría dentro del área. */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: categorias, error: errC } = await sb
     .from('categoria_campeonato')
@@ -448,31 +448,14 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
 
-  const { data: inscRows } = await sb
-    .from('linea_inscripcion')
-    .select('id_categoria')
-    .eq('id_campeonato', idCampeonato)
-    .eq('modalidad', 'kyorugi_individual')
-    .eq('estado', 'aprobado')
-    .not('dorsal_numero', 'is', null)
-  const inscritosPorCat = {}
-  for (const l of inscRows || []) {
-    if (!l.id_categoria) continue
-    inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
+  const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, numCanchas)
+  const porCancha = Array.from({ length: numCanchas }, () => [])
+  for (const cat of catsConLlave) {
+    const cancha = canchaPorCat[cat.id_categoria]
+    if (cancha >= 1 && cancha <= numCanchas) porCancha[cancha - 1].push(cat)
   }
 
-  const porCancha = Array.from({ length: numCanchas }, () => [])
-  const canchaPorCat = {}
-  catsConLlave.forEach((cat, ci) => {
-    const cancha = (ci % numCanchas) + 1
-    canchaPorCat[cat.id_categoria] = cancha
-    porCancha[ci % numCanchas].push(cat)
-  })
-
-  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, {
-    numCanchas,
-    inscritosPorCat,
-  })
+  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, { numCanchas })
 
   const resumen = []
   let updates = []

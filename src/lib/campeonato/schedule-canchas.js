@@ -233,68 +233,6 @@ function compararCategoriaExport(a, b) {
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
-/** Misma ronda o misma distancia a la final → misma “fase” (8vos / 4tos / semi / final). */
-function faseKey(combate) {
-  const r = Number(combate?.ronda)
-  return Number.isFinite(r) ? r : 0
-}
-
-/**
- * Bloques consecutivos de categorías con 4–5 inscritos (misma área): numerar por fases
- * (primero todos los combates de la ronda más lejana, luego la siguiente…) antes de volver al intercalado.
- */
-export function buildScheduleNumeracionPorFases(categorias, porCat, inscritosPorCat) {
-  const sorted = [...(categorias || [])].sort(compararCategoriaExport)
-  const blocks = []
-  let cur = []
-  let prevIdx = -2
-  for (let i = 0; i < sorted.length; i++) {
-    const cat = sorted[i]
-    const n = inscritosPorCat?.[cat.id_categoria]
-    const inBlock = n != null && n >= 4 && n <= 5
-    if (!inBlock) {
-      if (cur.length) {
-        blocks.push(cur)
-        cur = []
-      }
-      prevIdx = -2
-      continue
-    }
-    if (!cur.length) {
-      cur.push(cat)
-    } else if (prevIdx === i - 1) {
-      cur.push(cat)
-    } else {
-      blocks.push(cur)
-      cur = [cat]
-    }
-    prevIdx = i
-  }
-  if (cur.length) blocks.push(cur)
-
-  const schedule = []
-  for (const block of blocks) {
-    const listas = block.map((cat) => combatesPeleables(porCat[cat.id_categoria]))
-    const maxR = listas.reduce((m, L) => {
-      const mx = L.reduce((a, c) => Math.max(a, faseKey(c)), 0)
-      return Math.max(m, mx)
-    }, 0)
-    for (let r = maxR; r >= 1; r--) {
-      for (let bi = 0; bi < block.length; bi++) {
-        for (const c of listas[bi]) {
-          if (faseKey(c) === r) schedule.push(c)
-        }
-      }
-    }
-  }
-  const blockIds = new Set(blocks.flat().map((c) => c.id_categoria))
-  const rest = sorted.filter((c) => !blockIds.has(c.id_categoria))
-  const porRest = {}
-  for (const cat of rest) porRest[cat.id_categoria] = porCat[cat.id_categoria]
-  schedule.push(...buildScheduleNumeracionIntercalada(rest, porRest))
-  return schedule
-}
-
 /** Combates planos desde porRonda { [ronda]: combate[] }. */
 export function combatesDesdePorRonda(porRonda) {
   const lista = []
@@ -328,7 +266,7 @@ export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.ca
   const map = {}
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
+    Object.assign(map, ordenPistaDesdeSchedule(buildSchedulePorCategoria(cats, porCat)))
   }
   for (const cat of categorias || []) {
     for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {

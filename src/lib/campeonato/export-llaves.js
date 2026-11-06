@@ -1,5 +1,5 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
-import { buildOrdenPistaMapPorCancha } from '@/lib/campeonato/orden-llave'
+import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -67,19 +67,13 @@ export async function buildExportLlaves(sb, idCampeonato) {
     return acc
   }, {})
 
-  const canchaPorCat = {}
-  for (const [cancha, lista] of Object.entries(porCancha || {})) {
-    for (const c of lista) {
-      if (!canchaPorCat[c.id_categoria]) canchaPorCat[c.id_categoria] = Number(cancha)
-    }
-  }
+  const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
+  /** Misma regla que `asignarCanchasCampeonato` (no inferir área desde `porCancha` en BD). */
+  const canchaPorCat = canchaPorCategoriaBalanceada(catsConLlave, porCat, 3)
 
-  const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(
-    categorias || [],
-    porCat,
-    canchaPorCat,
-    { numCanchas: 3, inscritosPorCat },
-  )
+  const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(categorias || [], porCat, canchaPorCat, {
+    numCanchas: 3,
+  })
 
   function conOrdenBloque(c) {
     const n = ordenBloquesPorLlave[c.id_llave]
