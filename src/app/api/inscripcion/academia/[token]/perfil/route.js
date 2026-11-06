@@ -47,8 +47,8 @@ export async function POST(request, { params }) {
     if (!ac) return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
 
     const check = puedeInscribir(ac.campeonato)
-    if (!check.ok || check.soloPago) {
-      return NextResponse.json({ error: 'No se pueden editar perfiles' }, { status: 403 })
+    if (!check.ok && !check.soloPago) {
+      return NextResponse.json({ error: check.reason || 'No se pueden editar perfiles' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -63,14 +63,48 @@ export async function POST(request, { params }) {
       foto_url,
     } = body
 
-    if (!documento_numero?.trim() || !nombres?.trim() || !apellidos?.trim()) {
+    if (!documento_numero?.trim()) {
+      return NextResponse.json({ error: 'Documento requerido' }, { status: 400 })
+    }
+
+    const docTipo = documento_tipo || 'DNI'
+    const docNum = documento_numero.trim()
+
+    const { data: existente } = await sb
+      .from('competidor_perfil')
+      .select('id_perfil')
+      .eq('id_academia', ac.id_academia)
+      .eq('documento_tipo', docTipo)
+      .eq('documento_numero', docNum)
+      .maybeSingle()
+
+    if (check.soloPago && !existente) {
+      return NextResponse.json({ error: 'Inscripción cerrada — no se pueden agregar participantes' }, { status: 403 })
+    }
+
+    if (check.soloPago) {
+      if (foto_url == null || foto_url === '') {
+        return NextResponse.json({ error: 'Inscripción cerrada — solo puedes actualizar la foto' }, { status: 403 })
+      }
+      const { data, error } = await sb
+        .from('competidor_perfil')
+        .update({ foto_url, updated_at: new Date().toISOString() })
+        .eq('id_perfil', existente.id_perfil)
+        .select()
+        .single()
+      if (error) throw error
+      await sb.from('academia_campeonato').update({ ultimo_cambio_at: new Date().toISOString() }).eq('id', ac.id)
+      return NextResponse.json({ perfil: data })
+    }
+
+    if (!nombres?.trim() || !apellidos?.trim()) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
     }
 
     const payload = {
       id_academia: ac.id_academia,
-      documento_tipo: documento_tipo || 'DNI',
-      documento_numero: documento_numero.trim(),
+      documento_tipo: docTipo,
+      documento_numero: docNum,
       nombres: nombres.trim(),
       apellidos: apellidos.trim(),
       sexo,
@@ -79,14 +113,6 @@ export async function POST(request, { params }) {
       foto_url,
       updated_at: new Date().toISOString(),
     }
-
-    const { data: existente } = await sb
-      .from('competidor_perfil')
-      .select('id_perfil')
-      .eq('id_academia', ac.id_academia)
-      .eq('documento_tipo', payload.documento_tipo)
-      .eq('documento_numero', payload.documento_numero)
-      .maybeSingle()
 
     let perfil
     if (existente) {

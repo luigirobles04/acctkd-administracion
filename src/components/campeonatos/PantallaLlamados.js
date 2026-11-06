@@ -207,7 +207,7 @@ function ColumnaAreaPoomsae({ area }) {
           <>
             <p className="llamados-seccion-titulo">FORMA EN LLAMADO</p>
             <h3 className="llamados-poomsae-forma-titulo">
-              {forma.esRanking ? 'Ranking' : forma.nombre}
+              {forma.nombre}
             </h3>
             <p className="llamados-poomsae-progress">
               Toda la forma (niños→adultos) · {forma.pendientes} pendientes
@@ -278,7 +278,7 @@ function VistaPoomsae({ poomsae }) {
           <div className="llamados-poomsae-chips">
             {poomsae.formasPendientes.map((f) => (
               <div key={f.forma} className="llamados-poomsae-chip">
-                <strong>{f.esRanking ? 'Ranking' : f.forma}</strong>
+                <strong>{f.titulo || f.forma}</strong>
                 <span>{f.pendientes} pendientes</span>
               </div>
             ))}

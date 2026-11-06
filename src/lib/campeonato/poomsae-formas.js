@@ -79,6 +79,12 @@ export function formaRank(forma) {
   return FORMA_ORDER.length - 0.5
 }
 
+/** Banner / pantalla / PDF: KIBOM, PAL JANG, IL JANG… */
+export function tituloFormaPoomsae(forma) {
+  const s = String(forma || 'Poomsae').trim()
+  return s ? s.toUpperCase() : 'POOMSAE'
+}
+
 function edadRank(edad) {
   const i = EDAD_ORDER.findIndex((e) => e.toLowerCase() === String(edad || '').toLowerCase())
   return i >= 0 ? i : 99
@@ -296,7 +302,8 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3, liv
     areas.push({
       cancha,
       forma: {
-        nombre: forma.forma,
+        key: forma.forma,
+        nombre: tituloFormaPoomsae(forma.forma),
         esRanking: forma.esRanking,
         inscritos: forma.inscritos,
         calificados: forma.calificados,
@@ -314,11 +321,12 @@ export function organizarPantallaPoomsaePorAreas(categorias, { numAreas = 3, liv
     })
   }
 
-  const formasEnAreas = new Set(areas.map((a) => a.forma?.nombre).filter(Boolean))
+  const formasEnAreas = new Set(areas.map((a) => a.forma?.key).filter(Boolean))
   const formasPendientes = abiertas
     .filter((f) => !formasEnAreas.has(f.forma))
     .map((f) => ({
       forma: f.forma,
+      titulo: tituloFormaPoomsae(f.forma),
       pendientes: f.pendientes,
       inscritos: f.inscritos,
       calificados: f.calificados,

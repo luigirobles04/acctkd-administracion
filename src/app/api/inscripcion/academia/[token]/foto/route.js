@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
     if (!ac) return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
 
     const check = puedeInscribir(ac.campeonato)
-    if (!check.ok || check.soloPago) {
+    if (!check.ok && !check.soloPago) {
       return NextResponse.json({ error: 'No se puede subir foto ahora' }, { status: 403 })
     }
 

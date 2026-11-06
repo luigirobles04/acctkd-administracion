@@ -91,6 +91,10 @@ export function parseFechaExcel(val) {
     const [y, mo, d] = s.slice(0, 10).split('-').map(Number)
     return formatYmd(y, mo, d)
   }
+  const spaced = s.match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{4})$/)
+  if (spaced) {
+    return formatYmd(Number(spaced[3]), Number(spaced[2]), Number(spaced[1]))
+  }
   return null
 }
 
@@ -277,6 +281,7 @@ const POOMSAE_FORM_ALIASES = [
   [/TAEGEUK\s*8|TAEGUK\s*8/i, 'Pal Jang'],
   [/IL\s*JANG|ILJANG/i, 'Il Jang'],
   [/\bI\s*JANG\b|IJANG/i, 'I Jang'],
+  [/SAN\s*JANG|SANJANG/i, 'Sam Jang'],
   [/SAM\s*JANG|SAMJANG|SAA\s*JANG/i, 'Sam Jang'],
   [/SA\s*JANG|SAJANG/i, 'Sa Jang'],
   [/OH\s*JANG|OHJANG/i, 'Oh Jang'],
@@ -380,7 +385,11 @@ export function resolverCategoriaKyorugi(categorias, { categoriaTexto, pesoRaw, 
   if (!peso && pesoRaw != null) peso = parsePesoExcel(pesoRaw)
 
   const divisionExcel = decoded.division || divisionFromExcel(texto, 'kyorugi')
-  let nivel = decoded.nivel || nivelKyorugiFromText(texto) || nivelKyorugiFromText(categoriaTexto)
+  let nivel =
+    decoded.nivel ||
+    nivelKyorugiFromText(texto) ||
+    nivelKyorugiFromText(categoriaTexto) ||
+    nivelKyorugiFromText(gradoTexto)
 
   const gradoRaw = parseGradoExcel(gradoTexto) || perfil?.grado || null
   let grado = gradoRaw

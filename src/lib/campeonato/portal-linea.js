@@ -9,7 +9,9 @@ import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
 
 export function portalPuedeGestionarInscripciones(check, ac) {
   if (ac?.estado_aprobacion === 'rechazada') return false
-  return Boolean(check?.ok)
+  if (!check?.ok) return false
+  if (check.soloPago) return false
+  return true
 }
 
 /** Anula una línea de la academia (portal): libera dorsal y recalcula montos. */

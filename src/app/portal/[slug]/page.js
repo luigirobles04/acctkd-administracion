@@ -160,13 +160,23 @@ export default function PortalCampeonatoPage() {
     if (t === 'documentos' && data?.documentos?.fichaYCredenciales) setTab('documentos')
   }, [searchParams, data?.documentos?.fichaYCredenciales])
 
+  const inscripcionCerrada = Boolean(data?.inscripcion?.soloPago)
+
   const portalTabs = useMemo(() => {
-    const tabs = [...TABS]
+    let tabs = [...TABS]
+    if (inscripcionCerrada) {
+      tabs = tabs.filter((t) => t.id !== 'inscribir' && t.id !== 'excel')
+    }
     if (data?.documentos?.fichaYCredenciales) {
       tabs.push({ id: 'documentos', label: 'Ficha / cred.' })
     }
     return tabs
-  }, [data?.documentos?.fichaYCredenciales])
+  }, [data?.documentos?.fichaYCredenciales, inscripcionCerrada])
+
+  useEffect(() => {
+    if (!inscripcionCerrada) return
+    if (tab === 'inscribir' || tab === 'excel') setTab('plantel')
+  }, [inscripcionCerrada, tab])
 
   const anio = data?.campeonato?.anioCampeonato || new Date().getFullYear()
   const edad = edadWT(perfil.fecha_nacimiento, anio)
@@ -715,7 +725,8 @@ export default function PortalCampeonatoPage() {
   const rechazada = ac.estado_aprobacion === 'rechazada'
   const puedeEnviar = ac.aceptacion_bases_at && !rechazada
   const allCats = data.categorias || []
-  const puedeGestionarPlantel = Boolean(data.inscripcion?.ok) && ac.aceptacion_bases_at && !rechazada
+  const puedeGestionarPlantel =
+    Boolean(data.inscripcion?.ok) && ac.aceptacion_bases_at && !rechazada && !inscripcionCerrada
   const faltaLogo = !data.academia?.logo_url
 
   if (faltaLogo) {
@@ -804,9 +815,17 @@ export default function PortalCampeonatoPage() {
         </div>
       )}
 
+      {inscripcionCerrada && (
+        <div className="portal-card portal-field-hint portal-field-hint--info" style={{ marginBottom: 0, padding: 14 }}>
+          <strong>Inscripción cerrada.</strong> Ya no puedes agregar ni modificar inscripciones desde el portal.
+          Puedes subir fotos de credencial, ver tu ficha nominal y descargar credenciales. Los cambios de plantel
+          los gestiona ACCTKD.
+        </div>
+      )}
+
       <PortalTabs tabs={portalTabs} active={tab} onChange={setTab} />
 
-      {tab === 'excel' && ac.aceptacion_bases_at && !rechazada && (
+      {tab === 'excel' && ac.aceptacion_bases_at && !rechazada && !inscripcionCerrada && (
         <PortalImportExcel
           slug={slug}
           disabled={data.inscripcion?.soloPago}
@@ -814,7 +833,7 @@ export default function PortalCampeonatoPage() {
         />
       )}
 
-      {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && (
+      {tab === 'inscribir' && ac.aceptacion_bases_at && !rechazada && !inscripcionCerrada && (
         <div className="portal-card">
           {colaInscripcion.length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -1165,7 +1184,9 @@ export default function PortalCampeonatoPage() {
         <>
           <div className="portal-card">
             <p className="portal-section-lead" style={{ marginTop: 0 }}>
-              Puedes <strong>editar</strong> categoría (poomsae/kyorugi) o peso (festival) y <strong>anular</strong> cualquier inscripción, incluso con dorsal.
+              {inscripcionCerrada
+                ? 'Consulta tu plantel inscrito. Sube o cambia la foto de cada competidor para la credencial.'
+                : 'Puedes editar categoría (poomsae/kyorugi) o peso (festival) y anular cualquier inscripción, incluso con dorsal.'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <h3 className="portal-section-title" style={{ margin: 0 }}>Plantel · {data.lineas?.length || 0} inscripciones</h3>
@@ -1365,8 +1386,12 @@ export default function PortalCampeonatoPage() {
                           <td style={{ padding: '8px 6px' }}>{p.documento_tipo} {p.documento_numero}</td>
                           <td style={{ padding: '8px 6px' }}>{p.grado} · {p.sexo}</td>
                           <td style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                            <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, marginRight: 4 }} onClick={() => editarCompetidor(p)}>Editar</button>
-                            <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>Eliminar</button>
+                            {!inscripcionCerrada && (
+                              <>
+                                <button type="button" className="ios-btn ios-btn-secondary" style={{ fontSize: 11, marginRight: 4 }} onClick={() => editarCompetidor(p)}>Editar</button>
+                                <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => eliminarCompetidor(p.id_perfil)}>Eliminar</button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       )

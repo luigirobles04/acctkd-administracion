@@ -165,9 +165,18 @@ function parseKyorugiRow(row, ctx) {
 
   if (!sexo) sexo = inferSexoFromNombre(nombre)
 
-  const gradoTxt = extractGradoFromRow(row, pesoCol)
+  const gradoCodigo = parseGradoExcel(codigo)
+  const gradoTxt = gradoCodigo || extractGradoFromRow(row, pesoCol)
   const peso = parsePesoExcel(pesoRaw)
-  const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: gradoTxt, sheet: 'KYORUGUI', codigo })
+  const perfil = ctx.ensurePerfil({
+    nombre,
+    fecha,
+    sexo,
+    grado: gradoTxt,
+    gradoFuente: gradoTxt ? 'explicit' : undefined,
+    sheet: 'KYORUGUI',
+    codigo,
+  })
 
   const { cat, advertencias: advCat } = resolverCategoriaKyorugi(ctx.categorias, {
     categoriaTexto: categoriaTxt || codigo,
@@ -221,9 +230,18 @@ function parsePoomsaeIndividualRow(row, ctx) {
   const poomsae = String(row[4] || '').trim()
   if (!division && !poomsae) return null
   const sexo = parseSexo(row[5])
-  const gradoHint = parseGradoExcel(row[6]) || parseGradoExcel(row[7]) || inferGradoFromPoomsae(poomsae)
+  const gradoExplicito = parseGradoExcel(row[6]) || parseGradoExcel(row[7])
+  const gradoInferido = inferGradoFromPoomsae(poomsae)
+  const gradoHint = gradoExplicito || gradoInferido
 
-  const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: gradoHint, sheet: 'POOMSAE' })
+  const perfil = ctx.ensurePerfil({
+    nombre,
+    fecha,
+    sexo,
+    grado: gradoHint,
+    gradoFuente: gradoExplicito ? 'explicit' : gradoInferido ? 'infer' : undefined,
+    sheet: 'POOMSAE',
+  })
 
   const { cat, advertencias: advCat } = resolverCategoriaPoomsae(ctx.categorias, {
     divisionTexto: division,
@@ -299,7 +317,15 @@ function parseFestivalRow(row, ctx) {
     }
   }
 
-  const perfil = ctx.ensurePerfil({ nombre, fecha, sexo, grado: '10º kup', sheet: 'FESTIVAL' })
+  const gradoCodigo = parseGradoExcel(row[3])
+  const perfil = ctx.ensurePerfil({
+    nombre,
+    fecha,
+    sexo,
+    grado: gradoCodigo,
+    gradoFuente: gradoCodigo ? 'explicit' : undefined,
+    sheet: 'FESTIVAL',
+  })
 
   const edad = fecha ? edadWT(fecha, ctx.anio) : edadDeclarada
   const grupoEdad = divisionFestivalPorEdad(edad)
@@ -690,13 +716,23 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
     categorias,
     anio: anioCampeonato,
     perfiles,
-    ensurePerfil({ nombre, fecha, sexo, grado, sheet, codigo }) {
+    ensurePerfil({ nombre, fecha, sexo, grado, gradoFuente, sheet, codigo }) {
       const key = perfilKeyFromNombre(nombre)
       if (perfiles.has(key)) {
         const ex = perfiles.get(key)
         if (fecha && !ex.fecha_nacimiento) ex.fecha_nacimiento = fecha
         if (sexo && !ex.sexo) ex.sexo = sexo
-        if (grado && !ex.grado) ex.grado = grado
+        if (grado) {
+          const incExp = gradoFuente === 'explicit'
+          const exExp = ex.gradoFuente === 'explicit'
+          if (!ex.grado) {
+            ex.grado = grado
+            ex.gradoFuente = gradoFuente || 'infer'
+          } else if (incExp && (!exExp || grado !== ex.grado)) {
+            ex.grado = grado
+            ex.gradoFuente = 'explicit'
+          }
+        }
         return ex
       }
       const { nombres, apellidos } = splitNombreCompleto(nombre)
@@ -711,6 +747,7 @@ export function parseFestcupInscripcionExcel(buffer, { categorias = [], anioCamp
         sexo: sexo || null,
         fecha_nacimiento: fecha || null,
         grado: grado || null,
+        gradoFuente: grado ? gradoFuente || 'infer' : null,
         sheet,
         docPendiente: !/^\d{8}$/.test(docNum),
       }

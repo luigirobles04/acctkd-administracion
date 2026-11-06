@@ -7,8 +7,14 @@ import Link from 'next/link'
 import AdminLayout from '@/components/layout/AdminLayout'
 import LoadingState, { LoadingSpinner } from '@/components/ui/LoadingState'
 import { readJsonResponse } from '@/lib/public-app-url'
-import { descargarPoomsaeExcel, descargarPoomsaePdf, descargarPoomsaeCategoriaPdf } from '@/lib/campeonato/export-poomsae'
+import {
+  descargarPoomsaeExcel,
+  descargarPoomsaePdf,
+  descargarPoomsaePdfPorForma,
+  descargarPoomsaeCategoriaPdf,
+} from '@/lib/campeonato/export-poomsae'
 import { categoriasPoomsaeValidas } from '@/lib/campeonato/validar-categoria'
+import { agruparPoomsaePorForma, parseNombrePoomsae, tituloFormaPoomsae } from '@/lib/campeonato/poomsae-formas'
 
 export default function CampeonatoPoomsaePage() {
   const { id } = useParams()
@@ -58,6 +64,17 @@ export default function CampeonatoPoomsaePage() {
     }
     return items
   }, [categorias, buscar])
+
+  const formasSidebar = useMemo(() => agruparPoomsaePorForma(catsFiltradas), [catsFiltradas])
+
+  const catPorGrupo = useMemo(() => {
+    const m = new Map()
+    for (const c of catsFiltradas) {
+      if (c.grupo_key) m.set(c.grupo_key, c)
+      if (c.id_categoria) m.set(`id:${c.id_categoria}`, c)
+    }
+    return m
+  }, [catsFiltradas])
 
   const catActiva = useMemo(() => {
     if (selCat) {
@@ -167,6 +184,7 @@ export default function CampeonatoPoomsaePage() {
     const cats = categorias.filter((c) => c.inscritos > 0)
     if (!cats.length) { alert('No hay participantes para exportar.'); return }
     if (tipo === 'excel') descargarPoomsaeExcel(campeonato, cats)
+    else if (tipo === 'pdf-forma') descargarPoomsaePdfPorForma(campeonato, cats)
     else descargarPoomsaePdf(campeonato, cats)
   }
 
@@ -232,6 +250,7 @@ export default function CampeonatoPoomsaePage() {
           </button>
           <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('excel')}>⬇ Excel</button>
           <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('pdf')}>⬇ PDF</button>
+          <button type="button" className="ios-btn ios-btn-ghost" style={{ fontSize: 13 }} disabled={sorteando} onClick={() => exportar('pdf-forma')}>⬇ PDF por forma</button>
         </div>
 
         {sorteando && (
@@ -283,27 +302,50 @@ export default function CampeonatoPoomsaePage() {
                 Categorías
               </div>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '70vh', overflowY: 'auto' }}>
-                {catsFiltradas.map((c) => (
-                  <li key={c.grupo_key}>
-                    <button
-                      type="button"
-                      onClick={() => setSelCat(c)}
+                {formasSidebar.map((bloque) => (
+                  <li key={bloque.forma}>
+                    <div
                       style={{
-                        width: '100%',
-                        textAlign: 'left',
                         padding: '10px 14px',
-                        border: 'none',
-                        borderBottom: '1px solid #f1f5f9',
-                        background: catActiva?.grupo_key === c.grupo_key ? '#eff6ff' : 'transparent',
-                        cursor: 'pointer',
-                        fontSize: 13,
+                        background: '#1e293b',
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: 12,
+                        letterSpacing: '0.06em',
+                        textAlign: 'center',
                       }}
                     >
-                      <div style={{ fontWeight: 600 }}>{c.nombre_display || c.nombre}</div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                        {c.inscritos} inscrito(s) · {c.division} {c.genero}
-                      </div>
-                    </button>
+                      {tituloFormaPoomsae(bloque.forma)}
+                    </div>
+                    {bloque.categorias.map((catMeta) => {
+                      const c =
+                        catPorGrupo.get(catMeta.grupo_key) ||
+                        catPorGrupo.get(`id:${catMeta.id_categoria}`)
+                      if (!c) return null
+                      return (
+                        <button
+                          key={c.grupo_key}
+                          type="button"
+                          onClick={() => setSelCat(c)}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '10px 14px',
+                            border: 'none',
+                            borderBottom: '1px solid #f1f5f9',
+                            background: catActiva?.grupo_key === c.grupo_key ? '#eff6ff' : 'transparent',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            display: 'block',
+                          }}
+                        >
+                          <div style={{ fontWeight: 600 }}>{c.nombre_display || c.nombre}</div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                            {c.inscritos} inscrito(s) · {c.division} {c.genero}
+                          </div>
+                        </button>
+                      )
+                    })}
                   </li>
                 ))}
               </ul>
@@ -314,6 +356,17 @@ export default function CampeonatoPoomsaePage() {
                 <>
                   <header style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                     <div>
+                      <p
+                        style={{
+                          margin: '0 0 6px',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: '0.08em',
+                          color: '#64748b',
+                        }}
+                      >
+                        {tituloFormaPoomsae(parseNombrePoomsae(catActiva.nombre).forma)}
+                      </p>
                       <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
                         {catActiva.nombre_display || catActiva.nombre}
                         {catActiva.sorteada && (

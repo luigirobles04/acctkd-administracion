@@ -28,7 +28,7 @@ describe('organizarPantallaPoomsae (areas)', () => {
 
     const p = organizarPantallaPoomsae(cats)
     expect(p.areas).toHaveLength(3)
-    expect(p.areas[0].forma.nombre).toBe('Kibom')
+    expect(p.areas[0].forma.nombre).toBe('KIBOM')
     expect(p.areas[0].actual.id_linea).toBe(10)
     expect(p.stats.pendientes).toBe(2)
   })

@@ -1,5 +1,10 @@
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
-import { agruparPoomsaePorForma, organizarPantallaPoomsaePorAreas, parseNombrePoomsae } from '@/lib/campeonato/poomsae-formas'
+import {
+  agruparPoomsaePorForma,
+  organizarPantallaPoomsaePorAreas,
+  parseNombrePoomsae,
+  tituloFormaPoomsae,
+} from '@/lib/campeonato/poomsae-formas'
 import { clearPoomsaeLiveByLinea, getPoomsaeLiveState, setPoomsaeLiveArea } from '@/lib/campeonato/poomsae-live'
 
 export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
@@ -44,6 +49,7 @@ export async function buildPssPoomsaeSnapshot(sb, idCampeonato) {
 
   const formas = agruparPoomsaePorForma(categorias).map((f) => ({
     forma: f.forma,
+    titulo: tituloFormaPoomsae(f.forma),
     esRanking: f.esRanking,
     inscritos: f.inscritos,
     calificados: f.calificados,

@@ -197,6 +197,9 @@ export async function POST(request, { params }) {
     }
 
     if (accion === 'notificar') {
+      if (check.soloPago) {
+        return NextResponse.json({ error: 'Inscripción cerrada — no se puede reenviar la lista' }, { status: 403 })
+      }
       const envio = puedeEnviarLista(ac)
       if (!envio.ok) return NextResponse.json({ error: envio.reason }, { status: 403 })
 

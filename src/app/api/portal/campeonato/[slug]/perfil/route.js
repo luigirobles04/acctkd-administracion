@@ -95,14 +95,21 @@ export async function POST(request, { params }) {
       .maybeSingle()
 
     if (check.soloPago && !existente) {
-      return NextResponse.json({ error: 'Plazo de inscripción cerrado — solo pagos' }, { status: 403 })
+      return NextResponse.json({ error: 'Inscripción cerrada — no se pueden agregar participantes' }, { status: 403 })
     }
 
     let perfil
     if (existente) {
+      let patch = payload
+      if (check.soloPago) {
+        if (foto_url == null || foto_url === '') {
+          return NextResponse.json({ error: 'Inscripción cerrada — solo puedes actualizar la foto' }, { status: 403 })
+        }
+        patch = { foto_url, updated_at: payload.updated_at }
+      }
       const { data, error } = await sb
         .from('competidor_perfil')
-        .update(payload)
+        .update(patch)
         .eq('id_perfil', existente.id_perfil)
         .select()
         .single()

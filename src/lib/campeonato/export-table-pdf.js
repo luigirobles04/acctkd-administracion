@@ -57,7 +57,7 @@ function trunc(doc, text, maxW) {
  * @param {'portrait'|'landscape'} [opts.orientation]
  * @returns {Blob}
  */
-export function buildTablePdfBlob({ campeonato, titulo, subtitulo, columns, sections, orientation = 'portrait' }) {
+export function buildTablePdfDoc({ campeonato, titulo, subtitulo, columns, sections, orientation = 'portrait' }) {
   const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
@@ -100,6 +100,24 @@ export function buildTablePdfBlob({ campeonato, titulo, subtitulo, columns, sect
 
   let rowIndex = 0
   for (const section of sections) {
+    if (section.formaBanner) {
+      const bannerH = 11
+      if (y + bannerH + 4 > bottomY) {
+        newPage()
+        drawColHeader()
+      }
+      doc.setFillColor(...DARK)
+      doc.rect(marginL, y, pageW - marginL * 2, bannerH, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(13)
+      doc.setTextColor(255, 255, 255)
+      const label = String(section.formaBanner).toUpperCase()
+      doc.text(trunc(doc, label, pageW - marginL * 2 - 4), pageW / 2, y + 7.2, { align: 'center' })
+      y += bannerH + 2
+      rowIndex = 0
+      continue
+    }
+
     if (section.title) {
       if (y + rowH + 2 > bottomY) {
         newPage()
@@ -160,7 +178,16 @@ export function buildTablePdfBlob({ campeonato, titulo, subtitulo, columns, sect
     doc.text(`Pág. ${p}/${pages}`, pageW - 10, pageH - 5, { align: 'right' })
   }
 
-  return doc.output('blob')
+  return doc
+}
+
+export function buildTablePdfBlob(opts) {
+  return buildTablePdfDoc(opts).output('blob')
+}
+
+/** Node / scripts — escribe PDF en disco */
+export function buildTablePdfBuffer(opts) {
+  return Buffer.from(buildTablePdfDoc(opts).output('arraybuffer'))
 }
 
 export function descargarTablaPdf(opts, filename) {

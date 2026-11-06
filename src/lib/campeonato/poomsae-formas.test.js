@@ -5,6 +5,7 @@ import {
   formaRank,
   organizarPantallaPoomsaePorAreas,
   parseNombrePoomsae,
+  tituloFormaPoomsae,
 } from './poomsae-formas'
 
 describe('formaRank / compareCategoriasPorPoomsae', () => {
@@ -32,6 +33,13 @@ describe('formaRank / compareCategoriasPorPoomsae', () => {
       'Poomsae Il Jang · Cadete · F',
       'Poomsae Ranking · Cadete · M',
     ])
+  })
+})
+
+describe('tituloFormaPoomsae', () => {
+  it('mayúsculas para banner de llamado', () => {
+    expect(tituloFormaPoomsae('Pal Jang')).toBe('PAL JANG')
+    expect(tituloFormaPoomsae('Kibom')).toBe('KIBOM')
   })
 })
 
@@ -120,7 +128,8 @@ describe('organizarPantallaPoomsaePorAreas', () => {
     ]
 
     const p = organizarPantallaPoomsaePorAreas(cats)
-    expect(p.areas[1].forma.nombre).toBe('Kibom')
+    expect(p.areas[1].forma.nombre).toBe('KIBOM')
+    expect(p.areas[1].forma.key).toBe('Kibom')
     expect(p.areas[1].actual.id_linea).toBe(10)
     expect(p.areas[0].forma).toBeNull()
     expect(p.areas[2].forma).toBeNull()
@@ -152,7 +161,7 @@ describe('organizarPantallaPoomsaePorAreas', () => {
         },
       },
     })
-    expect(p.areas[0].forma.nombre).toBe('Kibom')
+    expect(p.areas[0].forma.nombre).toBe('KIBOM')
     expect(p.areas[0].actual.id_linea).toBe(99)
     expect(p.areas[0].actual.en_curso).toBe(true)
   })

@@ -9,4 +9,10 @@ describe('portal-linea', () => {
   it('bloquea academia rechazada', () => {
     expect(portalPuedeGestionarInscripciones({ ok: true }, { estado_aprobacion: 'rechazada' })).toBe(false)
   })
+
+  it('bloquea tras cierre de inscripción (solo pago / fotos)', () => {
+    expect(
+      portalPuedeGestionarInscripciones({ ok: true, soloPago: true }, { estado_aprobacion: 'aprobada' }),
+    ).toBe(false)
+  })
 })

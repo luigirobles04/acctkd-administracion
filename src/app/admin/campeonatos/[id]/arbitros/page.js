@@ -215,10 +215,10 @@ export default function CampeonatoArbitrosPage() {
                         <strong>{a.nombre_completo}</strong>
                         {a.documento ? <div className="ios-caption" style={{ color: 'var(--label3)' }}>DNI {a.documento}</div> : null}
                       </td>
-                      <td style={{ padding: 10 }}>{a.funcion}</td>
-                      <td style={{ padding: 10, fontWeight: 700, color: 'var(--red)' }}>{a.codigo || '—'}</td>
-                      <td style={{ padding: 10, fontSize: 12, color: 'var(--label2)' }}>{a.telefono || a.email || '—'}</td>
-                      <td style={{ padding: 10 }}>
+                      <td>{a.funcion}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--red)' }}>{a.codigo || '—'}</td>
+                      <td style={{ fontSize: 13, color: 'var(--label2)' }}>{a.telefono || a.email || '—'}</td>
+                      <td>
                         <div className="icon-action-row">
                           {a.telefono ? (
                             <IconAction
