@@ -96,27 +96,122 @@ export function buildSchedulePorCategoria(categorias, porCat) {
   return schedule
 }
 
+function soloFinalPendiente(list) {
+  return list.length === 1 && esFinal(list[0])
+}
+
+function cabezaEsFinal(list) {
+  return list.length > 0 && esFinal(list[0])
+}
+
+/** Mejor combate ajeno para descanso: preferir final directa (2 inscritos, 1 pelea). */
+function elegirColaBuffer(otros) {
+  if (!otros?.length) return null
+  const score = (q) => {
+    if (soloFinalPendiente(q.list)) return 0
+    if (!cabezaEsFinal(q.list)) return 1
+    return 2
+  }
+  return [...otros].sort((a, b) => {
+    const d = score(a) - score(b)
+    if (d !== 0) return d
+    if (a.list.length !== b.list.length) return a.list.length - b.list.length
+    return compararColaCategoria(a, b)
+  })[0]
+}
+
+function compararColaCategoria(a, b) {
+  const oa = a.catOrden ?? 9999
+  const ob = b.catOrden ?? 9999
+  if (oa !== ob) return oa - ob
+  return (a.catId ?? 0) - (b.catId ?? 0)
+}
+
 /**
- * Orden para numeración en pista: round-robin entre categorías del área.
- * Cada categoría aporta combates en orden local (pre-finales → final).
- * El “descanso” antes de una final es otro combate (otra cat.) con el número siguiente, sin saltos.
+ * Orden para numeración en pista:
+ * - Pre-finales repartidos entre categorías (round-robin).
+ * - Tras el último pre-final de una categoría, **un solo** combate ajeno y luego su final (no enfriar al ganador).
  */
 export function buildScheduleNumeracionIntercalada(categorias, porCat) {
   const queues = (categorias || []).map((cat) => ({
+    catId: cat.id_categoria,
+    catOrden: cat.orden ?? 9999,
     list: [...combatesPeleables(porCat[cat.id_categoria])],
   }))
 
   const schedule = []
-  let any = true
-  while (any) {
-    any = false
+  let guard = 0
+  /** Cola FIFO: cada categoría que terminó pre-finales espera 1 combate ajeno y su final. */
+  const finalesUrgentes = []
+
+  function encolarFinalUrgente(catId) {
+    if (!finalesUrgentes.includes(catId)) finalesUrgentes.push(catId)
+  }
+
+  function marcarSiQuedaSoloFinal(q, { usadoComoBuffer = false } = {}) {
+    if (!usadoComoBuffer && soloFinalPendiente(q.list)) encolarFinalUrgente(q.catId)
+  }
+
+  function reescanearFinalesUrgentes() {
     for (const q of queues) {
-      if (q.list.length) {
-        schedule.push(q.list.shift())
-        any = true
-      }
+      if (q.list.length && soloFinalPendiente(q.list)) encolarFinalUrgente(q.catId)
     }
   }
+
+  while (queues.some((q) => q.list.length) && guard++ < 10000) {
+    const last = schedule[schedule.length - 1] ?? null
+    const lastCat = last?.id_categoria ?? null
+    const activas = queues.filter((q) => q.list.length)
+
+    if (finalesUrgentes.length) {
+      const catId = finalesUrgentes[0]
+      const qFin = activas.find((q) => q.catId === catId && soloFinalPendiente(q.list))
+      if (!qFin) {
+        finalesUrgentes.shift()
+        continue
+      }
+      if (lastCat === catId) {
+        const otros = activas.filter((q) => q.catId !== catId)
+        const pick = elegirColaBuffer(otros)
+        if (pick) {
+          schedule.push(pick.list.shift())
+          marcarSiQuedaSoloFinal(pick, { usadoComoBuffer: true })
+          continue
+        }
+        schedule.push(qFin.list.shift())
+        finalesUrgentes.shift()
+        reescanearFinalesUrgentes()
+        continue
+      }
+      schedule.push(qFin.list.shift())
+      finalesUrgentes.shift()
+      reescanearFinalesUrgentes()
+      continue
+    }
+
+    const elegibles = activas.filter((q) => !(cabezaEsFinal(q.list) && lastCat === q.catId))
+    const conPre = elegibles.filter((q) => !cabezaEsFinal(q.list))
+    const minPreOrden = conPre.length ? Math.min(...conPre.map((q) => q.catOrden)) : Infinity
+    const solosAntes = elegibles.filter(
+      (q) => soloFinalPendiente(q.list) && q.catOrden < minPreOrden,
+    )
+    let pool = solosAntes.length ? solosAntes : conPre.length ? conPre : elegibles
+
+    if (pool.length) {
+      pool.sort(compararColaCategoria)
+      const pick = pool.find((q) => q.catId !== lastCat) || pool[0]
+      schedule.push(pick.list.shift())
+      marcarSiQuedaSoloFinal(pick)
+      continue
+    }
+
+    const q0 = activas[0]
+    if (q0) {
+      schedule.push(q0.list.shift())
+      marcarSiQuedaSoloFinal(q0)
+    }
+  }
+
   return schedule
 }
 

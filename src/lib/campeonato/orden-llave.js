@@ -38,7 +38,7 @@ export function computeOrdenLlavePdf(combates) {
 
 /**
  * Mapa id_llave → orden_pista por área.
- * Round-robin entre categorías del área; numeración continua 1, 2, 3… (descanso = combate de otra cat.).
+ * Pre-finales repartidos; 1 combate ajeno y final (numeración 1, 2, 3… sin saltos).
  */
 export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
   const map = {}
