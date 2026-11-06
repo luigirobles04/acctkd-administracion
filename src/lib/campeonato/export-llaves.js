@@ -29,11 +29,6 @@ function compararCategoria(a, b) {
   return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
 }
 
-/** Numeración por área: pre-finales intercalados entre categorías; hueco (descanso) antes de cada final. */
-function buildOrdenBloquesPorCancha(categorias, porCat, canchaPorCat) {
-  return buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas: 3 })
-}
-
 /** Agrupa combates por categoría con metadata para export */
 export async function buildExportLlaves(sb, idCampeonato) {
   const { data: campeonato } = await sb
@@ -79,7 +74,12 @@ export async function buildExportLlaves(sb, idCampeonato) {
     }
   }
 
-  const ordenBloquesPorLlave = buildOrdenBloquesPorCancha(categorias || [], porCat, canchaPorCat)
+  const ordenBloquesPorLlave = buildOrdenPistaMapPorCancha(
+    categorias || [],
+    porCat,
+    canchaPorCat,
+    { numCanchas: 3, inscritosPorCat },
+  )
 
   function conOrdenBloque(c) {
     const n = ordenBloquesPorLlave[c.id_llave]

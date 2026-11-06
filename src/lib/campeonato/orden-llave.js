@@ -1,5 +1,6 @@
 import {
   buildScheduleNumeracionIntercalada,
+  buildScheduleNumeracionPorFases,
   ordenPistaDesdeSchedule,
 } from '@/lib/campeonato/schedule-canchas'
 
@@ -39,8 +40,14 @@ export function computeOrdenLlavePdf(combates) {
 /**
  * Mapa id_llave → orden_pista por área.
  * Pre-finales repartidos; 1 combate ajeno y final (numeración 1, 2, 3… sin saltos).
+ * 4–5 inscritos seguidos (misma área): por fase (cuartos → semi → final) entre categorías.
  */
-export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
+export function buildOrdenPistaMapPorCancha(
+  categorias,
+  porCat,
+  canchaPorCat,
+  { numCanchas = 3, inscritosPorCat = null } = {},
+) {
   const map = {}
   for (let cancha = 1; cancha <= numCanchas; cancha++) {
     const cats = (categorias || [])
@@ -51,7 +58,11 @@ export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { 
         if (oa !== ob) return oa - ob
         return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
       })
-    const schedule = buildScheduleNumeracionIntercalada(cats, porCat)
+    const inst = inscritosPorCat || {}
+    const schedule =
+      inst && typeof inst === 'object'
+        ? buildScheduleNumeracionPorFases(cats, porCat, inst)
+        : buildScheduleNumeracionIntercalada(cats, porCat)
     Object.assign(map, ordenPistaDesdeSchedule(schedule))
   }
   return map

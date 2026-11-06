@@ -448,6 +448,19 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   const catsConLlave = (categorias || []).filter((c) => (porCat[c.id_categoria]?.length || 0) > 0)
 
+  const { data: inscRows } = await sb
+    .from('linea_inscripcion')
+    .select('id_categoria')
+    .eq('id_campeonato', idCampeonato)
+    .eq('modalidad', 'kyorugi_individual')
+    .eq('estado', 'aprobado')
+    .not('dorsal_numero', 'is', null)
+  const inscritosPorCat = {}
+  for (const l of inscRows || []) {
+    if (!l.id_categoria) continue
+    inscritosPorCat[l.id_categoria] = (inscritosPorCat[l.id_categoria] || 0) + 1
+  }
+
   const porCancha = Array.from({ length: numCanchas }, () => [])
   const canchaPorCat = {}
   catsConLlave.forEach((cat, ci) => {
@@ -456,7 +469,10 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
     porCancha[ci % numCanchas].push(cat)
   })
 
-  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, { numCanchas })
+  const ordenPistaMap = buildOrdenPistaMapPorCancha(catsConLlave, porCat, canchaPorCat, {
+    numCanchas,
+    inscritosPorCat,
+  })
 
   const resumen = []
   let updates = []
