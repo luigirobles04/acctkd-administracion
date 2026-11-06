@@ -18,13 +18,13 @@ describe('numeración intercalada por área', () => {
   }
   const canchaPorCat = { 1: 1, 2: 1 }
 
-  it('numera por orden de categoría (bloques seguidos, sin saltos)', () => {
+  it('intercala y pone un combate ajeno antes de cada final', () => {
     const map = buildOrdenPistaMapPorCancha([catA, catB], porCat, canchaPorCat)
     expect(map[10]).toBe(1)
-    expect(map[11]).toBe(2)
-    expect(map[12]).toBe(3)
-    expect(map[20]).toBe(4)
-    expect(map[21]).toBe(5)
+    expect(map[20]).toBe(2)
+    expect(map[11]).toBe(3)
+    expect(map[21]).toBe(4)
+    expect(map[12]).toBe(5)
   })
 
   it('buildSchedulePorCategoria no altera el orden de bloques', () => {

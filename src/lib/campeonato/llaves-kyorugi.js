@@ -409,10 +409,10 @@ function normalizarUpdatesOrdenPista(updates) {
   return out
 }
 
-import { buildSchedulePorCategoria } from '@/lib/campeonato/schedule-canchas'
+import { buildScheduleNumeracionIntercalada } from '@/lib/campeonato/schedule-canchas'
 import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
 
-/** Asignación de área balanceada por cantidad de combates; orden_pista por bloques de categoría dentro del área. */
+/** Asignación de área balanceada por combates; orden_pista intercalado con descanso antes de cada final. */
 export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CANCHAS_DEFAULT) {
   const { data: categorias, error: errC } = await sb
     .from('categoria_campeonato')
@@ -462,7 +462,7 @@ export async function asignarCanchasCampeonato(sb, idCampeonato, numCanchas = CA
 
   for (let n = 0; n < numCanchas; n++) {
     const catsEnCancha = porCancha[n]
-    const secuencia = buildSchedulePorCategoria(catsEnCancha, porCat)
+    const secuencia = buildScheduleNumeracionIntercalada(catsEnCancha, porCat)
     const conteoCat = {}
 
     for (const combate of secuencia) {

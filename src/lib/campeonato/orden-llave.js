@@ -1,5 +1,5 @@
 import {
-  buildSchedulePorCategoria,
+  buildScheduleNumeracionIntercalada,
   combatesPeleables,
   ordenPistaDesdeSchedule,
 } from '@/lib/campeonato/schedule-canchas'
@@ -69,8 +69,8 @@ export function computeOrdenLlavePdf(combates) {
 
 /**
  * Mapa id_llave → orden_pista por área.
- * Orden del programa: todas las peleas de una categoría seguidas, luego la siguiente (numeración densa).
- * canchaPorCat: balance por cantidad de combates (ver `canchaPorCategoriaBalanceada`).
+ * Intercalado entre categorías: **al menos un combate ajeno** (p. ej. siguiente categoría) antes de cada final.
+ * Numeración densa 1, 2, 3… canchaPorCat: balance por cantidad de combates (`canchaPorCategoriaBalanceada`).
  */
 export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { numCanchas = 3 } = {}) {
   const map = {}
@@ -83,7 +83,7 @@ export function buildOrdenPistaMapPorCancha(categorias, porCat, canchaPorCat, { 
         if (oa !== ob) return oa - ob
         return (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true })
       })
-    Object.assign(map, ordenPistaDesdeSchedule(buildSchedulePorCategoria(cats, porCat)))
+    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
   }
   return map
 }

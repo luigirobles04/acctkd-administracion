@@ -266,7 +266,7 @@ export function asignarOrdenPistaPorCancha(categorias, { getCancha = (c) => c.ca
   const map = {}
   for (const cats of byCancha.values()) {
     cats.sort(compararCategoriaExport)
-    Object.assign(map, ordenPistaDesdeSchedule(buildSchedulePorCategoria(cats, porCat)))
+    Object.assign(map, ordenPistaDesdeSchedule(buildScheduleNumeracionIntercalada(cats, porCat)))
   }
   for (const cat of categorias || []) {
     for (const c of combatesPeleables(combatesDesdePorRonda(cat.porRonda))) {
