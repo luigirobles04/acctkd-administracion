@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { computeOrdenLlavePdf, buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
+import {
+  computeOrdenLlavePdf,
+  buildOrdenPistaMapPorCancha,
+  canchaPorCategoriaBalanceada,
+  etiquetaOrdenPista,
+} from '@/lib/campeonato/orden-llave'
+
+describe('etiquetaOrdenPista', () => {
+  it('formatea Área + secuencia con dos dígitos', () => {
+    expect(etiquetaOrdenPista(1, 4)).toBe('1/04')
+    expect(etiquetaOrdenPista(1, 27)).toBe('1/27')
+  })
+})
 
 describe('computeOrdenLlavePdf', () => {
   it('numera pre-finales seguidos y final con hueco', () => {

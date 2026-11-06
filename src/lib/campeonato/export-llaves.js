@@ -1,5 +1,9 @@
 import { fetchCombatesCampeonato, RONDA_LABEL } from '@/lib/campeonato/canchas-data'
-import { buildOrdenPistaMapPorCancha, canchaPorCategoriaBalanceada } from '@/lib/campeonato/orden-llave'
+import {
+  buildOrdenPistaMapPorCancha,
+  canchaPorCategoriaBalanceada,
+  etiquetaOrdenPista,
+} from '@/lib/campeonato/orden-llave'
 
 function labelCompetidor(c) {
   if (!c) return '—'
@@ -77,7 +81,9 @@ export async function buildExportLlaves(sb, idCampeonato) {
 
   function conOrdenBloque(c) {
     const n = ordenBloquesPorLlave[c.id_llave]
-    return n != null ? { ...c, orden_pista: n } : c
+    const ch = canchaPorCat[c.id_categoria]
+    if (n == null) return c
+    return { ...c, orden_pista: n, etiqueta_pista: etiquetaOrdenPista(ch, n) }
   }
 
   const categoriasExport = (categorias || []).map((cat) => {
@@ -113,7 +119,7 @@ export async function buildExportLlaves(sb, idCampeonato) {
         ronda: c.ronda,
         rondaLabel: c.rondaLabel || RONDA_LABEL[c.ronda] || `Ronda ${c.ronda}`,
         match_numero: c.match_numero,
-        numero_combate: c.orden_pista || '',
+        numero_combate: etiquetaOrdenPista(canchaPorCat[cat.id_categoria], c.orden_pista) || String(c.orden_pista || ''),
         chung: labelCompetidor(c.competidor1),
         hong: labelCompetidor(c.competidor2),
         academia_chung: c.competidor1?.academia || '',

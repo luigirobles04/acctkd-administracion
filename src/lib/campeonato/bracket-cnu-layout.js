@@ -9,7 +9,9 @@ export const COL_TEAM = 2
 export const COL_BRACKET = 3
 
 function fmtCombate(num, cancha) {
-  if (!num) return ''
+  if (!num && num !== 0) return ''
+  const s = String(num).trim()
+  if (s.includes('/')) return s
   const n = String(num).padStart(2, '0')
   return cancha ? `${cancha}/${n}` : n
 }
@@ -48,7 +50,9 @@ export function entradasPrimeraRonda(porRonda, { inscritos = null } = {}) {
     out.push({
       es_bye: Boolean(m.es_bye),
       vacio: false,
-      numero_combate: m.es_bye ? '' : (m.orden_pista || m.orden_bracket || m.orden_llave || ''),
+      numero_combate: m.es_bye
+        ? ''
+        : (m.etiqueta_pista || m.orden_pista || m.orden_bracket || m.orden_llave || ''),
       chung: slotFromRaw(m.competidor1, m.color1 || (m.es_bye ? colorByeEnBloque(mn) : 'azul')),
       hong: m.es_bye ? null : slotFromRaw(m.competidor2, m.color2 || 'rojo'),
     })

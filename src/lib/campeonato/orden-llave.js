@@ -11,6 +11,17 @@ export function combateEnLlave(c) {
 
 export { ordenPistaDesdeSchedule }
 
+/** Etiqueta PDF/planilla: `Área/NN` (NN = posición en el orden del área; puede haber saltos 04→06). */
+export function etiquetaOrdenPista(cancha, ordenPista) {
+  if (ordenPista == null || ordenPista === '') return ''
+  const area = Number(cancha)
+  const seq = Number(ordenPista)
+  if (!Number.isFinite(area) || area <= 0 || !Number.isFinite(seq) || seq <= 0) {
+    return String(ordenPista ?? '')
+  }
+  return `${area}/${String(seq).padStart(2, '0')}`
+}
+
 /**
  * Reparte áreas **balanceando el número de combates peleables** por categoría (greedy LPT).
  * Evita que un área acumule muchas más peleas que otras (ej. 20 vs 30).

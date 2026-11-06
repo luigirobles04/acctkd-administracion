@@ -11,7 +11,9 @@ const COL_I = 8
 const COL_F = 5
 
 function fmtCombate(num, cancha) {
-  if (!num) return ''
+  if (!num && num !== 0) return ''
+  const s = String(num).trim()
+  if (s.includes('/')) return s
   const n = String(num).padStart(2, '0')
   return cancha ? `${cancha}/${n}` : String(n)
 }
@@ -231,8 +233,10 @@ function layout6(cols, cancha, porRonda) {
   const primera = porRonda[maxR] || []
   const qf54 = primera.find((m) => !m.es_bye && m.match_numero === 2)
   const qf36 = primera.find((m) => !m.es_bye && m.match_numero === 4)
-  const qfTopNo = qf54?.orden_pista ?? cols[0]?.combates?.[0]?.numero_combate ?? ''
-  const qfBotNo = qf36?.orden_pista ?? cols[0]?.combates?.[1]?.numero_combate ?? ''
+  const qfTopNo =
+    qf54?.etiqueta_pista ?? qf54?.orden_pista ?? cols[0]?.combates?.[0]?.numero_combate ?? ''
+  const qfBotNo =
+    qf36?.etiqueta_pista ?? qf36?.orden_pista ?? cols[0]?.combates?.[1]?.numero_combate ?? ''
 
   const finOutTop = 2
   const finOutBot = 8

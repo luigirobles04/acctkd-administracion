@@ -131,8 +131,13 @@ function drawHeader(doc, campeonato, cat, pageW) {
 }
 
 function measureFightBadge(doc, area, num, fontSize = 9) {
-  if (!num) return { w: 0, h: 0, label: '' }
-  const label = area ? `${area}/${String(num).padStart(2, '0')}` : String(num)
+  if (!num && num !== 0) return { w: 0, h: 0, label: '' }
+  const raw = String(num).trim()
+  const label = raw.includes('/')
+    ? raw
+    : area
+      ? `${area}/${String(num).padStart(2, '0')}`
+      : String(num)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(fontSize)
   const w = Math.max(14, doc.getTextWidth(label) + 7)
