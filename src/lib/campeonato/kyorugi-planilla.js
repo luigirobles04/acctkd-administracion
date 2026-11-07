@@ -192,28 +192,19 @@ export function agruparKyorugiPlanillaPorDivision(categorias) {
     })
 }
 
-function kyorugiParticipanteRows(participantes, resaltarIdLineas) {
-  return (participantes || []).map((p) => {
-    const highlight = resaltarIdLineas?.has(p.id_linea)
-    const mark = (cell) =>
-      cell && typeof cell === 'object' ? { ...cell, highlight } : { text: cell, highlight }
-    return [
-      mark({ text: String(p.orden), align: 'center', bold: true }),
-      mark({ text: p.dorsal || '—', align: 'center', bold: true }),
-      mark(p.nombres),
-      mark(p.academia),
-      mark(p.peso),
-    ]
-  })
+const PUESTOS_EN_BLANCO = 50
+
+function filasKyorugiEnBlanco() {
+  return Array.from({ length: PUESTOS_EN_BLANCO }, (_, i) => [
+    { text: String(i + 1), align: 'center', bold: true },
+    { text: '', align: 'center' },
+    { text: '' },
+    { text: '' },
+    { text: '' },
+  ])
 }
 
-export function buildKyorugiPlanillaSections(bloques, { resaltarIdLineas } = {}) {
-  const highlightSet =
-    resaltarIdLineas instanceof Set
-      ? resaltarIdLineas
-      : resaltarIdLineas
-        ? new Set(resaltarIdLineas)
-        : null
+export function buildKyorugiPlanillaSections(bloques) {
   const sections = []
   const lineasVistas = new Set()
 
@@ -234,8 +225,8 @@ export function buildKyorugiPlanillaSections(bloques, { resaltarIdLineas } = {})
       if (!participantes.length) continue
 
       sections.push({
-        title: `${cat.nombre} · ${cat.genero || ''} · ${participantes.length} competidor(es)`,
-        rows: kyorugiParticipanteRows(participantes, highlightSet),
+        title: `${cat.nombre} · ${cat.genero || ''}`,
+        rows: filasKyorugiEnBlanco(),
       })
     }
   }

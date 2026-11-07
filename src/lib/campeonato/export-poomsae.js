@@ -8,8 +8,6 @@ import {
   parseNombrePoomsae,
   tituloFormaPoomsae,
 } from '@/lib/campeonato/poomsae-formas'
-import { esModalidadGrupo } from '@/lib/campeonato/validar-grupo'
-
 function categoriasConInscritos(categorias) {
   return (categorias || []).filter((c) => c.inscritos > 0)
 }
@@ -24,34 +22,22 @@ const POOMSAE_PDF_COLUMNS = [
   { header: 'Juez 3', width: 20, align: 'center', minRowHeightMm: 12 },
 ]
 
-function participanteRows(participantes, resaltarIdLineas) {
-  return (participantes || []).map((p) => {
-    const nombres = p.nombres_llamado || p.nombres
-    const esGrupo = (p.miembros_nombres?.length > 1) || esModalidadGrupo(p.modalidad_key)
-    const highlight = resaltarIdLineas?.has(p.id_linea)
-    const mark = (cell) =>
-      cell && typeof cell === 'object' ? { ...cell, highlight } : { text: cell, highlight }
-    const casillaJuez = () => mark({ text: '', align: 'center' })
-    return [
-      mark({ text: String(p.orden ?? ''), align: 'center', bold: true }),
-      mark({ text: p.dorsal || '—', align: 'center', bold: true }),
-      mark(esGrupo ? { text: nombres, multiline: true } : { text: nombres }),
-      mark({ text: p.academia }),
-      casillaJuez(),
-      casillaJuez(),
-      casillaJuez(),
-    ]
-  })
+const PUESTOS_EN_BLANCO = 50
+
+function filasPoomsaeEnBlanco() {
+  return Array.from({ length: PUESTOS_EN_BLANCO }, (_, i) => [
+    { text: String(i + 1), align: 'center', bold: true },
+    { text: '', align: 'center' },
+    { text: '' },
+    { text: '' },
+    { text: '', align: 'center' },
+    { text: '', align: 'center' },
+    { text: '', align: 'center' },
+  ])
 }
 
 /** Secciones export: KIBOM/PAL JANG… · bloques PAREJAS y EQUIPOS · sin duplicar líneas */
-export function buildPoomsaeExportSectionsPorForma(categorias, { resaltarIdLineas } = {}) {
-  const highlightSet =
-    resaltarIdLineas instanceof Set
-      ? resaltarIdLineas
-      : resaltarIdLineas
-        ? new Set(resaltarIdLineas)
-        : null
+export function buildPoomsaeExportSectionsPorForma(categorias) {
   const byGrupo = new Map(categoriasConInscritos(categorias).map((c) => [c.grupo_key, c]))
   const bloques = agruparPoomsaeParaOrden(categorias)
   const sections = []
@@ -77,12 +63,12 @@ export function buildPoomsaeExportSectionsPorForma(categorias, { resaltarIdLinea
 
       const title =
         bloque.kind === 'forma'
-          ? `${catMeta.nombre || cat.nombre_display || cat.nombre} · ${participantes.length} participante(s)`
-          : `${catMeta.formaTitulo || tituloFormaPoomsae(parseNombrePoomsae(cat.nombre).forma)} · ${catMeta.nombre || cat.nombre_display || cat.nombre} · ${participantes.length} participante(s)`
+          ? `${catMeta.nombre || cat.nombre_display || cat.nombre}`
+          : `${catMeta.formaTitulo || tituloFormaPoomsae(parseNombrePoomsae(cat.nombre).forma)} · ${catMeta.nombre || cat.nombre_display || cat.nombre}`
 
       sections.push({
         title,
-        rows: participanteRows(participantes, highlightSet),
+        rows: filasPoomsaeEnBlanco(),
       })
     }
   }
@@ -204,8 +190,8 @@ export function descargarPoomsaeCategoriaPdf(campeonato, categoria) {
   const sections = [
     { formaBanner: banner },
     {
-      title: `${c.nombre_display || c.nombre} · ${c.inscritos} participante(s)`,
-      rows: participanteRows(c.participantes),
+      title: `${c.nombre_display || c.nombre}`,
+      rows: filasPoomsaeEnBlanco(),
     },
   ]
   descargarTablaPdf(
