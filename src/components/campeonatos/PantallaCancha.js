@@ -40,26 +40,7 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
       {vacio ? (
         <span className="pantalla-vacio">Por definir</span>
       ) : (
-        <>
-          <div className="pantalla-competidor-top">
-            {data.foto ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.foto} alt={data.nombres} className="pantalla-foto" />
-            ) : (
-              <div className="pantalla-foto pantalla-foto--placeholder">
-                {(data.nombres || data.dorsal || '?').trim().charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="pantalla-dorsal" style={c && !esGanador ? { color: c.text } : undefined}>
-              {data.dorsal}
-            </span>
-          </div>
-          {data.academia && (
-            <span className="pantalla-academia" style={c && !esGanador ? { color: c.sub } : undefined}>
-              {data.academia}
-            </span>
-          )}
-        </>
+        <span className="pantalla-blanco-linea" />
       )}
     </div>
   )
@@ -143,7 +124,7 @@ function ResultadoMini({ combate }) {
       </div>
       <div className="pantalla-resultado-mini-ganador">
         <span className="pantalla-resultado-oro">★</span>
-        <span className="pantalla-resultado-dorsal">{ganador.dorsal}</span>
+        <span className="pantalla-blanco-linea" />
       </div>
     </div>
   )
