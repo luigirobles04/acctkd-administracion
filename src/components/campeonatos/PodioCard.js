@@ -47,7 +47,7 @@ export default function PodioCard({ categoria, compact = false, modalidad = 'kyo
     <article className={`podio-card podio-card--completo${compact ? ' podio-card--compact' : ''}${sinPuntos ? ' podio-card--sin-puntos' : ''}`}>
       <h3 className="podio-cat-nombre">{nombre}</h3>
       {sinPuntos && (
-        <p className="podio-sin-puntos" title="Se requieren 3 o más academias distintas en la categoría">
+        <p className="podio-sin-puntos" title="Se requieren 2 o más academias distintas en la categoría">
           Medallas sin puntos · {academias_distintas ?? 0} academia{academias_distintas === 1 ? '' : 's'}
         </p>
       )}

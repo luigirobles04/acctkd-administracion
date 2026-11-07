@@ -3,7 +3,7 @@
 const DEFAULT_PUNTOS = { oro: 120, plata: 50, bronce: 20 }
 
 /** Mínimo de academias distintas en la categoría para que las medallas sumen puntos. */
-export const MIN_ACADEMIAS_PARA_PUNTOS = 3
+export const MIN_ACADEMIAS_PARA_PUNTOS = 2
 
 function puntosCampeonato(camp) {
   return {
@@ -28,7 +28,7 @@ function keyAcademia(nombre) {
   return (nombre || 'Sin academia').trim() || 'Sin academia'
 }
 
-/** Categoría puntúa si hay ≥ 3 academias distintas. */
+/** Categoría puntúa si hay 2 o más academias distintas. */
 export function categoriaSumaPuntos(cat) {
   if (!cat) return false
   if (typeof cat.suma_puntos === 'boolean') return cat.suma_puntos
@@ -120,7 +120,7 @@ export function buildMedallero({ kyorugi, poomsae, campeonato }) {
     puntos,
     regla_puntos: {
       min_academias: MIN_ACADEMIAS_PARA_PUNTOS,
-      descripcion: 'Solo suman puntos las categorías con 3 o más academias distintas',
+      descripcion: 'Solo suman puntos las categorías con 2 o más academias distintas',
     },
     academias: {
       kyorugi: academiasKyorugi,

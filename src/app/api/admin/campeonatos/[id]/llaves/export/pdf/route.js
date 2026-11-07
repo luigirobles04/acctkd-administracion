@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 /**
  * Mismos defaults que `scripts/gen-pdf-festcup-areas-1-2-3-vertical.mjs`:
  * retrato + escala de texto (env `PDF_TEXT_SCALE`, típ. 1.22).
- * Override por query: `orientacion=landscape|portrait`, `escala=1.1`
+ * Retrato: layout compacto (2 comp. → 3/hoja, 3+ → 2/hoja) salvo `PDF_BRACKET_COMPACT=0`.
+ * Override por query: `orientacion=landscape|portrait`, `escala=1.1`, `compacto=0|1`
  */
 function opcionesPdfDesdeRequest(searchParams) {
   const orientRaw =
@@ -25,7 +26,14 @@ function opcionesPdfDesdeRequest(searchParams) {
   const n = Number(escalaRaw)
   const textScale = Number.isFinite(n) ? Math.min(1.45, Math.max(0.85, n)) : 1.22
 
-  return { orientation, textScale }
+  const compactRaw = searchParams.get('compacto') ?? searchParams.get('compactLayout')
+  let compactLayout = null
+  if (compactRaw != null && String(compactRaw).trim() !== '') {
+    const v = String(compactRaw).toLowerCase()
+    compactLayout = v === '0' || v === 'false' || v === 'no' ? false : true
+  }
+
+  return { orientation, textScale, compactLayout }
 }
 
 export async function GET(request, { params }) {
@@ -37,7 +45,7 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url)
     const idCategoria = searchParams.get('categoria') ? Number(searchParams.get('categoria')) : null
     const cancha = searchParams.get('cancha') ? Number(searchParams.get('cancha')) : null
-    const { orientation, textScale } = opcionesPdfDesdeRequest(searchParams)
+    const { orientation, textScale, compactLayout } = opcionesPdfDesdeRequest(searchParams)
 
     const sb = getSupabaseAdmin()
     const data = await buildExportLlaves(sb, idCampeonato)
@@ -46,6 +54,7 @@ export async function GET(request, { params }) {
       cancha: cancha || undefined,
       orientation,
       textScale,
+      ...(compactLayout !== null ? { compactLayout } : {}),
     })
 
     const camp = data.campeonato?.nombre || 'Campeonato'

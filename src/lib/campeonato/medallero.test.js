@@ -58,15 +58,15 @@ describe('buildMedallero', () => {
     expect(m.resumen.medallasPoomsae).toBe(1)
   })
 
-  it('no suma puntos si hay menos de 3 academias (sí registra medallas)', () => {
+  it('no suma puntos si hay una sola academia (sí registra medallas)', () => {
     const m = buildMedallero({
       kyorugi: {
         podios: [
           catCompleta(1, {
             oro: comp(1, 'Solo'),
             plata: comp(2, 'Solo'),
-            bronce: [comp(3, 'Otra')],
-            academias_distintas: 2,
+            bronce: [comp(3, 'Solo')],
+            academias_distintas: 1,
           }),
         ],
       },
@@ -121,10 +121,10 @@ describe('buildMedallero', () => {
 })
 
 describe('categoriaSumaPuntos', () => {
-  it('exige ≥ 3 academias distintas', () => {
-    expect(categoriaSumaPuntos({ academias_distintas: 2 })).toBe(false)
+  it('exige 2 o más academias distintas', () => {
+    expect(categoriaSumaPuntos({ academias_distintas: 1 })).toBe(false)
+    expect(categoriaSumaPuntos({ academias_distintas: 2 })).toBe(true)
     expect(categoriaSumaPuntos({ academias_distintas: 3 })).toBe(true)
-    expect(categoriaSumaPuntos({ academias_distintas: 4 })).toBe(true)
     expect(categoriaSumaPuntos({ suma_puntos: true, academias_distintas: 1 })).toBe(true)
   })
 })
