@@ -43,7 +43,6 @@ function LadoLlamado({ competidor, color, compact }) {
           <LogoAcademia competidor={competidor} size={compact ? 28 : 44} />
           <div className="llamados-lado-info">
             <span className="llamados-dorsal">{competidor.dorsal}</span>
-            <span className="llamados-nombre" title={competidor.nombres}>{competidor.nombres}</span>
             <span className="llamados-academia" title={competidor.academia}>{competidor.academia}</span>
           </div>
         </>
@@ -104,7 +103,7 @@ function UltimoResultado({ combate }) {
       <div className="llamados-resultado-info">
         <span className="llamados-resultado-cat">{combate.categoria_nombre} · {combate.rondaLabel}</span>
         <span className="llamados-resultado-ganador">
-          {ganador.dorsal} {ganador.nombres}
+          {ganador.dorsal}
           {combate.motivo_resultado === 'walkover' ? ' · W/O' : ''}
         </span>
       </div>
@@ -160,21 +159,6 @@ function ColumnaArea({ area }) {
   )
 }
 
-function NombresPoomsaeLlamado({ atleta, destacado }) {
-  const lista = atleta?.miembros_nombres?.length > 1 ? atleta.miembros_nombres : null
-  const texto = atleta?.nombres_llamado || atleta?.nombres
-  if (lista?.length) {
-    return (
-      <ul className={`llamados-poomsae-nombres-lista${destacado ? ' llamados-poomsae-nombres-lista--actual' : ''}`}>
-        {lista.map((n) => (
-          <li key={n}>{n}</li>
-        ))}
-      </ul>
-    )
-  }
-  return <span className="llamados-nombre">{texto}</span>
-}
-
 function AtletaPoomsae({ atleta, destacado }) {
   if (!atleta) return null
   const enVivo = atleta.estado === 'en_curso' || atleta.en_curso
@@ -187,7 +171,6 @@ function AtletaPoomsae({ atleta, destacado }) {
           {enVivo && destacado ? ' · EN PISTA' : ''}
         </span>
         <span className="llamados-dorsal">{atleta.dorsal}</span>
-        <NombresPoomsaeLlamado atleta={atleta} destacado={destacado} />
         <span className="llamados-academia">{atleta.academia}</span>
         {atleta.categoria_nombre && (
           <span className="llamados-poomsae-cat-mini">{atleta.categoria_nombre}</span>
@@ -255,7 +238,7 @@ function ColumnaAreaPoomsae({ area }) {
                     <div className="llamados-resultado-info">
                       <span className="llamados-resultado-cat">{a.categoria_nombre}</span>
                       <span className="llamados-resultado-ganador">
-                        {a.dorsal} {a.nombres}
+                        {a.dorsal}
                         {a.ausente ? ' · AUSENTE' : a.puntaje != null ? ` · ${Number(a.puntaje).toFixed(1)}` : ''}
                       </span>
                     </div>
@@ -313,11 +296,6 @@ function VistaPoomsae({ poomsae }) {
                 {item.formaTitulo && (
                   <p className="llamados-poomsae-grupo-forma">{item.formaTitulo}</p>
                 )}
-                <ul className="llamados-poomsae-nombres-lista llamados-poomsae-nombres-lista--card">
-                  {(item.miembros_nombres?.length ? item.miembros_nombres : [item.nombres]).map((n) => (
-                    <li key={`${item.id_linea}-${n}`}>{n}</li>
-                  ))}
-                </ul>
                 <p className="llamados-poomsae-cat-mini">{item.categoria_nombre}</p>
                 <p className="llamados-academia">{item.academia}</p>
               </article>

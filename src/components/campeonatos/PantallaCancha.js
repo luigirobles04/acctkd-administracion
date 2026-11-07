@@ -54,9 +54,6 @@ function CompetidorTV({ data, color, lado, esGanador, grande }) {
               {data.dorsal}
             </span>
           </div>
-          <span className="pantalla-nombre" style={c && !esGanador ? { color: c.text } : undefined}>
-            {data.nombres}
-          </span>
           {data.academia && (
             <span className="pantalla-academia" style={c && !esGanador ? { color: c.sub } : undefined}>
               {data.academia}
@@ -147,7 +144,6 @@ function ResultadoMini({ combate }) {
       <div className="pantalla-resultado-mini-ganador">
         <span className="pantalla-resultado-oro">★</span>
         <span className="pantalla-resultado-dorsal">{ganador.dorsal}</span>
-        <span className="pantalla-resultado-nombre">{ganador.nombres}</span>
       </div>
     </div>
   )
