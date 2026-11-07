@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { verifyPssAccess } from '@/lib/pss-auth'
 import { buildPssAreaSnapshot } from '@/lib/campeonato/pss-kyorugi'
+import { ocultarNombresPublicos } from '@/lib/campeonato/ocultar-nombres-publico'
 
 export async function GET(request, { params }) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request, { params }) {
     const auth = await verifyPssAccess(sb, request, idCampeonato)
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-    const snapshot = await buildPssAreaSnapshot(sb, idCampeonato, cancha)
+    const snapshot = ocultarNombresPublicos(await buildPssAreaSnapshot(sb, idCampeonato, cancha))
     return NextResponse.json(snapshot)
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

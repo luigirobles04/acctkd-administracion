@@ -5,6 +5,7 @@ import { fetchPantallaLlamadosKyorugi } from '@/lib/campeonato/canchas-data'
 import { fetchOrdenPoomsaeCampeonato } from '@/lib/campeonato/poomsae-orden'
 import { organizarPantallaPoomsaePorAreas } from '@/lib/campeonato/poomsae-pss'
 import { getPoomsaeLiveState } from '@/lib/campeonato/poomsae-live'
+import { ocultarNombresPublicos } from '@/lib/campeonato/ocultar-nombres-publico'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -67,8 +68,8 @@ export async function GET(request, { params }) {
           lugar: campeonato.lugar,
           estado: campeonato.estado,
         },
-        areas,
-        poomsae,
+        areas: ocultarNombresPublicos(areas),
+        poomsae: ocultarNombresPublicos(poomsae),
         totalCampeonato,
         totalPoomsae,
         actualizado: new Date().toISOString(),

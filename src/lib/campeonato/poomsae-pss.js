@@ -147,17 +147,13 @@ export async function iniciarParticipantePoomsaePss(sb, idCampeonato, idLinea, {
   // Siempre escribir overlay en vivo (llamados se actualiza aunque falle el check constraint).
   const catNombre = linea.categoria?.nombre || ''
   const { forma } = parseNombrePoomsae(catNombre)
-  const nombres = (linea.miembros || [])
-    .map((m) => `${m.perfil?.nombres || ''} ${m.perfil?.apellidos || ''}`.trim())
-    .filter(Boolean)
-    .join(' · ')
   await setPoomsaeLiveArea(sb, idCampeonato, area, {
     id_linea: id,
     id_categoria: linea.id_categoria,
     forma,
     categoria_nombre: catNombre,
     dorsal: linea.dorsal_display || '',
-    nombres,
+    nombres: '',
     academia: linea.academia_campeonato?.academia?.nombre || '',
     academia_logo: linea.academia_campeonato?.academia?.logo_url || '',
     orden: linea.orden_poomsae,

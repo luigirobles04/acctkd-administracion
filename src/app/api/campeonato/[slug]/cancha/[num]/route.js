@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { obtenerCampeonatoPorSlug } from '@/lib/campeonato/inscripcion-server'
 import { fetchCombatesCampeonato, organizarPantallaCancha } from '@/lib/campeonato/canchas-data'
+import { ocultarNombresPublicos } from '@/lib/campeonato/ocultar-nombres-publico'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ export async function GET(_request, { params }) {
         },
         cancha,
         totalCampeonato: total,
-        ...pantalla,
+        ...ocultarNombresPublicos(pantalla),
         actualizado: new Date().toISOString(),
       },
       { headers: { 'Cache-Control': 's-maxage=4, stale-while-revalidate=8' } }
